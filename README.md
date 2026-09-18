@@ -1,6 +1,6 @@
 # ORCA
 
-> **Personal Workspace App:** Milanote + Google Calendar + Project Management, jadi satu, self-hostable, dan siap AI layer.
+> **Personal & Business Operating System:** Milanote + Notion Docs + Google Calendar + Linear Task Management, jadi satu, self-hostable, dan siap AI layer.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Status: Planning & Design](https://img.shields.io/badge/Status-Planning%20%26%20Design-orange.svg)](#roadmap)
@@ -9,10 +9,11 @@
 
 ## 📌 Ringkasan Eksekutif
 
-**ORCA** adalah ruang kerja terpadu (*unified personal workspace*) yang menggabungkan tiga pilar produktivitas utama yang biasanya terpisah:
-1. **Project & Task Management** (gaya Linear / Todoist: Kanban, list view, prioritas, dependensi).
-2. **Calendar & Time-Blocking** (integrasi 2 arah dengan Google Calendar, menghubungkan task langsung ke slot waktu).
-3. **Spatial Brainstorming Board & Notes** (gaya Milanote: infinite canvas dengan draggable cards, sticky notes, rich text, dan garis koneksi relasional).
+**ORCA** adalah ruang kerja terpadu (*unified workspace & operating system*) yang dirancang untuk mengelola seluruh domain kehidupan dan pekerjaan (Kantor, Kehidupan Pribadi, Bisnis A, Bisnis B, dll.) tanpa kehilangan fokus dan tanpa fragmentasi aplikasi:
+1. **Multi-Domain Spaces:** Memisahkan konteks antara pekerjaan kantor, bisnis, dan ranah pribadi dengan context switcher instan dan *All-Spaces view*.
+2. **Project Hub (Docs + Board + Tasks):** Menggabungkan 3 lapisan alur kerja: dokumen strategi/brand panjang (gaya Notion), kanvas visual brainstorming bebas (gaya Milanote), dan eksekusi Kanban/List (gaya Linear).
+3. **Calendar & Time-Blocking:** Mengintegrasikan Google Calendar dan memungkinkan *drag-and-drop task* ke slot jam nyata dengan ritual *Daily Planning*.
+4. **Global Quick Capture (`Ctrl+K`):** Menangkap ide dan tugas kilat dalam hitungan detik ke dalam Inbox tanpa memecah konsentrasi.
 
 Dirancang khusus dengan prinsip **self-host first-class citizen**, **modular monolith**, dan **ringan konsumsi resource** (<30MB RAM idle pada backend), sehingga dapat dijalankan dengan mudah menggunakan Docker Compose di VPS rumahan maupun Helm Chart di cluster Kubernetes (RKE).
 
@@ -40,11 +41,14 @@ Dirancang khusus dengan prinsip **self-host first-class citizen**, **modular mon
                            │
                            ▼
   [ v0.1 — MVP Inti (Fokus Saat Ini) ]
-  • Go Modular Monolith API + PostgreSQL (Auth, Workspace, Tasks, Calendar, Notes).
-  • SolidJS SPA Shell (Navigation, Responsive Layout).
-  • Task & Project Management (Kanban, List, Status, Priority, Due Date).
-  • Calendar View (Sinkronisasi 1-arah dari Google Calendar).
-  • Spatial Board v1 (Draggable Cards, Sticky Notes, Garis Relasi SVG).
+  • Go Modular Monolith API + PostgreSQL (Auth, Spaces, Projects, Docs, Tasks, Calendar, Boards).
+  • SolidJS SPA Shell (Sidebar Context Switcher, Global Quick Capture Ctrl+K).
+  • Spaces Management (Kantor, Pribadi, Bisnis A, Bisnis B, All-Spaces View).
+  • Project Hub:
+    - Tab Docs & Plans (Long-form Markdown, Brand Doc, PRD, Activity Plan, Text-to-Task).
+    - Tab Spatial Board (Milanote Canvas, Draggable Cards, Sticky Notes, Garis Relasi SVG, Card-to-Task).
+    - Tab Tasks (Kanban, List View, Status, Priority, Due Date, Subtasks).
+  • Calendar View & Time-Blocking (Google Calendar 1-Way Sync + Daily Planning ritual).
   • Single Docker Compose deployment.
                            │
                            ▼

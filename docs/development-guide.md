@@ -27,9 +27,12 @@ ORCA/
 │   ├── auth/               # Logika autentikasi dan session
 │   ├── board/              # Logika spatial board & note blocks
 │   ├── calendar/           # Logika kalender & Google Sync worker
-│   ├── link/               # Relasi relasional antar entitas
+│   ├── doc/                # Logika dokumen bisnis & rich notes (Markdown)
+│   ├── link/               # Relasi polimorfik antar entitas
 │   ├── platform/           # Konfigurasi, DB pool, logging, middleware
-│   ├── task/               # Logika project & task management
+│   ├── project/            # Logika Project Hub (koordinasi doc, board, task)
+│   ├── space/              # Logika Spaces / domain konteks multi-peran
+│   ├── task/               # Logika task management & kanban
 │   └── workspace/          # Logika workspace & scoping tenant
 ├── migrations/             # SQL migration files untuk PostgreSQL
 ├── web/                    # Frontend SPA (SolidJS + TypeScript + Vite)
@@ -37,7 +40,10 @@ ORCA/
 │   │   ├── assets/         # Asset statis
 │   │   ├── components/     # UI components (Kobalte primitives)
 │   │   │   ├── board/      # Canvas spatial & SVG lines
-│   │   │   ├── calendar/   # Kalender views
+│   │   │   ├── calendar/   # Kalender views & daily planning drawer
+│   │   │   ├── docs/       # Editor dokumen panjang & text-to-task
+│   │   │   ├── inbox/      # Quick capture modal (Ctrl+K) & triage
+│   │   │   ├── spaces/     # Context switcher & space manager
 │   │   │   ├── tasks/      # Kanban & list components
 │   │   │   └── ui/         # Tombol, dialog, input
 │   │   ├── lib/            # Utility & API client fetcher
