@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>ORCA — Spatial Operating System</title>
+  
+  <!-- Critical External Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+
+  <style>
+    @layer base {
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #111317;
+        color: #e2e2e8;
+        font-family: 'Geist', 'Inter', -apple-system, sans-serif;
+      }
+      body { overscroll-behavior: none; }
+    }
+    ::-webkit-scrollbar { display: none; }
+    * { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+
+  <!-- Tailwind CSS with custom configuration -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#111317",
+            "surface-dim": "#0e1013",
+            "surface-container-lowest": "#0c0e12",
+            "surface-container-low": "#16181d",
+            "surface-container": "#1a1c22",
+            "surface-container-high": "#22252c",
+            "surface-container-highest": "#333539",
+            "surface-bright": "#37393e",
+            "surface-border": "#272a32",
+            "outline": "#918f9e",
+            "outline-variant": "#464552",
+            "primary": "#8b8df8",
+            "primary-container": "#8b8df8",
+            "primary-fixed-dim": "#c1c1ff",
+            "secondary": "#44e1de",
+            "secondary-container": "#00c5c2",
+            "tertiary": "#cebdff",
+            "tertiary-container": "#a286f5",
+            "text-main": "#ffffff",
+            "text-muted": "#94a3b8",
+            "text-dim": "#64748b",
+            "on-surface": "#e2e2e8",
+            "on-surface-variant": "#c7c5d4",
+            "error": "#ffb4ab",
+            "error-container": "#93000a"
+          },
+          fontFamily: {
+            sans: ["Geist", "Inter", "sans-serif"],
+            mono: ["GeistMono", "monospace"]
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Required React 18 & React Router v6.3.0 dependencies -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/history@5/umd/history.development.js"></script>
+  <script src="https://unpkg.com/react-router@6.3.0/umd/react-router.development.js"></script>
+  <script src="https://unpkg.com/react-router-dom@6.3.0/umd/react-router-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+</head>
+<body class="bg-[#111317] text-[#e2e2e8] antialiased selection:bg-primary/20 selection:text-white min-h-screen overflow-hidden">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const { createRoot } = ReactDOM;
+    const { MemoryRouter, Routes, Route, Link, useNavigate, useLocation } = ReactRouterDOM;
+
+    // --- SHARED SIDEBAR COMPONENT ---
+    function Sidebar({ onOpenQuickCapture }) {
+      const location = useLocation();
+      const currentPath = location.pathname;
+
+      const spaces = [
+        { name: 'All Spaces', path: '/spaces' },
+        { name: 'Kantor', path: '/spaces?space=kantor' },
+        { name: 'Pribadi', path: '/spaces?space=pribadi' },
+        { name: 'Bisnis A', path: '/canvas' },
+        { name: 'Bisnis B', path: '/spaces?space=bisnis-b' }
+      ];
+
+      return (
+        <aside className="fixed left-0 top-0 bottom-0 w-64 bg-[#111317] z-50 flex flex-col justify-between p-5 border-r border-white/10 select-none">
+          <div className="flex flex-col gap-6">
+            {/* Wordmark Header */}
+            <div className="flex items-center justify-between px-1 pt-1">
+              <Link to="/spaces" className="flex items-center gap-2 group">
+                <span className="text-base font-semibold tracking-widest text-white uppercase group-hover:text-primary transition-colors">ORCA</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-secondary shadow-[0_0_8px_rgba(68,225,222,0.6)]"></span>
+              </Link>
+              <button 
+                aria-label="Collapse sidebar" 
+                className="w-7 h-7 rounded-sm hover:bg-white/[0.06] text-text-dim hover:text-white flex items-center justify-center transition-colors"
+              >
+                <span className="material-symbols-outlined text-[17px]">dock_to_right</span>
+              </button>
+            </div>
+
+            {/* Spaces Switcher */}
+            <div className="flex flex-col gap-1.5">
+              <div className="px-2 text-[11px] uppercase tracking-widest text-text-dim font-medium flex items-center justify-between">
+                <span>Spaces</span>
+                <Link to="/spaces" className="hover:text-white transition-colors" title="Manage Spaces">
+                  <span className="material-symbols-outlined text-[14px]">tune</span>
+                </Link>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                {spaces.map(s => {
+                  const isActive = (s.path === '/canvas' && ['/canvas', '/canvas-hub', '/documents', '/tasks'].includes(currentPath)) ||
+                                   (s.path === '/spaces' && currentPath === '/spaces');
+                  return (
+                    <Link
+                      key={s.name}
+                      to={s.path}
+                      className={`w-full text-left px-2.5 py-1.5 text-[13px] rounded-sm transition-all ${
+                        isActive 
+                          ? 'font-medium text-white bg-white/[0.08] border-l-2 border-primary rounded-r-sm pl-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
+                          : 'text-text-muted hover:text-white hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      {s.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Sub-project under active space */}
+            <div className="pl-3 -mt-2">
+              <div className="pl-3 border-l border-white/10 flex flex-col gap-0.5">
+                <Link 
+                  to="/canvas" 
+                  className={`text-[12px] py-1 px-2 rounded-sm transition-colors ${['/canvas', '/canvas-hub', '/documents', '/tasks'].includes(currentPath) ? 'text-primary font-medium bg-primary/10' : 'text-text-dim hover:text-white'}`}
+                >
+                  Rebranding & Launch
+                </Link>
+              </div>
+            </div>
+
+            {/* Navigation Section */}
+            <div className="flex flex-col gap-1.5">
+              <div className="px-2 text-[11px] uppercase tracking-widest text-text-dim font-medium">
+                Views
+              </div>
+              <nav className="flex flex-col gap-0.5">
+                <Link 
+                  to="/spaces" 
+                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-sm text-[13px] transition-colors ${
+                    currentPath === '/spaces' 
+                      ? 'text-white bg-white/[0.06] border border-white/5 font-medium' 
+                      : 'text-text-muted hover:text-white hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[17px] text-text-dim">grid_view</span>
+                  <span>Spaces Master</span>
+                </Link>
+
+                <Link 
+                  to="/canvas-hub" 
+                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-sm text-[13px] transition-colors ${
+                    currentPath === '/canvas-hub' 
+                      ? 'text-white bg-white/[0.06] border border-white/5 font-medium' 
+                      : 'text-text-muted hover:text-white hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[17px] text-secondary">dashboard</span>
+                  <span>Canvas Hub</span>
+                </Link>
+
+                <Link 
+                  to="/calendar" 
+                  className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-sm text-[13px] transition-colors ${
+                    currentPath === '/calendar' 
+                      ? 'text-white bg-white/[0.06] border border-white/5 font-medium' 
+                      : 'text-text-muted hover:text-white hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[17px] text-primary">calendar_today</span>
+                  <span>Calendar</span>
+                </Link>
+              </nav>
+            </div>
+          </div>
+
+          {/* Quick Capture Bottom Button */}
+          <div className="pt-4 border-t border-white/10">
+            <button 
+              onClick={onOpenQuickCapture}
+              className="w-full flex items-center justify-between px-3 py-2 text-[13px] rounded-sm bg-[#181a20] hover:bg-[#20232a] text-text-muted hover:text-white border border-white/10 transition-all shadow-sm group" 
+              type="button"
+            >
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px] text-secondary group-hover:rotate-12 transition-transform">bolt</span>
+                <span className="font-medium">Quick Capture</span>
+              </div>
+              <span className="text-[11px] text-text-dim px-1.5 py-0.5 rounded border border-white/10 bg-white/[0.03] font-mono">⌘K</span>
+            </button>
+          </div>
+        </aside>
+      );
+    }
+
+    // --- QUICK CAPTURE MODAL OVERLAY ---
+    function QuickCaptureModal({ isOpen, onClose, onSave }) {
+      const [type, setType] = useState('Document');
+      const [title, setTitle] = useState('');
+      const [note, setNote] = useState('');
+
+      if (!isOpen) return null;
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="relative w-full max-w-md bg-[#181a20] border border-white/15 shadow-2xl rounded-lg p-5">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px] text-secondary">bolt</span>
+                <h3 className="text-xs font-semibold text-white tracking-wider uppercase font-mono">Quick Capture & Link</h3>
+              </div>
+              <button onClick={onClose} className="text-text-dim hover:text-white transition-colors">
+                <span className="material-symbols-outlined text-[17px]">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-text-dim uppercase font-mono tracking-wider">Target Type</span>
+                <div className="flex gap-1 p-0.5 rounded bg-[#111317] border border-white/10 text-[11px]">
+                  <button 
+                    onClick={() => setType('Document')}
+                    className={`px-3 py-1 rounded transition-colors ${type === 'Document' ? 'bg-primary/20 text-primary font-medium' : 'text-text-muted hover:text-white'}`}
+                  >
+                    Document
+                  </button>
+                  <button 
+                    onClick={() => setType('Task')}
+                    className={`px-3 py-1 rounded transition-colors ${type === 'Task' ? 'bg-secondary/20 text-secondary font-medium' : 'text-text-muted hover:text-white'}`}
+                  >
+                    Task
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-text-dim mb-1 font-mono uppercase">Title</label>
+                <input 
+                  autoFocus
+                  type="text" 
+                  value={title} 
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder={type === 'Document' ? "e.g., Packaging Visual Specs..." : "e.g., Finalize CAD Export..."}
+                  className="w-full bg-[#111317] border border-white/10 rounded-sm px-3 py-1.5 text-xs text-white placeholder:text-text-dim focus:ring-1 focus:ring-primary focus:border-primary font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-text-dim mb-1 font-mono uppercase">Note Content</label>
+                <textarea 
+                  rows="3" 
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  placeholder="Key thoughts, context reference, or markdown bullet points..."
+                  className="w-full bg-[#111317] border border-white/10 rounded-sm px-3 py-1.5 text-xs text-text-muted placeholder:text-text-dim focus:ring-1 focus:ring-primary focus:border-primary font-sans resize-none"
+                ></textarea>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-white/10 text-xs">
+                <div className="flex items-center gap-1.5 text-text-dim font-mono text-[11px]">
+                  <span className="material-symbols-outlined text-[14px]">folder</span>
+                  <span>Bisnis A</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={onClose} className="px-3 py-1 text-text-muted hover:text-white">Cancel</button>
+                  <button 
+                    onClick={() => {
+                      if (title.trim()) {
+                        onSave({ type, title, note });
+                        setTitle('');
+                        setNote('');
+                        onClose();
+                      }
+                    }}
+                    className="px-3 py-1 bg-white text-black font-medium rounded-sm hover:bg-white/90 transition-colors shadow-sm flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">link</span>
+                    <span>Create & Link</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- SCREEN 1 & 2: SPATIAL CANVAS SCREEN ---
+    function SpatialCanvasScreen({ onOpenQuickCapture }) {
+      const [pos1, setPos1] = useState({ x: 60, y: 150 });
+      const [pos2, setPos2] = useState({ x: 440, y: 140 });
+      const [pos3, setPos3] = useState({ x: 840, y: 140 });
+      const [zoom, setZoom] = useState(100);
+      const [activeTool, setActiveTool] = useState('V');
+      const [mentionOpen, setMentionOpen] = useState(false);
+      const [mentionText, setMentionText] = useState('Brand Guid');
+
+      // Draggable state handling
+      const draggingRef = useRef(null);
+
+      const handleMouseDown = (e, nodeId) => {
+        if (e.target.tagName.toLowerCase() === 'button' || e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'textarea') return;
+        draggingRef.current = {
+          nodeId,
+          startX: e.clientX,
+          startY: e.clientY,
+          initialPos: nodeId === 1 ? { ...pos1 } : nodeId === 2 ? { ...pos2 } : { ...pos3 }
+        };
+      };
+
+      useEffect(() => {
+        const handleMouseMove = (e) => {
+          if (!draggingRef.current) return;
+          const { nodeId, startX, startY, initialPos } = draggingRef.current;
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+
+          if (nodeId === 1) setPos1({ x: Math.max(20, initialPos.x + dx), y: Math.max(20, initialPos.y + dy) });
+          if (nodeId === 2) setPos2({ x: Math.max(20, initialPos.x + dx), y: Math.max(20, initialPos.y + dy) });
+          if (nodeId === 3) setPos3({ x: Math.max(20, initialPos.x + dx), y: Math.max(20, initialPos.y + dy) });
+        };
+
+        const handleMouseUp = () => {
+          draggingRef.current = null;
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+        return () => {
+          window.removeEventListener('mousemove', handleMouseMove);
+          window.removeEventListener('mouseup', handleMouseUp);
+        };
+      }, [pos1, pos2, pos3]);
+
+      // Calculate connector curve between Node 1 (right handle) and Node 2 (left handle)
+      const p1X = pos1.x + 310;
+      const p1Y = pos1.y + 120;
+      const p2X = pos2.x;
+      const p2Y = pos2.y + 120;
+      const dx = Math.abs(p2X - p1X) * 0.5;
+      const connectorPath = `M ${p1X} ${p1Y} C ${p1X + dx} ${p1Y}, ${p2X - dx} ${p2Y}, ${p2X} ${p2Y}`;
+
+      return (
+        <div className="pl-64 h-screen flex flex-col bg-[#111317] overflow-hidden">
+          {/* Header */}
+          <header className="h-14 bg-[#111317] border-b border-white/10 z-40 flex items-center justify-between px-8 select-none flex-shrink-0">
+            <div className="flex items-center gap-2 text-xs font-mono">
+              <span className="text-sm font-medium tracking-tight text-white font-sans">Bisnis A</span>
+              <span className="text-text-dim font-light">/</span>
+              <span className="text-sm text-text-muted font-normal font-sans">Rebranding & Launch</span>
+            </div>
+
+            {/* Center Segmented Tabs */}
+            <div className="flex items-center p-0.5 rounded-md bg-[#181a20] border border-white/10">
+              <Link to="/canvas" className="px-4 py-1 text-xs text-white bg-[#262932] border border-white/10 rounded font-medium shadow-sm">
+                Canvas
+              </Link>
+              <Link to="/documents" className="px-4 py-1 text-xs text-text-muted hover:text-white transition-colors">
+                Documents
+              </Link>
+              <Link to="/tasks" className="px-4 py-1 text-xs text-text-muted hover:text-white transition-colors">
+                Tasks
+              </Link>
+            </div>
+
+            {/* Right Controls */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center border border-white/10 rounded-sm bg-[#181a20] text-text-muted text-xs">
+                <button onClick={() => setZoom(z => Math.min(150, z + 10))} className="px-2 py-1.5 hover:text-white transition-colors" title="Zoom In">
+                  <span className="material-symbols-outlined text-[15px]">zoom_in</span>
+                </button>
+                <div className="w-px h-3.5 bg-white/10"></div>
+                <button onClick={() => setZoom(100)} className="px-2 py-1.5 hover:text-white transition-colors" title="Fit to Screen">
+                  <span className="material-symbols-outlined text-[15px]">fit_screen</span>
+                </button>
+              </div>
+              <button 
+                onClick={onOpenQuickCapture}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 rounded-sm transition-all shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[15px]">add</span>
+                <span>New</span>
+              </button>
+            </div>
+          </header>
+
+          {/* Spatial Canvas Stage */}
+          <main className="relative flex-1 w-full h-[calc(100vh-3.5rem)] overflow-hidden bg-[#111317]">
+            {/* Ambient subtle illumination */}
+            <div className="absolute pointer-events-none w-[640px] h-[640px] rounded-full blur-[200px] bg-white/[0.02] top-1/3 left-1/3 z-0"></div>
+
+            {/* Canvas Viewport */}
+            <div 
+              className="relative w-full h-full select-none" 
+              style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center center' }}
+            >
+              {/* Dynamic Smooth SVG Connector */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="connectorGlow" x1="0%" x2="100%" y1="0%" y2="0%">
+                    <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.45"></stop>
+                    <stop offset="50%" stopColor="#8b8df8" stopOpacity="0.8"></stop>
+                    <stop offset="100%" stopColor="#44e1de" stopOpacity="0.65"></stop>
+                  </linearGradient>
+                  <marker id="dotPoint" markerHeight="6" markerWidth="6" refX="3" refY="3">
+                    <circle cx="3" cy="3" fill="#44e1de" opacity="0.9" r="2.5"></circle>
+                  </marker>
+                </defs>
+                <path 
+                  d={connectorPath} 
+                  fill="none" 
+                  markerEnd="url(#dotPoint)" 
+                  stroke="url(#connectorGlow)" 
+                  strokeDasharray="4 4" 
+                  strokeWidth="1.75"
+                />
+              </svg>
+
+              {/* CARD 01: STRATEGY (WITH SIGNATURE CHAMFERED CUT CORNER) */}
+              <article 
+                onMouseDown={(e) => handleMouseDown(e, 1)}
+                style={{ 
+                  left: `${pos1.x}px`, 
+                  top: `${pos1.y}px`,
+                  clipPath: 'polygon(0px 0px, calc(100% - 14px) 0px, 100% 14px, 100% 100%, 0px 100%)'
+                }}
+                className="absolute w-[310px] bg-[#16181d] border border-white/15 rounded-sm shadow-2xl p-6 cursor-grab active:cursor-grabbing hover:border-white/30 z-20 transition-shadow"
+              >
+                {/* Protruding handles */}
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-[#1e2025] border border-white/30 flex items-center justify-center text-[10px] text-white/70 shadow">+</div>
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-[#1e2025] border border-white/30 flex items-center justify-center text-[10px] text-white/70 shadow">+</div>
+                <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-5 h-5 rounded-full bg-[#1e2025] border border-white/30 flex items-center justify-center text-[10px] text-white/70 shadow">+</div>
+                <div className="absolute top-1/2 -right-3 -translate-y-1/2 w-5 h-5 rounded-full bg-[#1e2025] border border-primary ring-2 ring-primary/20 flex items-center justify-center text-[10px] text-white shadow font-bold">+</div>
+
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-[11px] font-medium uppercase tracking-widest text-text-dim">Strategy</span>
+                  <span className="text-[11px] text-text-dim font-mono">01</span>
+                </div>
+                <h2 className="text-sm font-semibold tracking-tight text-white mb-3">
+                  Brand Identity & Value Pillars
+                </h2>
+                <div className="space-y-3 text-xs text-text-muted leading-relaxed">
+                  <p><span className="text-white font-medium">— Restraint over noise:</span> hyper-intentional negative space and pure typographic hierarchy.</p>
+                  <p><span className="text-white font-medium">— Material depth:</span> obsidian glass, muted ash tones, chamfered precision geometry.</p>
+                  <p><span className="text-white font-medium">— Context isolation:</span> domain switching without fragmentation.</p>
+                </div>
+              </article>
+
+              {/* CARD 02: IDEATION */}
+              <article 
+                onMouseDown={(e) => handleMouseDown(e, 2)}
+                style={{ 
+                  left: `${pos2.x}px`, 
+                  top: `${pos2.y}px`,
+                  clipPath: 'polygon(0px 0px, calc(100% - 14px) 0px, 100% 14px, 100% 100%, 0px 100%)'
+                }}
+                className="absolute w-[340px] bg-[#16181d] border border-white/15 rounded-sm shadow-2xl p-6 cursor-grab active:cursor-grabbing hover:border-white/30 z-20"
+              >
+                <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-5 h-5 rounded-full bg-[#1e2025] border border-secondary ring-2 ring-secondary/20 flex items-center justify-center text-[10px] text-white shadow font-bold">+</div>
+                <div className="absolute top-1/2 -right-3 -translate-y-1/2 w-5 h-5 rounded-full bg-[#1e2025] border border-white/30 flex items-center justify-center text-[10px] text-white/70 shadow">+</div>
+
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-medium uppercase tracking-widest text-text-dim">Ideation</span>
+                  <span className="text-[11px] text-text-dim font-mono">02</span>
+                </div>
+                <h2 className="text-sm font-semibold tracking-tight text-white mb-2">
+                  The Architects of Silence
+                </h2>
+                <p className="text-xs text-text-muted leading-relaxed mb-3">
+                  Positioning ORCA as an intentional deprivation chamber for high-leverage creative decisions.
+                </p>
+
+                {/* Inline @ mention active input */}
+                <div className="relative mb-3">
+                  <div 
+                    onClick={() => setMentionOpen(!mentionOpen)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#111317] border border-white/20 text-xs font-mono text-white cursor-pointer hover:border-white/40 transition-colors"
+                  >
+                    <span className="text-secondary font-bold bg-secondary/10 px-1 py-0.5 rounded text-[11px]">@</span>
+                    <span>{mentionText}</span>
+                    <span className="inline-block w-1.5 h-3.5 bg-white animate-pulse"></span>
+                  </div>
+
+                  {mentionOpen && (
+                    <div className="mt-2 w-full bg-[#191b22] border border-white/15 shadow-2xl rounded-sm py-1 text-left backdrop-blur-md">
+                      <div className="px-2.5 py-1 text-[10px] uppercase font-mono tracking-widest text-text-dim border-b border-white/5 flex items-center justify-between">
+                        <span>Link or Create Draft</span>
+                        <span className="text-[9px] text-white/40">Contextual</span>
+                      </div>
+                      <button 
+                        onClick={() => { setMentionText('New Doc Draft'); setMentionOpen(false); }}
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-white hover:bg-white/[0.06] border-b border-white/5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[15px] text-secondary">note_add</span>
+                          <span className="font-medium">+ New Document draft</span>
+                        </div>
+                        <span className="text-[10px] text-text-dim font-mono">Draft</span>
+                      </button>
+                      <button 
+                        onClick={() => { setMentionText('Q3 Brand Guidelines'); setMentionOpen(false); }}
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-white bg-white/[0.04] hover:bg-white/[0.08]"
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <span className="material-symbols-outlined text-[15px] text-text-muted">description</span>
+                          <span className="truncate font-medium">Q3 Brand Guidelines</span>
+                        </div>
+                        <span className="text-[10px] text-text-dim font-mono ml-1">Doc</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button 
+                  onClick={onOpenQuickCapture}
+                  className="w-full flex items-center justify-center py-1.5 px-3 text-xs font-medium text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-sm transition-all"
+                >
+                  Create Task
+                </button>
+              </article>
+
+              {/* CARD 03: QUICK DRAFT & LINK ASIDE */}
+              <aside 
+                onMouseDown={(e) => handleMouseDown(e, 3)}
+                style={{ 
+                  left: `${pos3.x}px`, 
+                  top: `${pos3.y}px`,
+                  clipPath: 'polygon(0px 0px, calc(100% - 14px) 0px, 100% 14px, 100% 100%, 0px 100%)'
+                }}
+                className="absolute w-[320px] bg-[#181a20]/95 border border-white/15 shadow-2xl rounded-sm p-4 z-20 backdrop-blur-md cursor-grab active:cursor-grabbing"
+              >
+                <div className="flex items-center justify-between pb-2 mb-3 border-b border-white/10">
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-secondary">note_add</span>
+                    <h3 className="text-xs font-semibold text-white tracking-tight">Quick Draft & Link</h3>
+                  </div>
+                  <span className="text-text-dim text-[10px] font-mono">Pinned</span>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[11px] text-text-dim uppercase font-mono">Type</span>
+                    <div className="flex gap-1 p-0.5 rounded bg-[#111317] border border-white/10 text-[11px]">
+                      <span className="px-2 py-0.5 rounded bg-white/[0.1] text-white border border-white/10 font-medium">Doc</span>
+                      <span className="px-2 py-0.5 rounded text-text-muted hover:text-white cursor-pointer">Task</span>
+                    </div>
+                  </div>
+                  <div>
+                    <input 
+                      readOnly 
+                      value="Packaging Visual Hierarchy & Specs"
+                      className="w-full bg-[#111317] border border-white/10 rounded-sm px-2.5 py-1.5 text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <textarea 
+                      readOnly 
+                      rows="2" 
+                      value="Align typographic contrast and box-die cut margin with luxury voice."
+                      className="w-full bg-[#111317] border border-white/10 rounded-sm px-2.5 py-1 text-xs text-text-muted resize-none"
+                    ></textarea>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[11px]">
+                    <span className="text-text-dim font-mono">Bisnis A</span>
+                    <Link to="/documents" className="px-3 py-1 bg-white text-black font-medium text-xs rounded-sm hover:bg-white/90 shadow-sm flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">link</span>
+                      <span>Open Doc</span>
+                    </Link>
+                  </div>
+                </div>
+              </aside>
+            </div>
+
+            {/* FLOATING CANVAS TOOLBAR */}
+            <div className="fixed bottom-8 left-[calc(50%+8rem)] -translate-x-1/2 z-40 flex items-center gap-1 p-1.5 rounded-xl bg-[#181a20]/95 border border-white/10 shadow-2xl backdrop-blur-md text-text-muted select-none">
+              {[
+                { id: 'V', icon: 'near_me', tip: 'Select (V)' },
+                { id: 'H', icon: 'pan_tool', tip: 'Pan (H)' },
+                { id: 'R', icon: 'rectangle', tip: 'Shapes (R)' },
+                { id: 'C', icon: 'moving', tip: 'Connector (C)' },
+                { id: 'T', icon: 'title', tip: 'Text (T)' },
+                { id: 'F', icon: 'crop_free', tip: 'Frame (F)' },
+                { id: 'P', icon: 'edit', tip: 'Draw (P)' },
+                { id: 'M', icon: 'account_tree', tip: 'Mindmap (M)' }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTool(t.id)}
+                  className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors relative group ${activeTool === t.id ? 'bg-white/[0.14] text-white border border-white/10' : 'hover:bg-white/[0.05] hover:text-white'}`}
+                  title={t.tip}
+                >
+                  <span className="material-symbols-outlined text-[17px]">{t.icon}</span>
+                </button>
+              ))}
+              <div className="h-4 w-px bg-white/10 mx-1"></div>
+              <button 
+                onClick={() => setMentionOpen(true)}
+                className="flex items-center gap-1 px-2 h-8 rounded-lg hover:bg-white/[0.05] hover:text-white transition-colors text-[11px] font-medium"
+              >
+                <span className="text-[12px] font-mono text-secondary bg-secondary/10 px-1 py-0.5 rounded">@</span>
+                <span className="hidden sm:inline">Ref</span>
+              </button>
+              <div className="h-4 w-px bg-white/10 mx-1"></div>
+              <div className="flex items-center gap-0.5 text-xs font-mono">
+                <button onClick={() => setZoom(z => Math.max(50, z - 10))} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/[0.06] text-text-dim hover:text-white">−</button>
+                <span className="px-1 text-[11px] text-text-muted">{zoom}%</span>
+                <button onClick={() => setZoom(z => Math.min(150, z + 10))} className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/[0.06] text-text-dim hover:text-white">+</button>
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    // --- SCREEN 3: CANVAS HUB DIRECTORY ---
+    function CanvasHubScreen({ onOpenQuickCapture }) {
+      const navigate = useNavigate();
+      const [filter, setFilter] = useState('All');
+      const [searchQuery, setSearchQuery] = useState('');
+
+      const canvases = [
+        {
+          id: '01',
+          title: '01 Brand Strategy & Ideation',
+          nodes: 14,
+          docs: 3,
+          time: 'Edited 12m ago',
+          tag: 'Strategy',
+          active: true
+        },
+        {
+          id: '02',
+          title: '02 UI System & Spatial Nodes',
+          nodes: 28,
+          docs: 8,
+          time: 'Edited yesterday',
+          tag: 'Design System'
+        },
+        {
+          id: '03',
+          title: '03 Packaging Architecture',
+          nodes: 6,
+          docs: 'Specs ready',
+          time: 'Edited 3 days ago',
+          tag: 'Design System'
+        },
+        {
+          id: '04',
+          title: '04 User Journey Flow',
+          nodes: 19,
+          docs: '5 Branch Paths',
+          time: 'Edited last week',
+          tag: 'Flows'
+        }
+      ];
+
+      const filtered = canvases.filter(c => {
+        const matchesFilter = filter === 'All' || c.tag === filter;
+        const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesFilter && matchesSearch;
+      });
+
+      return (
+        <div className="pl-64 h-screen flex flex-col bg-[#111317] overflow-hidden">
+          {/* Header */}
+          <header className="h-14 bg-[#111317] border-b border-white/10 z-40 flex items-center justify-between px-8 select-none flex-shrink-0">
+            <div className="flex items-center gap-1.5 text-xs text-text-dim">
+              <span className="font-medium text-text-muted">Bisnis A</span>
+              <span className="font-light text-white/20">/</span>
+              <span className="text-white font-medium flex items-center gap-2">
+                <span className="w-2 h-2 rounded-sm bg-secondary"></span>
+                Rebranding & Launch
+              </span>
+            </div>
+
+            {/* Segmented View Tabs */}
+            <div className="flex items-center p-0.5 rounded-md bg-[#181a20] border border-white/10">
+              <Link to="/canvas-hub" className="px-3.5 py-1 text-xs text-white bg-[#262932] border border-white/10 rounded font-medium shadow-sm flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px] text-secondary">dashboard</span>
+                <span>Canvas</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/10 text-white/70 font-mono">4</span>
+              </Link>
+              <Link to="/documents" className="px-3.5 py-1 text-xs text-text-muted hover:text-white transition-colors flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px]">description</span>
+                <span>Documents</span>
+              </Link>
+              <Link to="/tasks" className="px-3.5 py-1 text-xs text-text-muted hover:text-white transition-colors flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                <span>Tasks</span>
+              </Link>
+            </div>
+
+            {/* Right Controls */}
+            <div className="flex items-center gap-3">
+              <div className="relative flex items-center">
+                <span className="material-symbols-outlined absolute left-2.5 text-[15px] text-text-dim">search</span>
+                <input 
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="bg-[#181a20] border border-white/10 rounded-sm pl-8 pr-2.5 py-1 text-xs text-white placeholder:text-text-dim focus:outline-none focus:border-white/30 w-44 font-sans" 
+                  placeholder="Filter canvases..." 
+                  type="text"
+                />
+              </div>
+              <button 
+                onClick={() => navigate('/canvas')}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-black bg-white hover:bg-white/90 rounded-sm transition-all shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[15px]">add</span>
+                <span>New Canvas</span>
+              </button>
+            </div>
+          </header>
+
+          {/* Main Hub Grid */}
+          <main className="relative flex-1 w-full h-[calc(100vh-3.5rem)] overflow-y-auto bg-[#111317] p-8">
+            <div className="max-w-[1360px] mx-auto">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-sm font-semibold text-white tracking-wider font-mono uppercase">Project Canvases</h1>
+                  <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-white/[0.06] text-text-muted border border-white/10">{filtered.length} Canvases</span>
+                  <div className="w-px h-3.5 bg-white/10 mx-1"></div>
+                  <div className="flex items-center gap-1.5">
+                    {['All', 'Strategy', 'Design System', 'Flows'].map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setFilter(cat)}
+                        className={`px-2.5 py-0.5 rounded-full text-xs transition-colors ${filter === cat ? 'bg-white/10 text-white font-medium border border-white/10' : 'text-text-muted hover:text-white hover:bg-white/[0.04]'}`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-text-dim font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>All boards synchronized</span>
+                </div>
+              </div>
+
+              {/* Grid cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                {/* Blank slate template card */}
+                <div 
+                  onClick={() => navigate('/canvas')}
+                  className="group relative flex flex-col h-[270px] rounded-lg border border-dashed border-white/15 hover:border-secondary/60 bg-[#16181d]/50 hover:bg-[#181a20] transition-all p-5 cursor-pointer justify-between"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="w-9 h-9 rounded-md bg-white/[0.06] border border-white/10 flex items-center justify-center text-white group-hover:scale-110 group-hover:bg-secondary/10 group-hover:text-secondary group-hover:border-secondary/30 transition-all">
+                      <span className="material-symbols-outlined text-[20px]">add</span>
+                    </div>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-text-dim px-2 py-0.5 rounded border border-white/5 bg-white/[0.02]">Blank Slate</span>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-white group-hover:text-secondary transition-colors mb-1">New Infinite Canvas</h3>
+                    <p className="text-xs text-text-dim leading-relaxed">Create architecture wireframes, connected mindmaps, or visual boards.</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 pt-3 border-t border-white/5 text-[11px] text-text-dim group-hover:text-text-muted font-mono">
+                    <span className="material-symbols-outlined text-[13px]">keyboard_command_key</span>
+                    <span>Press N on Canvas</span>
+                  </div>
+                </div>
+
+                {filtered.map(c => (
+                  <div
+                    key={c.id}
+                    onClick={() => navigate('/canvas')}
+                    className="group relative flex flex-col h-[270px] rounded-lg border border-white/10 hover:border-white/30 bg-[#16181d] hover:shadow-2xl transition-all overflow-hidden cursor-pointer"
+                  >
+                    {/* Wireframe Thumbnail Preview */}
+                    <div className="relative h-[155px] w-full bg-[#111317] border-b border-white/5 overflow-hidden p-3 flex items-center justify-center select-none group-hover:bg-[#0e1014] transition-colors">
+                      <div className="relative w-full h-full flex items-center justify-center scale-90 transition-transform duration-300 group-hover:scale-95">
+                        <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M 60 40 C 110 40, 130 85, 175 85" fill="none" stroke="#44e1de" strokeDasharray="3 3" strokeOpacity="0.6" strokeWidth="1.5"></path>
+                        </svg>
+                        <div className="absolute left-3 top-4 w-24 bg-[#1e2025] border border-white/20 rounded p-1.5 shadow-md">
+                          <div className="w-8 h-1 rounded bg-white/40 mb-1"></div>
+                          <div className="w-16 h-1.5 rounded bg-white/80"></div>
+                        </div>
+                        <div className="absolute right-4 top-8 w-28 bg-[#1e2025] border border-secondary/40 rounded p-1.5 shadow-md ring-1 ring-secondary/20">
+                          <div className="w-10 h-1 rounded bg-secondary/80 mb-1"></div>
+                          <div className="w-20 h-1.5 rounded bg-white/90"></div>
+                        </div>
+                      </div>
+
+                      {c.active && (
+                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-[#181a20]/90 border border-white/10 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-white font-mono">
+                          <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                          <span>Active</span>
+                        </div>
+                      )}
+
+                      <div className="absolute bottom-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="px-2.5 py-1 bg-white text-black font-medium text-[11px] rounded shadow flex items-center gap-1">
+                          Open <span className="material-symbols-outlined text-[13px]">arrow_forward</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="text-xs font-semibold text-white tracking-tight truncate group-hover:text-secondary transition-colors">
+                            {c.title}
+                          </h3>
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-text-dim">
+                          <span className="font-mono text-text-muted">{c.nodes} Nodes</span>
+                          <span>·</span>
+                          <span>{typeof c.docs === 'number' ? `${c.docs} Docs Linked` : c.docs}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px] text-text-dim font-mono">
+                        <span>{c.time}</span>
+                        <div className="flex -space-x-1">
+                          <div className="w-4 h-4 rounded-full bg-white/20 border border-[#16181d] flex items-center justify-center text-[8px] text-white">R</div>
+                          <div className="w-4 h-4 rounded-full bg-secondary/30 text-secondary border border-[#16181d] flex items-center justify-center text-[8px] font-bold">A</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    // --- SCREEN 4: ARCHITECTURAL CALENDAR SCREEN ---
+    function CalendarScreen({ onOpenQuickCapture }) {
+      const [spaceFilter, setSpaceFilter] = useState('all');
+      const [scheduleView, setScheduleView] = useState('Week');
+
+      const backlogItems = [
+        { title: 'Packaging Print Review', tag: 'Bisnis A', canvas: 'Canvas #04', duration: '~45m est.', space: 'bisnis-a' },
+        { title: 'Design Review with Team', tag: 'Kantor', canvas: 'Spec_v2.md', duration: '~1h 30m', space: 'kantor' },
+        { title: 'Investor Pitch Prep', tag: 'Bisnis A', canvas: 'Deck Node 12', duration: '~2h 00m', space: 'bisnis-a' },
+        { title: 'Studio Sound Treatment', tag: 'Pribadi', canvas: 'Acoustics Plan', duration: '~1h 15m', space: 'pribadi' }
+      ];
+
+      return (
+        <div className="pl-64 h-screen flex flex-col bg-[#111317] overflow-y-auto">
+          {/* Calendar Top Header */}
+          <header className="h-14 bg-[#111317]/90 backdrop-blur-xl border-b border-white/10 z-40 flex items-center justify-between px-8 select-none flex-shrink-0 sticky top-0">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-primary">calendar_month</span>
+                <span className="text-sm text-white font-medium">Calendar</span>
+              </div>
+              <div className="h-4 w-px bg-white/10"></div>
+              <div className="flex items-center gap-1 text-[11px] font-mono text-outline">
+                <span className="material-symbols-outlined text-[14px]">schedule</span>
+                <span>Temporal Matrix View</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-low border border-white/10 text-xs">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
+                </span>
+                <span className="text-text-muted text-[11px]">Realtime Sync</span>
+              </div>
+              <button 
+                onClick={onOpenQuickCapture}
+                className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-white bg-white/[0.08] hover:bg-white/[0.12] border border-white/15 rounded transition-all shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[15px] text-secondary">add</span>
+                <span>Add Event</span>
+              </button>
+            </div>
+          </header>
+
+          {/* Ribbon Controls */}
+          <div className="p-8 pb-4 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-6">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl text-white font-medium tracking-tight">October</span>
+                <span className="text-lg text-text-muted font-light">2024</span>
+              </div>
+              <div className="flex items-center p-0.5 rounded bg-surface-container-low">
+                <button className="w-7 h-7 flex items-center justify-center text-text-muted hover:text-white">
+                  <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+                </button>
+                <button className="px-3 py-0.5 text-xs text-white hover:bg-white/5 rounded">Today</button>
+                <button className="w-7 h-7 flex items-center justify-center text-text-muted hover:text-white">
+                  <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                </button>
+              </div>
+
+              {/* Space Filters */}
+              <div className="hidden xl:flex items-center gap-1.5 p-1 rounded-full bg-surface-container-lowest border border-white/10">
+                {['all', 'bisnis-a', 'kantor', 'pribadi'].map(sp => (
+                  <button
+                    key={sp}
+                    onClick={() => setSpaceFilter(sp)}
+                    className={`px-3 py-1 rounded-full text-xs capitalize transition-all ${
+                      spaceFilter === sp ? 'bg-white/10 text-white font-medium shadow-sm' : 'text-text-muted hover:text-white'
+                    }`}
+                  >
+                    {sp === 'all' ? 'All Spaces' : sp.replace('-', ' ')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center p-0.5 rounded bg-surface-container-low">
+                {['Month', 'Week', 'Day', 'Timeline'].map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => setScheduleView(mode)}
+                    className={`px-3 py-1 text-xs rounded transition-colors ${
+                      scheduleView === mode ? 'bg-surface-container-high text-white font-medium shadow-sm' : 'text-text-muted hover:text-white'
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Matrix & Backlog */}
+          <div className="px-8 pb-12 flex gap-6 items-start">
+            {/* Left Unscheduled Backlog */}
+            <div className="w-72 flex-shrink-0 flex flex-col gap-3">
+              <div className="p-4 rounded-xl bg-surface-container-low border border-white/10 flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono uppercase tracking-widest text-text-dim">Unscheduled Nodes</span>
+                  <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-white">4</span>
+                </div>
+                <p className="text-xs text-text-muted mt-1">Drag spatial elements onto time blocks to lock sprint momentum.</p>
+              </div>
+
+              {backlogItems.map((item, idx) => (
+                <div 
+                  key={idx} 
+                  className="p-4 rounded-xl bg-surface-container-low hover:bg-surface-container border border-white/5 hover:border-white/15 transition-all cursor-grab active:cursor-grabbing shadow-sm"
+                >
+                  <div className="flex items-start justify-between mb-1.5">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-secondary/10 text-secondary">
+                      {item.tag}
+                    </span>
+                    <span className="material-symbols-outlined text-[15px] text-text-dim">drag_indicator</span>
+                  </div>
+                  <h4 className="text-xs font-semibold text-white leading-snug">{item.title}</h4>
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-text-dim">
+                    <div className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[13px] text-secondary">view_in_ar</span>
+                      <span>{item.canvas}</span>
+                    </div>
+                    <span className="font-mono">{item.duration}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Main Weekly Architectural Grid */}
+            <div className="flex-1 min-w-0 rounded-xl bg-surface-container-lowest border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+              <div className="grid grid-cols-[60px_repeat(5,_1fr)] bg-surface-container-low border-b border-white/10 text-center">
+                <div className="py-3 text-[10px] font-mono text-text-dim">GMT+7</div>
+                <div className="py-3 border-l border-white/5"><span className="text-xs text-text-dim">Mon 21</span></div>
+                <div className="py-3 border-l border-white/5"><span className="text-xs text-text-dim">Tue 22</span></div>
+                <div className="py-3 border-l border-white/5 bg-surface-container/60 relative">
+                  <div className="absolute top-0 inset-x-0 h-0.5 bg-secondary"></div>
+                  <span className="text-xs text-secondary font-semibold">Wed 23 (Today)</span>
+                </div>
+                <div className="py-3 border-l border-white/5"><span className="text-xs text-text-dim">Thu 24</span></div>
+                <div className="py-3 border-l border-white/5"><span className="text-xs text-text-dim">Fri 25</span></div>
+              </div>
+
+              {/* Time Slots Area */}
+              <div className="relative grid grid-cols-[60px_repeat(5,_1fr)] select-none h-[640px] overflow-y-auto">
+                <div className="flex flex-col text-right font-mono text-[10px] text-text-dim/60 pr-2 pt-2 border-r border-white/5">
+                  <div className="h-16">08:00</div>
+                  <div className="h-16">10:00</div>
+                  <div className="h-16">12:00</div>
+                  <div className="h-16">14:00</div>
+                  <div className="h-16">16:00</div>
+                  <div className="h-16">18:00</div>
+                </div>
+
+                {/* Col Mon */}
+                <div className="relative border-r border-white/5">
+                  <div className="absolute top-4 left-1.5 right-1.5 h-24 rounded-lg p-2.5 bg-surface-container-high/90 border border-white/10 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[9px] font-mono text-secondary uppercase">Bisnis A</span>
+                      <h5 className="text-xs font-medium text-white truncate">Brand Visual Alignment</h5>
+                    </div>
+                    <span className="text-[10px] font-mono text-text-dim">08:30 - 10:15</span>
+                  </div>
+                </div>
+
+                {/* Col Tue */}
+                <div className="relative border-r border-white/5">
+                  <div className="absolute top-28 left-1.5 right-1.5 h-28 rounded-lg p-2.5 bg-surface-container-high/90 border border-white/10 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[9px] font-mono text-primary uppercase">Kantor</span>
+                      <h5 className="text-xs font-medium text-white">Sprint Architecture Sync</h5>
+                    </div>
+                    <span className="text-[10px] font-mono text-text-dim">10:00 - 12:30</span>
+                  </div>
+                </div>
+
+                {/* Col Wed (Today Active with Live indicator) */}
+                <div className="relative border-r border-white/5 bg-secondary/[0.02]">
+                  {/* Current line pulse */}
+                  <div className="absolute top-40 inset-x-0 z-30 flex items-center pointer-events-none">
+                    <div className="w-2 h-2 rounded-full bg-secondary -ml-1"></div>
+                    <div className="h-px flex-1 bg-secondary shadow-[0_0_8px_rgba(68,225,222,0.8)]"></div>
+                    <span className="text-[9px] font-mono bg-secondary text-black px-1 rounded mr-1">11:15</span>
+                  </div>
+
+                  <div className="absolute top-10 left-1.5 right-1.5 h-28 rounded-lg p-2.5 bg-surface-container-high border border-secondary/40 shadow-lg flex flex-col justify-between">
+                    <div>
+                      <span className="text-[9px] font-mono text-secondary uppercase">Bisnis A • Live</span>
+                      <h5 className="text-xs font-medium text-white">Rebranding Presentation Deck</h5>
+                    </div>
+                    <span className="text-[10px] font-mono text-secondary">09:00 - 11:00</span>
+                  </div>
+
+                  <div className="absolute top-52 left-1.5 right-1.5 h-32 rounded-lg p-2.5 bg-surface-container-high/90 border border-white/10 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[9px] font-mono text-secondary uppercase">Bisnis A</span>
+                      <h5 className="text-xs font-medium text-white">Packaging CAD & Material Signoff</h5>
+                    </div>
+                    <span className="text-[10px] font-mono text-text-dim">14:00 - 16:30</span>
+                  </div>
+                </div>
+
+                {/* Col Thu */}
+                <div className="relative border-r border-white/5">
+                  <div className="absolute top-20 left-1.5 right-1.5 h-24 rounded-lg p-2.5 bg-surface-container-high/90 border border-white/10 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[9px] font-mono text-primary uppercase">Kantor</span>
+                      <h5 className="text-xs font-medium text-white">Quarterly Budget Modeling</h5>
+                    </div>
+                    <span className="text-[10px] font-mono text-text-dim">09:30 - 11:30</span>
+                  </div>
+                </div>
+
+                {/* Col Fri */}
+                <div className="relative">
+                  <div className="absolute top-36 left-1.5 right-1.5 h-24 rounded-lg p-2.5 bg-surface-container-high/90 border border-white/10 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[9px] font-mono text-secondary uppercase">Bisnis A</span>
+                      <h5 className="text-xs font-medium text-white">Launch Campaign Review</h5>
+                    </div>
+                    <span className="text-[10px] font-mono text-text-dim">11:00 - 12:30</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- SCREEN 5: PRECISION MARKDOWN & SPECS (DOCUMENTS) ---
+    function DocumentsScreen({ onOpenQuickCapture }) {
+      const [selectedDoc, setSelectedDoc] = useState('Brand Identity & Strategy');
+
+      const docs = [
+        { title: 'Brand Identity & Strategy', words: '2,840 words', updated: '14m ago', status: 'Published', primary: true },
+        { title: 'Packaging Visual Hierarchy & Specs', words: '1,420 words', updated: 'Yesterday', status: 'In Review' },
+        { title: 'Q3 Product Lineup Blueprint', words: '860 words', updated: '3 days ago', status: 'Draft' },
+        { title: 'Market Positioning Whitepaper', words: '4,910 words', updated: 'May 12', status: 'Published' }
+      ];
+
+      return (
+        <div className="pl-64 h-screen flex flex-col bg-[#111317] overflow-hidden">
+          {/* Header */}
+          <header className="h-14 bg-[#111317] border-b border-white/10 z-40 flex items-center justify-between px-8 select-none flex-shrink-0">
+            <div className="flex items-center gap-2 text-xs font-mono">
+              <span className="text-sm font-medium text-white font-sans">Bisnis A</span>
+              <span className="text-text-dim">/</span>
+              <span className="text-sm text-text-muted font-sans">Rebranding & Launch</span>
+            </div>
+
+            {/* Segmented Tab Switcher */}
+            <nav className="flex items-center p-0.5 rounded bg-surface-container-lowest border border-white/10">
+              <Link to="/canvas" className="px-3.5 py-1 text-xs text-text-muted hover:text-white">Canvas</Link>
+              <Link to="/documents" className="px-3.5 py-1 text-xs rounded bg-[#262932] text-white font-medium border border-white/10 shadow-sm">Documents</Link>
+              <Link to="/tasks" className="px-3.5 py-1 text-xs text-text-muted hover:text-white">Tasks</Link>
+            </nav>
+
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={onOpenQuickCapture}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 rounded-sm"
+              >
+                <span className="material-symbols-outlined text-[15px] text-primary">add</span>
+                <span>New</span>
+              </button>
+            </div>
+          </header>
+
+          <div className="flex w-full h-[calc(100vh-3.5rem)]">
+            {/* LEFT PANEL: Document Index */}
+            <aside className="w-[320px] flex-shrink-0 bg-surface-container-lowest border-r border-white/10 p-5 flex flex-col justify-between select-none">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono uppercase tracking-widest text-text-dim">Documents</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/10 text-white">4</span>
+                  </div>
+                  <button onClick={onOpenQuickCapture} className="flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-white text-xs">
+                    <span className="material-symbols-outlined text-[14px] text-primary">add</span>
+                    <span>New Doc</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  {docs.map(doc => (
+                    <div
+                      key={doc.title}
+                      onClick={() => setSelectedDoc(doc.title)}
+                      className={`p-3 rounded transition-all cursor-pointer ${selectedDoc === doc.title ? 'bg-surface-container-high text-white shadow-sm border border-white/10' : 'text-text-muted hover:bg-surface-container hover:text-white'}`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <span className="text-xs font-medium truncate">{doc.title}</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded font-mono uppercase bg-secondary/10 text-secondary">{doc.status}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-text-dim font-mono">
+                        <span>{doc.words}</span>
+                        <span>{doc.updated}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-white/5 flex flex-col gap-2 text-xs">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-text-dim">Referenced Canvas Anchors</span>
+                  <Link to="/canvas" className="flex items-center justify-between text-text-muted hover:text-primary py-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                      #node-441-moodboard
+                    </span>
+                    <span className="material-symbols-outlined text-[13px]">arrow_outward</span>
+                  </Link>
+                  <Link to="/canvas" className="flex items-center justify-between text-text-muted hover:text-primary py-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      #spec-packaging-diecut
+                    </span>
+                    <span className="material-symbols-outlined text-[13px]">arrow_outward</span>
+                  </Link>
+                </div>
+              </div>
+
+              <div className="p-3 rounded bg-surface-container-low border border-white/5 flex items-center justify-between text-xs">
+                <div>
+                  <div className="text-text-dim text-[10px] font-mono uppercase">Workspace Corpus</div>
+                  <div className="text-white font-medium">10,030 words</div>
+                </div>
+                <span className="material-symbols-outlined text-[20px] text-secondary">auto_stories</span>
+              </div>
+            </aside>
+
+            {/* RIGHT PANEL: Precision Editorial Content */}
+            <section className="flex-1 flex flex-col overflow-y-auto bg-[#111317] px-12 py-8">
+              <div className="max-w-3xl mx-auto w-full flex flex-col gap-6">
+                {/* Meta header */}
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[11px] font-mono uppercase tracking-wider bg-secondary/15 text-secondary">Published v2.4</span>
+                    <span className="px-2 py-0.5 rounded text-[11px] bg-white/5 text-text-muted">@Strategy</span>
+                    <span className="px-2 py-0.5 rounded text-[11px] bg-white/5 text-text-muted">@DesignSystem</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <Link to="/canvas" className="flex items-center gap-1 px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-white">
+                      <span className="material-symbols-outlined text-[14px] text-secondary">gesture</span>
+                      <span>View on Canvas</span>
+                    </Link>
+                    <button className="flex items-center gap-1 px-2.5 py-1 rounded bg-white/10 text-white">
+                      <span className="material-symbols-outlined text-[14px] text-primary">share</span>
+                      <span>Share</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Title */}
+                <div>
+                  <h1 className="text-3xl font-medium text-white tracking-tight">{selectedDoc}</h1>
+                  <div className="flex items-center gap-3 text-xs text-text-dim mt-2 font-mono">
+                    <span className="text-text-muted">Rayyan Ardhani</span>
+                    <span>•</span>
+                    <span>Last synchronized 14m ago</span>
+                    <span>•</span>
+                    <span>11 min read</span>
+                  </div>
+                </div>
+
+                {/* Callout box */}
+                <div className="p-4 rounded-md bg-surface-container-low border border-white/10 text-text-muted flex gap-3 items-start">
+                  <span className="material-symbols-outlined text-primary text-[20px] mt-0.5">flag</span>
+                  <div className="text-xs leading-relaxed">
+                    <span className="text-white font-medium mr-2">Executive Objective:</span>
+                    Transition Bisnis A into an industrial-grade spatial lifestyle collective. Connected directly with live Canvas node <Link to="/canvas" className="text-primary hover:underline">@node-441-moodboard</Link>.
+                  </div>
+                </div>
+
+                {/* Editorial Body */}
+                <div className="space-y-4 text-sm text-text-muted leading-relaxed">
+                  <h2 className="text-xl font-medium text-white">01. Core Philosophies & Vision</h2>
+                  <p>
+                    Bisnis A operates on the principle of volumetric restraint. We reject ornamental excess in packaging, interaction, and physical retail. Every contact point must convey absolute weight, quiet tactile friction, and intentional space.
+                  </p>
+                  <blockquote className="my-3 p-4 rounded bg-surface-container-low border-l-2 border-primary text-white italic">
+                    “Form does not merely follow function; form recedes until only utility and quiet dignity remain.”
+                  </blockquote>
+
+                  <h2 className="text-xl font-medium text-white pt-2">02. Typographic Scale & Chromatic Palette</h2>
+                  <p>
+                    To preserve structural purity across printed collateral and spatial web interfaces, strictly two typeface families are approved for global production: Geist Sans for architectural titles and Inter for data-dense tabular indexes.
+                  </p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
+                    <div className="p-2.5 rounded bg-surface-container-low border border-white/5 flex items-center gap-2">
+                      <span className="w-5 h-5 rounded bg-[#111317] border border-white/20"></span>
+                      <span className="text-xs text-white font-mono">Obsidian #111317</span>
+                    </div>
+                    <div className="p-2.5 rounded bg-surface-container-low border border-white/5 flex items-center gap-2">
+                      <span className="w-5 h-5 rounded bg-[#8b8df8]"></span>
+                      <span className="text-xs text-white font-mono">Primary #8b8df8</span>
+                    </div>
+                    <div className="p-2.5 rounded bg-surface-container-low border border-white/5 flex items-center gap-2">
+                      <span className="w-5 h-5 rounded bg-[#44e1de]"></span>
+                      <span className="text-xs text-white font-mono">Cyan #44e1de</span>
+                    </div>
+                    <div className="p-2.5 rounded bg-surface-container-low border border-white/5 flex items-center gap-2">
+                      <span className="w-5 h-5 rounded bg-[#cebdff]"></span>
+                      <span className="text-xs text-white font-mono">Lilac #cebdff</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      );
+    }
+
+    // --- SCREEN 6: ALL SPACES MASTER DIRECTORY ---
+    function SpacesMasterScreen({ onOpenQuickCapture }) {
+      const navigate = useNavigate();
+      const [search, setSearch] = useState('');
+      const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'dense'
+
+      const spacesData = [
+        {
+          id: 'kantor',
+          title: 'Kantor',
+          category: 'Corporate',
+          desc: 'Central operational command. Houses multi-jurisdiction legal filings, capital allocation projections, and governance boards.',
+          progress: '84%',
+          target: 'Q3 Legal Consolidation',
+          boards: 4,
+          members: 8,
+          activeNow: '12m ago',
+          color: '#8b8df8',
+          tasksCount: 14
+        },
+        {
+          id: 'bisnis-a',
+          title: 'Bisnis A',
+          category: 'Active Sprint',
+          desc: 'Luxury hardware and software design ecosystem. Current initiative centers on public brand identity overhaul and flagship launch.',
+          progress: '62%',
+          target: 'Launch Readiness: Stage 02/04',
+          boards: 5,
+          members: 6,
+          activeNow: 'Updated now',
+          color: '#44e1de',
+          primary: true,
+          tasksCount: 24
+        },
+        {
+          id: 'pribadi',
+          title: 'Pribadi',
+          category: 'Confidential',
+          desc: 'Personal sanctuary for non-commercial cognition: meditative daily notes, physiological metrics, reading index, and private vault assets.',
+          progress: '100%',
+          target: '32 Day Habit Consistency',
+          boards: 2,
+          members: 1,
+          activeNow: '1h ago',
+          color: '#cebdff',
+          tasksCount: 6
+        },
+        {
+          id: 'bisnis-b',
+          title: 'Bisnis B',
+          category: 'SaaS & Tech',
+          desc: 'Cloud native infrastructure and developer toolkit venture. Scaled system microservices, SDK contracts, and API gateway routing.',
+          progress: '91%',
+          target: 'Q4 Concurrency Benchmark',
+          boards: 6,
+          members: 4,
+          activeNow: '4h ago',
+          color: '#00c5c2',
+          tasksCount: 19
+        }
+      ];
+
+      const filtered = spacesData.filter(s => 
+        s.title.toLowerCase().includes(search.toLowerCase()) || 
+        s.desc.toLowerCase().includes(search.toLowerCase()) ||
+        s.category.toLowerCase().includes(search.toLowerCase())
+      );
+
+      return (
+        <div className="pl-64 h-screen flex flex-col bg-[#111317] overflow-y-auto">
+          {/* Header */}
+          <header className="h-14 bg-[#111317]/90 backdrop-blur-xl border-b border-white/10 z-40 flex items-center justify-between px-8 select-none flex-shrink-0 sticky top-0">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px] text-primary">grid_view</span>
+                <span className="text-sm font-medium text-white">All Spaces</span>
+              </div>
+              <span className="text-text-dim">/</span>
+              <span className="text-[11px] font-mono text-outline px-2 py-0.5 rounded bg-surface-container-low border border-white/10">Master Directory</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center border border-white/10 rounded bg-surface-container-lowest p-0.5">
+                <button 
+                  onClick={() => setViewMode('grid')}
+                  className={`px-2 py-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-surface-container text-primary' : 'text-text-dim hover:text-white'}`}
+                >
+                  <span className="material-symbols-outlined text-[16px] block">grid_view</span>
+                </button>
+                <button 
+                  onClick={() => setViewMode('dense')}
+                  className={`px-2 py-1 rounded transition-colors ${viewMode === 'dense' ? 'bg-surface-container text-primary' : 'text-text-dim hover:text-white'}`}
+                >
+                  <span className="material-symbols-outlined text-[16px] block">view_agenda</span>
+                </button>
+              </div>
+              <button 
+                onClick={onOpenQuickCapture}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-black bg-white hover:bg-white/90 rounded transition-all shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[15px]">add</span>
+                <span>New Space</span>
+              </button>
+            </div>
+          </header>
+
+          <main className="p-8 max-w-[1360px] mx-auto w-full">
+            {/* Top Overview */}
+            <div className="mb-6 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono tracking-widest text-primary uppercase">Master Directory</span>
+                <span className="w-1 h-1 rounded-full bg-white/20"></span>
+                <span className="text-xs font-mono text-text-dim">v2.4 Spatial Engine</span>
+              </div>
+              <h1 className="text-2xl font-semibold text-white tracking-tight">Spaces Hub</h1>
+              <p className="text-xs text-text-muted max-w-xl">
+                Autonomous multi-context environments. Seamlessly partition corporate governance, deep venture architecture, and confidential personal life nodes.
+              </p>
+            </div>
+
+            {/* Metrics */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {[
+                { label: 'Active Spaces', val: '4', sub: '100% Operational', icon: 'layers', color: 'text-primary' },
+                { label: 'Live Projects', val: '18', sub: 'across 6 nodes', icon: 'alt_route', color: 'text-secondary' },
+                { label: 'Indexed Docs', val: '142', sub: '+12 this week', icon: 'article', color: 'text-tertiary' },
+                { label: 'Open Tasks', val: '48', sub: '9 due today', icon: 'check_circle', color: 'text-emerald-400' }
+              ].map(m => (
+                <div key={m.label} className="bg-surface-container-low rounded-xl p-4 border border-white/5">
+                  <div className="flex items-center justify-between text-xs text-text-dim uppercase font-mono">
+                    <span>{m.label}</span>
+                    <span className={`material-symbols-outlined text-[18px] ${m.color}`}>{m.icon}</span>
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-white">{m.val}</span>
+                    <span className="text-[11px] text-text-muted">{m.sub}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Search filter */}
+            <div className="mb-6">
+              <div className="relative max-w-md">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-text-dim">search</span>
+                <input 
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Filter workspaces, pinned schemas, or tags (#luxury, #saas)..."
+                  className="w-full bg-surface-container-low text-white placeholder:text-text-dim text-xs pl-10 pr-4 py-2 rounded-lg border border-white/10 focus:border-white/30 outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Spaces Cards Grid */}
+            <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+              {filtered.map(space => (
+                <div 
+                  key={space.id}
+                  className={`group bg-surface-container/60 hover:bg-surface-container/90 rounded-xl overflow-hidden border transition-all flex flex-col justify-between shadow-sm hover:shadow-xl ${
+                    space.primary ? 'border-primary/40 ring-1 ring-primary/20' : 'border-white/10'
+                  }`}
+                >
+                  <div className="p-6 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-semibold text-white group-hover:text-primary transition-colors">{space.title}</h2>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-white/10 text-white">{space.category}</span>
+                      </div>
+                      <span className="text-[11px] font-mono text-text-dim flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[13px]">schedule</span>
+                        {space.activeNow}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-text-muted leading-relaxed">
+                      {space.desc}
+                    </p>
+
+                    <div className="bg-surface-container-lowest/70 rounded-lg p-3 border border-white/5">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-text-dim mb-1.5">
+                        <span className="truncate">{space.target}</span>
+                        <span className="text-white font-medium">{space.progress}</span>
+                      </div>
+                      <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-gradient-to-r from-primary to-secondary h-full rounded-full" style={{ width: space.progress }}></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-3 border-t border-white/5 flex items-center justify-between bg-black/20">
+                    <div className="flex items-center gap-2">
+                      <Link 
+                        to="/canvas" 
+                        className="px-3 py-1.5 rounded bg-surface-container-high hover:bg-surface-bright text-white text-xs font-medium flex items-center gap-1.5 transition-all shadow-sm"
+                      >
+                        <span className="material-symbols-outlined text-[15px] text-primary">view_quilt</span>
+                        <span>Open Canvas</span>
+                      </Link>
+                      <Link 
+                        to="/tasks" 
+                        className="px-3 py-1.5 rounded hover:bg-surface-container-high text-text-muted hover:text-white text-xs flex items-center gap-1.5 transition-all"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">checklist</span>
+                        <span>Tasks ({space.tasksCount})</span>
+                      </Link>
+                    </div>
+                    <span className="text-text-dim text-[11px] font-mono">{space.boards} Boards Pinned</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    // --- SCREEN 7: SPRINT EXECUTION TASK BOARD ---
+    function TasksBoardScreen({ onOpenQuickCapture }) {
+      const [filterAssigned, setFilterAssigned] = useState(false);
+
+      const columns = [
+        {
+          id: 'backlog',
+          title: 'Backlog',
+          color: 'bg-outline-variant',
+          tasks: [
+            { id: '#TSK-102', priority: 'P4', title: 'Competitor Typography Benchmark', desc: 'Catalog variable weights and optical foundry licenses across premier Nordic industrial brands.', canvas: '@Canvas/Typography', date: 'May 14', user: 'AR' },
+            { id: '#TSK-108', priority: 'P2', title: '3D Asset Render Specs', desc: 'Define specular roughness maps and refractive indices for procedural packaging bottles.', canvas: '@Canvas/Assets-C1', date: 'May 18', user: 'DL' }
+          ]
+        },
+        {
+          id: 'in-progress',
+          title: 'In Progress',
+          color: 'bg-primary',
+          tasks: [
+            { id: '#TSK-097', priority: 'Urgent', title: 'Finalize Packaging Print Specs', desc: 'Review pantone spot varnishes, foil clearances, and cardboard tensile metrics.', canvas: '@Canvas/Box-Dieline', doc: 'Doc: Packaging v2', date: 'Tomorrow', user: 'HN', urgent: true, progress: '3/5 (60%)' },
+            { id: '#TSK-104', priority: 'P1', title: 'Obsidian Glass Finish Calibration', desc: 'Fine-tune dynamic noise displacement shaders across OLED tablets.', canvas: '@Canvas/Surface-Shader', date: 'May 16', user: 'VR' }
+          ]
+        },
+        {
+          id: 'in-review',
+          title: 'In Review',
+          color: 'bg-tertiary',
+          tasks: [
+            { id: '#TSK-089', priority: 'P1', title: 'Brand Identity Guidelines v1.2', desc: 'Comprehensive token mapping, sub-brand co-existence hierarchy, and editorial layout.', canvas: '@Canvas/Identity-System', pdf: 'Bisnis_A_Brand_Book_v1.2.pdf', date: 'Waiting on CEO', user: 'FA' }
+          ]
+        },
+        {
+          id: 'done',
+          title: 'Done',
+          color: 'bg-secondary-container',
+          tasks: [
+            { id: '#TSK-078', done: true, title: 'Core Value Pillars Definition', desc: 'Consolidate executive feedback into 3 foundational brand attributes: Precision, Clarity, Restraint.', canvas: '@Canvas/Strategy-Node', date: 'Completed May 10', user: 'DL' },
+            { id: '#TSK-081', done: true, title: 'Domain Switch Strategy', desc: 'DNS failover latency simulation, SSL wildcard renewal, and global CDN cache warming routes.', date: 'Completed May 11', user: 'AR' }
+          ]
+        }
+      ];
+
+      return (
+        <div className="pl-64 h-screen flex flex-col bg-[#111317] overflow-y-auto">
+          {/* Header */}
+          <header className="h-14 bg-[#111317] border-b border-white/10 z-40 flex items-center justify-between px-8 select-none flex-shrink-0 sticky top-0">
+            <div className="flex items-center gap-2 text-xs font-mono">
+              <span className="text-sm font-medium text-white font-sans">Bisnis A</span>
+              <span className="text-text-dim">/</span>
+              <span className="text-sm text-text-muted font-sans">Rebranding & Launch</span>
+            </div>
+
+            {/* Segmented Tab Switcher */}
+            <nav className="flex items-center p-0.5 rounded bg-surface-container-lowest border border-white/10">
+              <Link to="/canvas" className="px-3.5 py-1 text-xs text-text-muted hover:text-white">Canvas</Link>
+              <Link to="/documents" className="px-3.5 py-1 text-xs text-text-muted hover:text-white">Documents</Link>
+              <Link to="/tasks" className="px-3.5 py-1 text-xs rounded bg-[#262932] text-white font-medium border border-white/10 shadow-sm">Tasks</Link>
+            </nav>
+
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={onOpenQuickCapture}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 rounded-sm"
+              >
+                <span className="material-symbols-outlined text-[15px] text-primary">add</span>
+                <span>New</span>
+              </button>
+            </div>
+          </header>
+
+          <main className="p-8 flex flex-col gap-6 max-w-[1400px] w-full mx-auto">
+            {/* Velocity Header */}
+            <div className="flex items-end justify-between border-b border-white/5 pb-4">
+              <div className="flex items-baseline gap-4">
+                <h1 className="text-xl font-semibold text-white tracking-tight">Sprint Execution</h1>
+                <span className="px-2 py-0.5 rounded bg-surface-container-high text-xs font-mono text-secondary tracking-widest uppercase">Q2 • Week 08</span>
+                <span className="text-xs text-text-dim font-mono">18 of 24 tasks delivered</span>
+              </div>
+              <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-lg border border-white/5">
+                <span className="text-[11px] font-mono text-text-dim uppercase">Velocity</span>
+                <span className="text-xs font-semibold text-secondary">76%</span>
+              </div>
+            </div>
+
+            {/* Sub Filter Toolbar */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setFilterAssigned(!filterAssigned)}
+                  className={`px-3 py-1 rounded text-xs transition-colors ${filterAssigned ? 'bg-primary text-black font-medium' : 'bg-surface-container-low text-text-muted hover:text-white'}`}
+                >
+                  Assigned to Me
+                </button>
+                <button className="px-3 py-1 rounded bg-surface-container-low text-text-muted hover:text-white text-xs">
+                  Due this week
+                </button>
+                <button className="px-3 py-1 rounded bg-surface-container-low text-text-muted hover:text-white text-xs">
+                  Priority: High
+                </button>
+              </div>
+
+              <button 
+                onClick={onOpenQuickCapture}
+                className="px-3 py-1 bg-white text-black font-medium text-xs rounded-sm hover:bg-white/90 shadow-sm flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[15px]">add</span>
+                <span>New Task</span>
+              </button>
+            </div>
+
+            {/* Kanban Columns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
+              {columns.map(col => (
+                <div key={col.id} className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${col.color}`}></span>
+                      <h3 className="text-xs font-semibold text-white uppercase tracking-wider">{col.title}</h3>
+                      <span className="px-1.5 py-0.2 rounded bg-surface-container-high text-text-dim text-[10px] font-mono">{col.tasks.length}</span>
+                    </div>
+                    <button onClick={onOpenQuickCapture} className="text-text-dim hover:text-white">
+                      <span className="material-symbols-outlined text-[16px]">add</span>
+                    </button>
+                  </div>
+
+                  {col.tasks.map(t => (
+                    <div 
+                      key={t.id}
+                      className={`p-4 rounded-lg bg-surface-container-low border hover:border-white/20 transition-all flex flex-col gap-2.5 shadow-sm cursor-grab ${
+                        t.urgent ? 'border-red-500/40' : 'border-white/5'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-text-dim">{t.id}</span>
+                        {t.urgent ? (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-red-500/20 text-red-400">Urgent</span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-text-dim">{t.priority}</span>
+                        )}
+                      </div>
+
+                      <h4 className={`text-xs font-medium text-white leading-snug ${t.done ? 'line-through opacity-70' : ''}`}>
+                        {t.title}
+                      </h4>
+                      <p className="text-[11px] text-text-dim leading-relaxed line-clamp-2">
+                        {t.desc}
+                      </p>
+
+                      {t.progress && (
+                        <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden">
+                          <div className="bg-primary h-full rounded-full w-3/5"></div>
+                        </div>
+                      )}
+
+                      {t.canvas && (
+                        <div className="flex items-center gap-1 text-[10px] font-mono text-secondary bg-surface-container px-2 py-0.5 rounded w-max">
+                          <span className="material-symbols-outlined text-[12px]">hub</span>
+                          <span>{t.canvas}</span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px] text-text-dim font-mono">
+                        <span>{t.date}</span>
+                        <div className="w-5 h-5 rounded-full bg-surface-container-high flex items-center justify-center text-[9px] text-white">
+                          {t.user}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    // --- MAIN APP ENTRY WITH MEMORY ROUTER ---
+    function App() {
+      const [isQuickCaptureOpen, setQuickCaptureOpen] = useState(false);
+
+      // Keyboard shortcut ⌘K or Ctrl+K to toggle quick capture
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            setQuickCaptureOpen(prev => !prev);
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, []);
+
+      const handleSaveCapture = ({ type, title, note }) => {
+        console.log("Captured:", { type, title, note });
+      };
+
+      return (
+        <MemoryRouter initialEntries={['/canvas']}>
+          <div className="flex min-h-screen bg-[#111317] text-[#e2e2e8]">
+            <Sidebar onOpenQuickCapture={() => setQuickCaptureOpen(true)} />
+            
+            <div className="flex-1 w-full min-w-0">
+              <Routes>
+                <Route path="/" element={<SpatialCanvasScreen onOpenQuickCapture={() => setQuickCaptureOpen(true)} />} />
+                <Route path="/canvas" element={<SpatialCanvasScreen onOpenQuickCapture={() => setQuickCaptureOpen(true)} />} />
+                <Route path="/canvas-hub" element={<CanvasHubScreen onOpenQuickCapture={() => setQuickCaptureOpen(true)} />} />
+                <Route path="/calendar" element={<CalendarScreen onOpenQuickCapture={() => setQuickCaptureOpen(true)} />} />
+                <Route path="/documents" element={<DocumentsScreen onOpenQuickCapture={() => setQuickCaptureOpen(true)} />} />
+                <Route path="/spaces" element={<SpacesMasterScreen onOpenQuickCapture={() => setQuickCaptureOpen(true)} />} />
+                <Route path="/tasks" element={<TasksBoardScreen onOpenQuickCapture={() => setQuickCaptureOpen(true)} />} />
+              </Routes>
+            </div>
+
+            <QuickCaptureModal 
+              isOpen={isQuickCaptureOpen}
+              onClose={() => setQuickCaptureOpen(false)}
+              onSave={handleSaveCapture}
+            />
+          </div>
+        </MemoryRouter>
+      );
+    }
+
+    const container = document.getElementById('root');
+    const root = createRoot(container);
+    root.render(<App />);
+  </script>
+</body>
+</html>
