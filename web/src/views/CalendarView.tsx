@@ -2,7 +2,6 @@ import type { Component } from 'solid-js';
 import { createSignal, For } from 'solid-js';
 import { 
   Calendar, 
-  Clock, 
   Plus, 
   ChevronLeft, 
   ChevronRight, 
@@ -27,22 +26,21 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
   ];
 
   return (
-    <div style={{ height: '100vh', display: 'flex', "flex-direction": 'column', "background-color": '#111317', "overflow-y": 'auto' }}>
+    <div style={{ height: '100%', width: '100%', display: 'flex', "flex-direction": 'column', "background-color": 'var(--surface)', "overflow-y": 'auto' }}>
       {/* Calendar Top Header */}
-      <header class="orca-top-header" style={{ position: 'sticky', top: 0, "z-index": 40 }}>
-        <div style={{ display: 'flex', "align-items": 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-            <Calendar size={18} color="var(--primary)" />
-            <span style={{ "font-size": '14px', color: '#fff', "font-weight": 500 }}>Calendar</span>
+      <header class="orca-header">
+        <div class="header-breadcrumbs">
+          <div class="breadcrumb-title">
+            <Calendar size={17} color="var(--primary)" />
+            <span>Calendar</span>
           </div>
-          <div style={{ width: '1px', height: '16px', "background-color": 'rgba(255,255,255,0.1)' }}></div>
-          <div style={{ display: 'flex', "align-items": 'center', gap: '4px', "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
-            <Clock size={13} />
-            <span>Temporal Matrix View</span>
-          </div>
+          <span class="breadcrumb-sep">/</span>
+          <span class="badge-outline">
+            Temporal Matrix View
+          </span>
         </div>
 
-        <div style={{ display: 'flex', "align-items": 'center', gap: '12px' }}>
+        <div class="header-actions">
           <div style={{ display: 'flex', "align-items": 'center', gap: '8px', padding: '4px 12px', "border-radius": '9999px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', "font-size": '12px' }}>
             <span style={{ position: 'relative', display: 'flex', width: '8px', height: '8px' }}>
               <span style={{ position: 'absolute', width: '100%', height: '100%', "border-radius": '50%', "background-color": 'var(--secondary)', opacity: 0.75, animation: 'ping 1s cubic-bezier(0, 0, 0.2, 1) infinite' }}></span>
@@ -52,19 +50,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
           </div>
           <button 
             onClick={props.onOpenQuickCapture}
-            style={{
-              display: 'flex',
-              "align-items": 'center',
-              gap: '6px',
-              padding: '5px 12px',
-              "font-size": '12px',
-              "font-weight": 500,
-              color: '#fff',
-              "background-color": 'rgba(255,255,255,0.08)',
-              border: '1px solid var(--border-default)',
-              "border-radius": '4px',
-              cursor: 'pointer'
-            }}
+            class="btn-pill-ghost"
           >
             <Plus size={14} color="var(--secondary)" />
             <span>Add Event</span>

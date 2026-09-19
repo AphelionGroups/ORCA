@@ -122,24 +122,24 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const currentProject = () => projects.find(p => p.id === selectedProjectId()) || projects[0];
 
   return (
-    <div style={{ height: '100vh', display: 'flex', "flex-direction": 'column', "background-color": '#111317', overflow: 'hidden' }}>
+    <div style={{ height: '100%', width: '100%', display: 'flex', "flex-direction": 'column', "background-color": 'var(--surface)', overflow: 'hidden' }}>
       
       {/* Project Hub Header */}
-      <header class="orca-top-header" style={{ position: 'sticky', top: 0, "z-index": 40 }}>
+      <header class="orca-header">
         {/* Left: Breadcrumbs / Project selector */}
-        <div style={{ display: 'flex', "align-items": 'center', gap: '8px', "font-size": '13px' }}>
+        <div class="header-breadcrumbs">
           <button 
             onClick={() => setSelectedProjectId(null)}
-            style={{ display: 'flex', "align-items": 'center', gap: '6px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
+            class="breadcrumb-label"
           >
             <FolderKanban size={15} color="var(--primary)" />
             <span>Projects</span>
           </button>
           
           <Show when={selectedProjectId()}>
-            <span style={{ color: 'var(--text-dim)' }}>/</span>
-            <span style={{ color: '#fff', "font-weight": 600, display: 'flex', "align-items": 'center', gap: '8px' }}>
-              <span style={{ width: '7px', height: '7px', "border-radius": '2px', "background-color": 'var(--secondary)' }}></span>
+            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-title">
+              <span class="status-dot" style={{ "background-color": 'var(--secondary)' }}></span>
               {currentProject().name}
             </span>
           </Show>
@@ -149,21 +149,21 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         <Show when={selectedProjectId()}>
           <div class="segmented-control">
             <button 
-              class={`seg-item ${activeTab() === 'docs' ? 'active' : ''}`}
+              class={`seg-btn ${activeTab() === 'docs' ? 'active' : ''}`}
               onClick={() => setActiveTab('docs')}
             >
               <FileText size={13} color={activeTab() === 'docs' ? 'var(--tertiary)' : 'var(--text-dim)'} />
               <span>Docs & Plans</span>
             </button>
             <button 
-              class={`seg-item ${activeTab() === 'board' ? 'active' : ''}`}
+              class={`seg-btn ${activeTab() === 'board' ? 'active' : ''}`}
               onClick={() => setActiveTab('board')}
             >
               <LayoutGrid size={13} color={activeTab() === 'board' ? 'var(--secondary)' : 'var(--text-dim)'} />
               <span>Board</span>
             </button>
             <button 
-              class={`seg-item ${activeTab() === 'tasks' ? 'active' : ''}`}
+              class={`seg-btn ${activeTab() === 'tasks' ? 'active' : ''}`}
               onClick={() => setActiveTab('tasks')}
             >
               <CheckSquare size={13} color={activeTab() === 'tasks' ? 'var(--primary)' : 'var(--text-dim)'} />
@@ -173,22 +173,10 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         </Show>
 
         {/* Right Controls */}
-        <div style={{ display: 'flex', "align-items": 'center', gap: '10px' }}>
+        <div class="header-actions">
           <button 
             onClick={props.onOpenQuickCapture}
-            style={{
-              display: 'flex',
-              "align-items": 'center',
-              gap: '6px',
-              padding: '5px 12px',
-              "font-size": '12px',
-              "font-weight": 500,
-              color: '#000',
-              "background-color": '#fff',
-              border: 'none',
-              "border-radius": '4px',
-              cursor: 'pointer'
-            }}
+            class="btn-pill-white"
           >
             <Plus size={14} />
             <span>New Item</span>

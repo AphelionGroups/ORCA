@@ -128,69 +128,43 @@ export const TasksView: Component<TasksViewProps> = (props) => {
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', "flex-direction": 'column', "background-color": '#111317', overflow: 'hidden' }}>
+    <div style={{ height: '100%', width: '100%', display: 'flex', "flex-direction": 'column', "background-color": 'var(--surface)', overflow: 'hidden' }}>
       {/* Header */}
-      <header class="orca-top-header" style={{ position: 'sticky', top: 0, "z-index": 40 }}>
-        <div style={{ display: 'flex', "align-items": 'center', gap: '10px' }}>
-          <CheckSquare size={18} color="var(--secondary)" />
-          <h1 style={{ "font-size": '14px', "font-weight": 600, color: '#fff', margin: 0 }}>Tasks</h1>
-          <span style={{ color: 'var(--text-dim)' }}>/</span>
-          <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--outline)', padding: '2px 8px', "border-radius": '4px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)' }}>
+      <header class="orca-header">
+        <div class="header-breadcrumbs">
+          <div class="breadcrumb-title">
+            <CheckSquare size={17} color="var(--secondary)" />
+            <span>Tasks</span>
+          </div>
+          <span class="breadcrumb-sep">/</span>
+          <span class="badge-outline">
             Execution Board
           </span>
         </div>
 
         {/* View Switcher & Action */}
-        <div style={{ display: 'flex', "align-items": 'center', gap: '12px' }}>
+        <div class="header-actions">
           {/* Kanban vs List toggle */}
-          <div style={{ display: 'flex', "align-items": 'center', padding: '2px', "border-radius": '4px', "background-color": 'var(--surface-container-lowest)', border: '1px solid var(--border-default)' }}>
+          <div class="segmented-control">
             <button 
               onClick={() => setViewMode('kanban')}
-              style={{
-                padding: '4px 8px',
-                "border-radius": '4px',
-                border: 'none',
-                background: viewMode() === 'kanban' ? 'var(--surface-container)' : 'transparent',
-                color: viewMode() === 'kanban' ? 'var(--secondary)' : 'var(--text-dim)',
-                cursor: 'pointer',
-                display: 'flex',
-                "align-items": 'center'
-              }}
+              class={`seg-btn ${viewMode() === 'kanban' ? 'active' : ''}`}
             >
-              <Kanban size={15} />
+              <Kanban size={13} />
+              <span>Kanban</span>
             </button>
             <button 
               onClick={() => setViewMode('list')}
-              style={{
-                padding: '4px 8px',
-                "border-radius": '4px',
-                border: 'none',
-                background: viewMode() === 'list' ? 'var(--surface-container)' : 'transparent',
-                color: viewMode() === 'list' ? 'var(--secondary)' : 'var(--text-dim)',
-                cursor: 'pointer',
-                display: 'flex',
-                "align-items": 'center'
-              }}
+              class={`seg-btn ${viewMode() === 'list' ? 'active' : ''}`}
             >
-              <List size={15} />
+              <List size={13} />
+              <span>List</span>
             </button>
           </div>
 
           <button 
             onClick={props.onOpenQuickCapture}
-            style={{
-              display: 'flex',
-              "align-items": 'center',
-              gap: '6px',
-              padding: '5px 12px',
-              "font-size": '12px',
-              "font-weight": 500,
-              color: '#000',
-              "background-color": '#fff',
-              border: 'none',
-              "border-radius": '4px',
-              cursor: 'pointer'
-            }}
+            class="btn-pill-white"
           >
             <Plus size={14} />
             <span>New Task</span>
