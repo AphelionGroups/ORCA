@@ -58,6 +58,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const [connections, setConnections] = createSignal<Connection[]>([]);
   const [isSpacePressed, setIsSpacePressed] = createSignal(false);
   const [isActivelyPanning, setIsActivelyPanning] = createSignal(false);
+  const [cursorCanvasPos, setCursorCanvasPos] = createSignal<{ x: number, y: number } | null>(null);
 
   // Quick task input in tasks tab
   const [newTaskTitle, setNewTaskTitle] = createSignal('');
@@ -231,8 +232,18 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       return;
     }
 
-    // Right-click (2) or Middle-click (1) anywhere on canvas starts pan tool
-    if (e.button === 1 || e.button === 2) {
+    // Right-click: if in placement mode, cancel tool back to 'select'; otherwise start pan tool
+    if (e.button === 2) {
+      e.preventDefault();
+      if (['card', 'sticky', 'text', 'shape', 'connector'].includes(activeCanvasTool())) {
+        setActiveCanvasTool('select');
+        setCursorCanvasPos(null);
+        return;
+      }
+      startCanvasPan(e.clientX, e.clientY);
+      return;
+    }
+    if (e.button === 1) {
       e.preventDefault();
       startCanvasPan(e.clientX, e.clientY);
       return;
@@ -243,13 +254,13 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     setConnectingSourceId(null);
 
     // If a creation tool is active, place a block at clicked position with default size
+    // KEEPS PLACEMENT TOOL ACTIVE so user can place multiple objects in succession!
     if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
       const scale = zoom() / 100;
       const containerRect = canvasContainerRef ? canvasContainerRef.getBoundingClientRect() : (e.currentTarget as HTMLElement).getBoundingClientRect();
       const clickX = Math.round((e.clientX - containerRect.left - pan().x) / scale);
       const clickY = Math.round((e.clientY - containerRect.top - pan().y) / scale);
       handleCreateBlock(activeCanvasTool() as any, clickX, clickY);
-      setActiveCanvasTool('select');
       return;
     }
 
@@ -265,7 +276,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       return;
     }
 
-    // If a creation tool is active, place the new object right where clicked
+    // If a creation tool is active, place the new object right where clicked (keeps placement active)
     if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
       const scale = zoom() / 100;
       const containerRect = canvasContainerRef?.getBoundingClientRect();
@@ -273,7 +284,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         const clickX = Math.round((e.clientX - containerRect.left - pan().x) / scale);
         const clickY = Math.round((e.clientY - containerRect.top - pan().y) / scale);
         handleCreateBlock(activeCanvasTool() as any, clickX, clickY);
-        setActiveCanvasTool('select');
       }
       return;
     }
@@ -327,6 +337,19 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         }
         return b;
       }));
+    }
+
+    // 3. Track cursor position for placement ghost preview
+    if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
+      const containerRect = canvasContainerRef?.getBoundingClientRect();
+      if (containerRect) {
+        const scale = zoom() / 100;
+        const x = Math.round((e.clientX - containerRect.left - pan().x) / scale);
+        const y = Math.round((e.clientY - containerRect.top - pan().y) / scale);
+        setCursorCanvasPos({ x, y });
+      }
+    } else if (cursorCanvasPos()) {
+      setCursorCanvasPos(null);
     }
   };
 
@@ -805,6 +828,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
               }}
               onMouseDown={handleCanvasMouseDown}
               onContextMenu={(e) => e.preventDefault()}
+              onMouseLeave={() => setCursorCanvasPos(null)}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -852,6 +876,97 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 <svg style={{ position: 'absolute', inset: 0, width: '4000px', height: '4000px', "pointer-events": 'none', "z-index": 10 }}>
                   {renderConnectorCurves()}
                 </svg>
+
+                {/* Ghost Preview Silhouette for active placement tool */}
+                <Show when={cursorCanvasPos() && ['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())}>
+                  {(() => {
+                    const tool = activeCanvasTool();
+                    const pos = cursorCanvasPos()!;
+                    const width = tool === 'text' ? 240 : tool === 'shape' ? 440 : 310;
+                    const height = tool === 'shape' ? 280 : tool === 'text' ? 65 : 210;
+                    const isSticky = tool === 'sticky';
+                    const isShape = tool === 'shape';
+                    const isText = tool === 'text';
+
+                    return (
+                      <div
+                        class="canvas-ghost-preview"
+                        style={{
+                          left: `${pos.x}px`,
+                          top: `${pos.y}px`,
+                          width: `${width}px`,
+                          height: `${height}px`,
+                          border: isSticky 
+                            ? '2px dashed #44e1de' 
+                            : isShape 
+                            ? '2px dashed #10b981' 
+                            : isText 
+                            ? '1px dashed rgba(255,255,255,0.6)' 
+                            : '2px dashed var(--secondary)',
+                          background: isSticky 
+                            ? 'rgba(68, 225, 222, 0.12)' 
+                            : isShape 
+                            ? 'rgba(16, 185, 129, 0.08)' 
+                            : isText 
+                            ? 'rgba(255, 255, 255, 0.06)' 
+                            : 'rgba(68, 225, 222, 0.08)',
+                          "border-radius": isShape ? '12px' : '8px',
+                          display: 'flex',
+                          "flex-direction": 'column',
+                          padding: '12px',
+                          color: 'var(--text-muted)',
+                          "backdrop-filter": 'blur(6px)',
+                          "box-shadow": isSticky
+                            ? '0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(68, 225, 222, 0.25)'
+                            : isShape
+                            ? '0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.2)'
+                            : '0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(68, 225, 222, 0.2)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '10px' }}>
+                          <span style={{ 
+                            "font-size": '10px', 
+                            "font-family": 'var(--font-mono)', 
+                            "text-transform": 'uppercase', 
+                            color: isSticky ? '#44e1de' : isShape ? '#10b981' : 'var(--secondary)',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            padding: '2px 6px',
+                            "border-radius": '3px'
+                          }}>
+                            + {tool} preview
+                          </span>
+                          <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                            {width}x{height}
+                          </span>
+                        </div>
+
+                        <div style={{
+                          width: isText ? '60%' : '75%',
+                          height: '10px',
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          "border-radius": '3px',
+                          "margin-bottom": '8px'
+                        }} />
+
+                        <Show when={!isText}>
+                          <div style={{
+                            width: '90%',
+                            height: '8px',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            "border-radius": '3px',
+                            "margin-bottom": '6px'
+                          }} />
+                          <div style={{
+                            width: '65%',
+                            height: '8px',
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            "border-radius": '3px'
+                          }} />
+                        </Show>
+                      </div>
+                    );
+                  })()}
+                </Show>
 
                 {/* Dynamic Blocks */}
                 <For each={blocks()}>

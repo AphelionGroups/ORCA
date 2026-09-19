@@ -996,3 +996,25 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   background-color: rgba(0, 0, 0, 0.3);
   color: #fff;
 }
+
+/* Ghost Placement Preview */
+.canvas-ghost-preview {
+  pointer-events: none;
+  position: absolute;
+  z-index: 60;
+  box-sizing: border-box;
+  animation: ghost-pulse 2s infinite ease-in-out;
+  transition: none;
+}
+
+@keyframes ghost-pulse {
+  0%, 100% {
+    opacity: 0.82;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.96;
+    transform: scale(1.005);
+  }
+}
+
