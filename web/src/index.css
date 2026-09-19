@@ -792,3 +792,207 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   background-color: var(--secondary);
   box-shadow: 0 0 8px rgba(68, 225, 222, 0.8);
 }
+
+/* =========================================================
+   Milanote Spatial Canvas & Floating Toolbar Design System
+   ========================================================= */
+
+.canvas-toolbar {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(22, 24, 29, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  user-select: none;
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 120ms ease;
+  position: relative;
+}
+
+.tool-btn:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.tool-btn.active {
+  color: var(--secondary);
+  background-color: rgba(68, 225, 222, 0.12);
+  border-color: rgba(68, 225, 222, 0.3);
+  box-shadow: 0 0 12px rgba(68, 225, 222, 0.15);
+}
+
+.tool-divider {
+  width: 1px;
+  height: 20px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 0 4px;
+}
+
+/* Canvas Node Types */
+.canvas-block {
+  position: absolute;
+  z-index: 20;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: grab;
+  user-select: none;
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.canvas-block:active {
+  cursor: grabbing;
+}
+
+.canvas-block.selected {
+  outline: 2px solid var(--secondary);
+  box-shadow: 0 0 0 4px rgba(68, 225, 222, 0.15), 0 20px 45px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* 1. Obsidian Strategy Card */
+.canvas-block-card {
+  background-color: #181a20;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* 2. Chamfered Sticky Note */
+.canvas-block-sticky {
+  background-color: #1c1f27;
+  border: 1px solid rgba(206, 189, 255, 0.2);
+  clip-path: polygon(0px 0px, calc(100% - 16px) 0px, 100% 16px, 100% 100%, 0px 100%);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* 3. Free Floating Text Block */
+.canvas-block-text {
+  background: transparent;
+  border: 1px dashed transparent;
+  box-shadow: none;
+  padding: 8px 12px;
+}
+
+.canvas-block-text:hover,
+.canvas-block-text.selected {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(24, 26, 32, 0.4);
+}
+
+/* 4. Shape Container / Group Area */
+.canvas-block-shape {
+  background-color: rgba(24, 26, 32, 0.3);
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(2px);
+}
+
+/* Card Header Action Controls */
+.block-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.6;
+  transition: opacity 120ms ease;
+}
+
+.canvas-block:hover .block-header-actions,
+.canvas-block.selected .block-header-actions {
+  opacity: 1;
+}
+
+.block-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 120ms ease;
+}
+
+.block-action-btn:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.block-action-btn.btn-delete:hover {
+  color: #f87171;
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+/* Inline Editable Fields */
+.block-input-title {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  padding: 2px 4px;
+  margin: 0 0 6px -4px;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: all 120ms ease;
+}
+
+.block-input-title:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.block-input-title:focus {
+  border-color: var(--secondary);
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.block-textarea-body {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  padding: 2px 4px;
+  margin-left: -4px;
+  outline: none;
+  resize: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: all 120ms ease;
+}
+
+.block-textarea-body:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.block-textarea-body:focus {
+  border-color: var(--secondary);
+  background-color: rgba(0, 0, 0, 0.3);
+  color: #fff;
+}

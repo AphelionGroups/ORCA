@@ -12,7 +12,11 @@ import {
   Share2, 
   Type,
   ChevronRight,
-  RotateCcw
+  RotateCcw,
+  StickyNote,
+  Trash2,
+  Palette,
+  Maximize2
 } from 'lucide-solid';
 import { api } from '../services/api';
 import type { Project, Space, Document as OrcaDoc, NoteBoard, NoteBlock, Task } from '../services/api';
@@ -20,6 +24,11 @@ import type { Project, Space, Document as OrcaDoc, NoteBoard, NoteBlock, Task } 
 interface ProjectsViewProps {
   onOpenQuickCapture: () => void;
   activeSpaceId?: string | null;
+}
+
+interface Connection {
+  fromId: string;
+  toId: string;
 }
 
 export const ProjectsView: Component<ProjectsViewProps> = (props) => {
@@ -42,14 +51,29 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
   // Canvas Viewport & Tool state
   const [zoom, setZoom] = createSignal(100);
-  const [activeCanvasTool, setActiveCanvasTool] = createSignal('select');
+  const [pan, setPan] = createSignal({ x: 0, y: 0 });
+  const [activeCanvasTool, setActiveCanvasTool] = createSignal<'select' | 'pan' | 'card' | 'sticky' | 'text' | 'shape' | 'connector'>('select');
+  const [selectedBlockId, setSelectedBlockId] = createSignal<string | null>(null);
+  const [connectingSourceId, setConnectingSourceId] = createSignal<string | null>(null);
+  const [connections, setConnections] = createSignal<Connection[]>([]);
+  const [isSpacePressed, setIsSpacePressed] = createSignal(false);
 
-  // Quick task input in board/tasks tab
+  // Quick task input in tasks tab
   const [newTaskTitle, setNewTaskTitle] = createSignal('');
   const [activeNewTaskCol, setActiveNewTaskCol] = createSignal<string | null>(null);
 
-  // Dragging state for canvas blocks
-  let draggingBlockState: { blockId: string; startX: number; startY: number; initialX: number; initialY: number } | null = null;
+  // Mouse interaction states
+  let isPanningCanvas = false;
+  let panStart = { x: 0, y: 0 };
+  let initialPan = { x: 0, y: 0 };
+
+  let draggingBlockState: {
+    blockId: string;
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+  } | null = null;
 
   // Load all projects and spaces
   const loadProjects = async () => {
@@ -62,7 +86,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       setProjects(fetchedProjects || []);
       setSpaces(fetchedSpaces || []);
 
-      // If no project selected yet, select first project
       if (!selectedProjectId() && fetchedProjects && fetchedProjects.length > 0) {
         setSelectedProjectId(fetchedProjects[0].id);
       }
@@ -75,14 +98,40 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
   onMount(() => {
     loadProjects();
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('keyup', handleGlobalKeyUp);
   });
 
   onCleanup(() => {
-    window.removeEventListener('mousemove', handleMouseMove);
-    window.removeEventListener('mouseup', handleMouseUp);
+    window.removeEventListener('mousemove', handleGlobalMouseMove);
+    window.removeEventListener('mouseup', handleGlobalMouseUp);
+    window.removeEventListener('keydown', handleGlobalKeyDown);
+    window.removeEventListener('keyup', handleGlobalKeyUp);
   });
+
+  // Keyboard shortcut handlers
+  const handleGlobalKeyDown = (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+    if (['input', 'textarea'].includes(target.tagName.toLowerCase())) return;
+
+    if (e.code === 'Space' && !isSpacePressed()) {
+      setIsSpacePressed(true);
+    }
+    if (e.key.toLowerCase() === 'v') setActiveCanvasTool('select');
+    if (e.key.toLowerCase() === 'h') setActiveCanvasTool('pan');
+    if (e.key.toLowerCase() === 'c') setActiveCanvasTool('card');
+    if (e.key.toLowerCase() === 's') setActiveCanvasTool('sticky');
+    if (e.key.toLowerCase() === 't') setActiveCanvasTool('text');
+  };
+
+  const handleGlobalKeyUp = (e: KeyboardEvent) => {
+    if (e.code === 'Space') {
+      setIsSpacePressed(false);
+      isPanningCanvas = false;
+    }
+  };
 
   // Re-fetch projects if activeSpaceId changes
   createEffect(() => {
@@ -109,18 +158,18 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       ]);
 
       setDocs(fetchedDocs || []);
-      if (fetchedDocs && fetchedDocs.length > 0) {
-        setSelectedDocId(fetchedDocs[0].id);
-      } else {
-        setSelectedDocId(null);
-      }
+      setSelectedDocId(fetchedDocs && fetchedDocs.length > 0 ? fetchedDocs[0].id : null);
 
       setBoards(fetchedBoards || []);
       if (fetchedBoards && fetchedBoards.length > 0) {
         const fetchedBlocks = await api.getBoardBlocks(fetchedBoards[0].id);
         setBlocks(fetchedBlocks || []);
+        if (fetchedBlocks && fetchedBlocks.length >= 2) {
+          setConnections([{ fromId: fetchedBlocks[0].id, toId: fetchedBlocks[1].id }]);
+        }
       } else {
         setBlocks([]);
+        setConnections([]);
       }
 
       setTasks(fetchedTasks || []);
@@ -138,11 +187,64 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     return spaces().find(s => s.id === spaceId)?.name || 'Space';
   };
 
-  // Canvas Mouse Dragging
-  const handleMouseDown = (e: MouseEvent, block: NoteBlock) => {
-    const target = e.target as HTMLElement;
-    if (['button', 'input', 'textarea', 'a', 'select'].includes(target.tagName.toLowerCase())) return;
+  // -------------------------------------------------------------
+  // SPATIAL CANVAS INTERACTIONS (PAN, DRAG, ADD, EDIT, DELETE)
+  // -------------------------------------------------------------
 
+  // Canvas background mouse down (Panning or Drop Block)
+  const handleCanvasMouseDown = (e: MouseEvent) => {
+    // If clicking on a block or button, ignore background handler
+    const target = e.target as HTMLElement;
+    if (target.closest('.canvas-block') || target.closest('.canvas-toolbar') || target.closest('button')) {
+      return;
+    }
+
+    // Deselect active block if clicking on canvas
+    setSelectedBlockId(null);
+    setConnectingSourceId(null);
+
+    // Pan canvas
+    if (activeCanvasTool() === 'pan' || isSpacePressed() || e.button === 1) {
+      isPanningCanvas = true;
+      panStart = { x: e.clientX, y: e.clientY };
+      initialPan = { ...pan() };
+      return;
+    }
+
+    // If a creation tool is active, place a block at clicked position
+    if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
+      const scale = zoom() / 100;
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const clickX = Math.round((e.clientX - rect.left - pan().x) / scale);
+      const clickY = Math.round((e.clientY - rect.top - pan().y) / scale);
+      handleCreateBlock(activeCanvasTool() as any, clickX, clickY);
+      setActiveCanvasTool('select');
+    }
+  };
+
+  // Block mouse down (Start Dragging or Connection)
+  const handleBlockMouseDown = (e: MouseEvent, block: NoteBlock) => {
+    e.stopPropagation();
+    const target = e.target as HTMLElement;
+    if (['button', 'input', 'textarea', 'select'].includes(target.tagName.toLowerCase())) {
+      return;
+    }
+
+    // Connector tool mode: clicking block links it
+    if (activeCanvasTool() === 'connector') {
+      if (!connectingSourceId()) {
+        setConnectingSourceId(block.id);
+      } else if (connectingSourceId() !== block.id) {
+        setConnections([...connections(), { fromId: connectingSourceId()!, toId: block.id }]);
+        setConnectingSourceId(null);
+        setActiveCanvasTool('select');
+      }
+      return;
+    }
+
+    setSelectedBlockId(block.id);
+
+    // Dragging
     draggingBlockState = {
       blockId: block.id,
       startX: e.clientX,
@@ -152,25 +254,43 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     };
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!draggingBlockState) return;
-    const { blockId, startX, startY, initialX, initialY } = draggingBlockState;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
+  // Global mouse move for Dragging & Panning
+  const handleGlobalMouseMove = (e: MouseEvent) => {
+    // 1. Panning canvas
+    if (isPanningCanvas) {
+      const dx = e.clientX - panStart.x;
+      const dy = e.clientY - panStart.y;
+      setPan({
+        x: initialPan.x + dx,
+        y: initialPan.y + dy
+      });
+      return;
+    }
 
-    setBlocks(blocks().map(b => {
-      if (b.id === blockId) {
-        return {
-          ...b,
-          pos_x: Math.max(20, initialX + dx),
-          pos_y: Math.max(20, initialY + dy)
-        };
-      }
-      return b;
-    }));
+    // 2. Dragging block
+    if (draggingBlockState) {
+      const scale = zoom() / 100;
+      const { blockId, startX, startY, initialX, initialY } = draggingBlockState;
+      const dx = (e.clientX - startX) / scale;
+      const dy = (e.clientY - startY) / scale;
+
+      setBlocks(blocks().map(b => {
+        if (b.id === blockId) {
+          return {
+            ...b,
+            pos_x: Math.round(initialX + dx),
+            pos_y: Math.round(initialY + dy)
+          };
+        }
+        return b;
+      }));
+    }
   };
 
-  const handleMouseUp = async () => {
+  // Global mouse up
+  const handleGlobalMouseUp = async () => {
+    isPanningCanvas = false;
+
     if (!draggingBlockState) return;
     const blockId = draggingBlockState.blockId;
     draggingBlockState = null;
@@ -179,8 +299,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     if (block) {
       try {
         await api.updateNoteBlock(block.id, {
-          pos_x: Math.round(block.pos_x),
-          pos_y: Math.round(block.pos_y)
+          pos_x: block.pos_x,
+          pos_y: block.pos_y
         });
       } catch (err) {
         console.error('Failed to persist block position:', err);
@@ -188,21 +308,119 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
   };
 
-  // Dynamic SVG connector path between the first two blocks
-  const connectorPath = () => {
-    const blist = blocks();
-    if (blist.length < 2) return '';
-    const b1 = blist[0];
-    const b2 = blist[1];
-    const p1X = b1.pos_x + (b1.width || 310);
-    const p1Y = b1.pos_y + 115;
-    const p2X = b2.pos_x;
-    const p2Y = b2.pos_y + 115;
-    const deltaX = Math.max(40, (p2X - p1X) * 0.5);
-    return `M ${p1X} ${p1Y} C ${p1X + deltaX} ${p1Y}, ${p2X - deltaX} ${p2Y}, ${p2X} ${p2Y}`;
+  // Create a new block at coordinates or viewport center
+  const handleCreateBlock = async (type: NoteBlock['type'] = 'card', posX?: number, posY?: number) => {
+    const board = boards()[0];
+    if (!board) {
+      console.warn('No active board found to attach block.');
+      return;
+    }
+
+    const scale = zoom() / 100;
+    // If coordinates not provided, drop at visible canvas center
+    const x = posX !== undefined ? posX : Math.round((-pan().x + 360) / scale + (blocks().length * 20) % 100);
+    const y = posY !== undefined ? posY : Math.round((-pan().y + 180) / scale + (blocks().length * 20) % 100);
+
+    const defaultContent = {
+      card: { title: 'New Strategy Note', body: 'Detail architectural requirements, tokens, or execution ideas here.' },
+      sticky: { title: 'Quick Idea', body: 'Draft sprint thoughts or tactile considerations.', color: '#44e1de' },
+      text: { title: 'Section Header', body: 'Type free-floating label' },
+      shape: { title: 'Group Container', body: 'Drag cards inside this boundary.' },
+      image: { title: 'Image Reference', body: '' },
+      task_embed: { title: 'Embedded Sprint Task', body: '' }
+    };
+
+    const width = type === 'text' ? 240 : type === 'shape' ? 440 : 310;
+    const height = type === 'shape' ? 280 : undefined;
+
+    try {
+      const created = await api.createNoteBlock(board.id, {
+        type,
+        pos_x: x,
+        pos_y: y,
+        width,
+        height,
+        content: defaultContent[type] || { title: 'New Node', body: '' }
+      });
+
+      setBlocks([...blocks(), created]);
+      setSelectedBlockId(created.id);
+    } catch (err) {
+      console.error('Failed to create block:', err);
+    }
   };
 
-  // Task Status Cycling in Kanban
+  // Inline update of block title or body
+  const handleUpdateBlockContent = async (block: NoteBlock, key: 'title' | 'body' | 'color', val: string) => {
+    const prevContent = typeof block.content === 'object' && block.content !== null ? block.content : {};
+    const updatedContent = { ...prevContent, [key]: val };
+
+    // Update local state immediately
+    setBlocks(blocks().map(b => b.id === block.id ? { ...b, content: updatedContent } : b));
+
+    // Save to database
+    try {
+      await api.updateNoteBlock(block.id, { content: updatedContent });
+    } catch (err) {
+      console.error('Failed to save block content:', err);
+    }
+  };
+
+  // Change block type (card, sticky, text, shape)
+  const handleChangeBlockType = async (block: NoteBlock, newType: NoteBlock['type']) => {
+    setBlocks(blocks().map(b => b.id === block.id ? { ...b, type: newType } : b));
+    try {
+      await api.updateNoteBlock(block.id, { type: newType });
+    } catch (err) {
+      console.error('Failed to update block type:', err);
+    }
+  };
+
+  // Delete a block from canvas and database
+  const handleDeleteBlock = async (blockId: string) => {
+    setBlocks(blocks().filter(b => b.id !== blockId));
+    setConnections(connections().filter(c => c.fromId !== blockId && c.toId !== blockId));
+    if (selectedBlockId() === blockId) setSelectedBlockId(null);
+
+    try {
+      await api.deleteNoteBlock(blockId);
+    } catch (err) {
+      console.error('Failed to delete block:', err);
+    }
+  };
+
+  // Render SVG Bézier curves for all active connections
+  const renderConnectorCurves = () => {
+    const blist = blocks();
+    return connections().map(conn => {
+      const b1 = blist.find(b => b.id === conn.fromId);
+      const b2 = blist.find(b => b.id === conn.toId);
+      if (!b1 || !b2) return null;
+
+      const p1X = b1.pos_x + (b1.width || 310);
+      const p1Y = b1.pos_y + 90;
+      const p2X = b2.pos_x;
+      const p2Y = b2.pos_y + 90;
+      const deltaX = Math.max(40, (p2X - p1X) * 0.5);
+      const pathData = `M ${p1X} ${p1Y} C ${p1X + deltaX} ${p1Y}, ${p2X - deltaX} ${p2Y}, ${p2X} ${p2Y}`;
+
+      return (
+        <path 
+          d={pathData} 
+          fill="none" 
+          stroke="var(--secondary)" 
+          stroke-width="2" 
+          stroke-dasharray="4 4"
+          opacity="0.8"
+        />
+      );
+    });
+  };
+
+  // -------------------------------------------------------------
+  // TASKS & DOCS TAB HANDLERS
+  // -------------------------------------------------------------
+
   const handleCycleTaskStatus = async (task: Task) => {
     const statusCycle: Record<string, Task['status']> = {
       'todo': 'in_progress',
@@ -219,7 +437,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
   };
 
-  // Create task in specific column
   const handleCreateTaskInCol = async (status: Task['status']) => {
     const title = newTaskTitle().trim();
     if (!title) return;
@@ -242,7 +459,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
   };
 
-  // Create new document
   const handleCreateNewDoc = async () => {
     const proj = currentProject();
     if (!proj) return;
@@ -266,9 +482,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', "flex-direction": 'column', "background-color": 'var(--surface)', overflow: 'hidden' }}>
       
-      {/* Project Hub Header */}
+      {/* Project Hub Top Header */}
       <header class="orca-header">
-        {/* Left: Breadcrumbs / Project selector */}
         <div class="header-breadcrumbs">
           <button 
             onClick={() => setSelectedProjectId(null)}
@@ -287,7 +502,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           </Show>
         </div>
 
-        {/* Center: The 3 Core Project Hub Tabs (FR-HUB-01) */}
+        {/* Center: The 3 Core Project Hub Tabs */}
         <Show when={selectedProjectId()}>
           <div class="segmented-control">
             <button 
@@ -323,7 +538,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           </div>
         </Show>
 
-        {/* Right Controls */}
+        {/* Right Header Actions */}
         <div class="header-actions">
           <button 
             onClick={loadProjects}
@@ -352,15 +567,13 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
       {/* Main Container */}
       <Show when={!selectedProjectId()} fallback={
-        /* -------------------------------------------------------------
-           PROJECT HUB ACTIVE VIEW (DOCS | BOARD | TASKS)
-           ------------------------------------------------------------- */
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           
-          {/* TAB 1: DOCS & PLANS */}
+          {/* =========================================================
+             TAB 1: DOCS & PLANS
+             ========================================================= */}
           <Show when={activeTab() === 'docs'}>
             <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-              {/* Left Doc Index */}
               <aside style={{ width: '280px', "background-color": 'var(--surface-container-low)', "border-right": '1px solid var(--border-default)', padding: '16px', display: 'flex', "flex-direction": 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '6px' }}>
                   <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--text-dim)' }}>
@@ -415,7 +628,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 </Show>
               </aside>
 
-              {/* Right Editorial View */}
               <main style={{ flex: 1, "overflow-y": 'auto', padding: '40px 64px', "background-color": '#111317' }}>
                 <Show when={currentDoc()} fallback={
                   <div style={{ color: 'var(--text-dim)', padding: '40px 0', "text-align": 'center' }}>
@@ -447,193 +659,308 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                     <div style={{ "font-size": '14px', "line-height": 1.7, color: 'var(--text-muted)', "white-space": 'pre-wrap' }}>
                       {currentDoc()?.content}
                     </div>
-
-                    {/* Chromatic Palette Reference */}
-                    <div style={{ display: 'flex', "flex-direction": 'column', gap: '10px', "margin-top": '16px' }}>
-                      <h3 style={{ "font-size": '13px', "font-weight": 600, color: '#fff', margin: 0 }}>Design Token Coordinates</h3>
-                      <div style={{ display: 'grid', "grid-template-columns": 'repeat(3, 1fr)', gap: '12px' }}>
-                        <div style={{ padding: '12px', "border-radius": '6px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "align-items": 'center', gap: '8px' }}>
-                          <span style={{ width: '20px', height: '20px', "border-radius": '4px', "background-color": '#8b8df8' }}></span>
-                          <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: '#fff' }}>Primary #8b8df8</span>
-                        </div>
-                        <div style={{ padding: '12px', "border-radius": '6px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "align-items": 'center', gap: '8px' }}>
-                          <span style={{ width: '20px', height: '20px', "border-radius": '4px', "background-color": '#44e1de' }}></span>
-                          <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: '#fff' }}>Cyan #44e1de</span>
-                        </div>
-                        <div style={{ padding: '12px', "border-radius": '6px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "align-items": 'center', gap: '8px' }}>
-                          <span style={{ width: '20px', height: '20px', "border-radius": '4px', "background-color": '#cebdff' }}></span>
-                          <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: '#fff' }}>Lilac #cebdff</span>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </Show>
               </main>
             </div>
           </Show>
 
-          {/* TAB 2: BOARD (SPATIAL CANVAS) */}
+          {/* =========================================================
+             TAB 2: BOARD (MILANOTE SPATIAL CANVAS ENGINE)
+             ========================================================= */}
           <Show when={activeTab() === 'board'}>
-            <div style={{ position: 'relative', width: '100%', height: '100%', "background-color": '#111317', overflow: 'hidden' }}>
-              {/* Board Title Pill */}
+            <div 
+              onMouseDown={handleCanvasMouseDown}
+              style={{
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                "background-color": '#111317',
+                overflow: 'hidden',
+                cursor: activeCanvasTool() === 'pan' || isSpacePressed() ? 'grab' : 'default'
+              }}
+            >
+              {/* Board Header Info */}
               <div style={{ position: 'absolute', top: '16px', left: '16px', "z-index": 15, display: 'flex', "align-items": 'center', gap: '8px', padding: '6px 12px', "border-radius": '6px', "background-color": 'rgba(24, 26, 32, 0.85)', border: '1px solid var(--border-default)', "font-size": '11px', color: 'var(--text-muted)', "backdrop-filter": 'blur(8px)' }}>
                 <span style={{ color: 'var(--secondary)', "font-family": 'var(--font-mono)' }}>CANVAS:</span>
                 <span style={{ color: '#fff' }}>{boards()[0]?.title || 'Spatial Ideation Board'}</span>
+                <span style={{ color: 'var(--text-dim)', "font-size": '10px' }}>({blocks().length} nodes)</span>
               </div>
 
-              {/* Dot Grid Background */}
+              {/* Dynamic Dot Grid Background moves with pan */}
               <div 
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  "background-image": 'radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px)',
+                  "background-image": 'radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px)',
                   "background-size": '24px 24px',
+                  "background-position": `${pan().x}px ${pan().y}px`,
                   "pointer-events": 'none'
                 }}
               />
 
-              {/* Dynamic SVG Connector Curve */}
-              <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', "pointer-events": 'none', "z-index": 10 }}>
-                <path 
-                  d={connectorPath()} 
-                  fill="none" 
-                  stroke="var(--secondary)" 
-                  stroke-width="2" 
-                  stroke-dasharray="4 4"
-                  opacity="0.8"
-                />
-              </svg>
-
-              {/* Dynamic Blocks Rendered from Live PostgreSQL */}
-              <For each={blocks()}>
-                {(block, index) => {
-                  const contentObj = typeof block.content === 'object' && block.content !== null ? block.content : { title: 'Note Node', body: String(block.content || '') };
-                  const isFirst = index() === 0;
-                  const isSecond = index() === 1;
-
-                  return (
-                    <div
-                      onMouseDown={(e) => handleMouseDown(e, block)}
-                      style={{
-                        position: 'absolute',
-                        left: `${block.pos_x}px`,
-                        top: `${block.pos_y}px`,
-                        width: `${block.width || 310}px`,
-                        "background-color": '#181a20',
-                        border: isSecond ? '1px solid rgba(68, 225, 222, 0.3)' : '1px solid rgba(255, 255, 255, 0.12)',
-                        "border-radius": '6px',
-                        "clip-path": block.type === 'sticky' ? 'polygon(0px 0px, calc(100% - 14px) 0px, 100% 14px, 100% 100%, 0px 100%)' : 'none',
-                        padding: '16px',
-                        "z-index": 20,
-                        cursor: 'grab',
-                        "box-shadow": '0 20px 40px rgba(0, 0, 0, 0.4)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '12px' }}>
-                        <span style={{
-                          "font-size": '10px',
-                          "font-family": 'var(--font-mono)',
-                          "text-transform": 'uppercase',
-                          color: isFirst ? 'var(--secondary)' : isSecond ? 'var(--primary)' : 'var(--tertiary)',
-                          background: isFirst ? 'rgba(68,225,222,0.1)' : isSecond ? 'rgba(139,141,248,0.1)' : 'rgba(206,189,255,0.1)',
-                          padding: '2px 6px',
-                          "border-radius": '3px'
-                        }}>
-                          0{index() + 1} • {block.type === 'sticky' ? 'Quick Draft' : isFirst ? 'Strategy Node' : 'Connected Action'}
-                        </span>
-                        <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
-                          {block.type === 'sticky' ? 'Chamfered' : 'Synced'}
-                        </span>
-                      </div>
-
-                      <h3 style={{ "font-size": '14px', "font-weight": 600, color: '#fff', margin: '0 0 8px 0' }}>
-                        {contentObj.title || 'Untitled Node'}
-                      </h3>
-
-                      <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: 0, "line-height": 1.5 }}>
-                        {contentObj.body || contentObj.text || ''}
-                      </p>
-
-                      <Show when={isSecond}>
-                        <div style={{ display: 'flex', gap: '8px', "margin-top": '14px' }}>
-                          <button 
-                            onClick={() => setActiveTab('docs')}
-                            style={{ flex: 1, padding: '6px', "background-color": 'var(--surface-container-high)', border: '1px solid var(--border-default)', "border-radius": '4px', color: '#fff', "font-size": '11px', cursor: 'pointer', display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '4px' }}
-                          >
-                            <FileText size={12} />
-                            <span>View Doc</span>
-                          </button>
-                          <button 
-                            onClick={() => setActiveTab('tasks')}
-                            style={{ flex: 1, padding: '6px', "background-color": 'rgba(68,225,222,0.1)', border: '1px solid rgba(68,225,222,0.3)', "border-radius": '4px', color: 'var(--secondary)', "font-size": '11px', cursor: 'pointer', display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '4px' }}
-                          >
-                            <CheckSquare size={12} />
-                            <span>Open Task</span>
-                          </button>
-                        </div>
-                      </Show>
-
-                      <Show when={isFirst}>
-                        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-top": '14px', "padding-top": '10px', "border-top": '1px solid rgba(255,255,255,0.05)', "font-size": '11px', color: 'var(--text-dim)' }}>
-                          <span>Live node: x={Math.round(block.pos_x)}, y={Math.round(block.pos_y)}</span>
-                          <span style={{ color: 'var(--secondary)' }}>Active</span>
-                        </div>
-                      </Show>
-                    </div>
-                  );
+              {/* Scalable & Pannable Content Layer */}
+              <div 
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  transform: `translate(${pan().x}px, ${pan().y}px) scale(${zoom() / 100})`,
+                  "transform-origin": '0 0',
+                  "pointer-events": 'auto'
                 }}
-              </For>
+              >
+                {/* Dynamic SVG Connector Curves */}
+                <svg style={{ position: 'absolute', inset: 0, width: '4000px', height: '4000px', "pointer-events": 'none', "z-index": 10 }}>
+                  {renderConnectorCurves()}
+                </svg>
 
-              {/* Floating Canvas Toolbar */}
+                {/* Dynamic Blocks */}
+                <For each={blocks()}>
+                  {(block, index) => {
+                    const contentObj = () => typeof block.content === 'object' && block.content !== null 
+                      ? block.content 
+                      : { title: 'Note Node', body: String(block.content || '') };
+                    
+                    const isSelected = () => selectedBlockId() === block.id;
+                    const isConnectingSource = () => connectingSourceId() === block.id;
+
+                    const blockTypeClass = () => {
+                      switch (block.type) {
+                        case 'sticky': return 'canvas-block-sticky';
+                        case 'text': return 'canvas-block-text';
+                        case 'shape': return 'canvas-block-shape';
+                        default: return 'canvas-block-card';
+                      }
+                    };
+
+                    return (
+                      <div
+                        onMouseDown={(e) => handleBlockMouseDown(e, block)}
+                        class={`canvas-block ${blockTypeClass()} ${isSelected() ? 'selected' : ''}`}
+                        style={{
+                          left: `${block.pos_x}px`,
+                          top: `${block.pos_y}px`,
+                          width: `${block.width || 310}px`,
+                          height: block.height ? `${block.height}px` : 'auto',
+                          outline: isConnectingSource() ? '2px dashed var(--secondary)' : undefined
+                        }}
+                      >
+                        {/* Header bar with tag, type and action controls */}
+                        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '8px' }}>
+                          <span style={{
+                            "font-size": '10px',
+                            "font-family": 'var(--font-mono)',
+                            "text-transform": 'uppercase',
+                            color: block.type === 'sticky' ? 'var(--tertiary)' : 'var(--secondary)',
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            padding: '2px 6px',
+                            "border-radius": '3px'
+                          }}>
+                            0{index() + 1} • {block.type}
+                          </span>
+
+                          <div class="block-header-actions">
+                            {/* Cycle type */}
+                            <button
+                              class="block-action-btn"
+                              title="Toggle Card / Sticky / Text"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const types: NoteBlock['type'][] = ['card', 'sticky', 'text', 'shape'];
+                                const next = types[(types.indexOf(block.type) + 1) % types.length];
+                                handleChangeBlockType(block, next);
+                              }}
+                            >
+                              <Palette size={12} />
+                            </button>
+
+                            {/* Connect button */}
+                            <button
+                              class="block-action-btn"
+                              title="Connect to another card"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConnectingSourceId(block.id);
+                                setActiveCanvasTool('connector');
+                              }}
+                            >
+                              <Share2 size={12} color={isConnectingSource() ? 'var(--secondary)' : undefined} />
+                            </button>
+
+                            {/* Delete block */}
+                            <button
+                              class="block-action-btn btn-delete"
+                              title="Delete block"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteBlock(block.id);
+                              }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Inline Editable Title */}
+                        <input
+                          type="text"
+                          class="block-input-title"
+                          value={contentObj().title || ''}
+                          onInput={(e) => handleUpdateBlockContent(block, 'title', e.currentTarget.value)}
+                          placeholder="Node Title..."
+                          onMouseDown={(e) => e.stopPropagation()}
+                        />
+
+                        {/* Inline Editable Body */}
+                        <textarea
+                          rows={block.type === 'text' ? 1 : 3}
+                          class="block-textarea-body"
+                          value={contentObj().body || ''}
+                          onInput={(e) => handleUpdateBlockContent(block, 'body', e.currentTarget.value)}
+                          placeholder="Type notes, strategy coordinates, or markdown..."
+                          onMouseDown={(e) => e.stopPropagation()}
+                        />
+
+                        {/* Quick Navigation Footer */}
+                        <Show when={block.type === 'card'}>
+                          <div style={{ display: 'flex', gap: '6px', "margin-top": '10px', "padding-top": '8px', "border-top": '1px solid rgba(255,255,255,0.06)' }}>
+                            <button 
+                              onClick={() => setActiveTab('docs')}
+                              style={{ flex: 1, padding: '4px 6px', "background-color": 'var(--surface-container-high)', border: '1px solid var(--border-default)', "border-radius": '4px', color: '#fff', "font-size": '10px', cursor: 'pointer', display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '4px' }}
+                            >
+                              <FileText size={11} />
+                              <span>Doc</span>
+                            </button>
+                            <button 
+                              onClick={() => setActiveTab('tasks')}
+                              style={{ flex: 1, padding: '4px 6px', "background-color": 'rgba(68,225,222,0.1)', border: '1px solid rgba(68,225,222,0.3)', "border-radius": '4px', color: 'var(--secondary)', "font-size": '10px', cursor: 'pointer', display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '4px' }}
+                            >
+                              <CheckSquare size={11} />
+                              <span>Task</span>
+                            </button>
+                          </div>
+                        </Show>
+                      </div>
+                    );
+                  }}
+                </For>
+              </div>
+
+              {/* =========================================================
+                 FLOATING OBSIDIAN GLASS CANVAS TOOLBAR
+                 ========================================================= */}
               <div class="canvas-toolbar">
+                {/* Pointer / Select */}
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'select' ? 'active' : ''}`}
                   onClick={() => setActiveCanvasTool('select')}
-                  title="Select (V)"
+                  title="Select & Move (V)"
                 >
                   <MousePointer size={15} />
                 </button>
+
+                {/* Pan Tool */}
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'pan' ? 'active' : ''}`}
                   onClick={() => setActiveCanvasTool('pan')}
-                  title="Pan (H)"
+                  title="Hand / Pan Canvas (H or Hold Space)"
                 >
                   <Hand size={15} />
                 </button>
+
+                <div class="tool-divider"></div>
+
+                {/* Add Card */}
                 <button 
-                  class={`tool-btn ${activeCanvasTool() === 'shapes' ? 'active' : ''}`}
-                  onClick={() => setActiveCanvasTool('shapes')}
-                  title="Shapes (R)"
+                  class={`tool-btn ${activeCanvasTool() === 'card' ? 'active' : ''}`}
+                  onClick={() => handleCreateBlock('card')}
+                  title="Add Strategy Card (C)"
                 >
-                  <Square size={15} />
+                  <LayoutGrid size={15} />
                 </button>
+
+                {/* Add Sticky Note */}
                 <button 
-                  class={`tool-btn ${activeCanvasTool() === 'connector' ? 'active' : ''}`}
-                  onClick={() => setActiveCanvasTool('connector')}
-                  title="Connector (C)"
+                  class={`tool-btn ${activeCanvasTool() === 'sticky' ? 'active' : ''}`}
+                  onClick={() => handleCreateBlock('sticky')}
+                  title="Add Sticky Note (S)"
                 >
-                  <Share2 size={15} />
+                  <StickyNote size={15} />
                 </button>
+
+                {/* Add Text Block */}
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'text' ? 'active' : ''}`}
-                  onClick={() => setActiveCanvasTool('text')}
-                  title="Text (T)"
+                  onClick={() => handleCreateBlock('text')}
+                  title="Add Text Block (T)"
                 >
                   <Type size={15} />
                 </button>
 
-                <div style={{ width: '1px', height: '16px', "background-color": 'rgba(255,255,255,0.1)', margin: '0 4px' }}></div>
+                {/* Add Shape Container */}
+                <button 
+                  class={`tool-btn ${activeCanvasTool() === 'shape' ? 'active' : ''}`}
+                  onClick={() => handleCreateBlock('shape')}
+                  title="Add Shape / Group Frame (R)"
+                >
+                  <Square size={15} />
+                </button>
 
+                {/* Connector Tool */}
+                <button 
+                  class={`tool-btn ${activeCanvasTool() === 'connector' ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveCanvasTool(activeCanvasTool() === 'connector' ? 'select' : 'connector');
+                    setConnectingSourceId(null);
+                  }}
+                  title="Connector Curve (L)"
+                >
+                  <Share2 size={15} />
+                </button>
+
+                <div class="tool-divider"></div>
+
+                {/* Zoom Controls */}
                 <div style={{ display: 'flex', "align-items": 'center', gap: '2px', "font-size": '11px', "font-family": 'var(--font-mono)' }}>
-                  <button onClick={() => setZoom(z => Math.max(50, z - 10))} class="tool-btn" style={{ width: '24px', height: '24px' }}>-</button>
-                  <span style={{ padding: '0 4px', color: 'var(--text-muted)' }}>{zoom()}%</span>
-                  <button onClick={() => setZoom(z => Math.min(150, z + 10))} class="tool-btn" style={{ width: '24px', height: '24px' }}>+</button>
+                  <button 
+                    onClick={() => setZoom(z => Math.max(50, z - 10))} 
+                    class="tool-btn" 
+                    style={{ width: '26px', height: '26px' }}
+                    title="Zoom Out"
+                  >
+                    -
+                  </button>
+                  <span 
+                    onClick={() => { setZoom(100); setPan({ x: 0, y: 0 }); }}
+                    title="Click to reset zoom & pan"
+                    style={{ padding: '0 6px', color: 'var(--text-muted)', cursor: 'pointer', "user-select": 'none' }}
+                  >
+                    {zoom()}%
+                  </span>
+                  <button 
+                    onClick={() => setZoom(z => Math.min(150, z + 10))} 
+                    class="tool-btn" 
+                    style={{ width: '26px', height: '26px' }}
+                    title="Zoom In"
+                  >
+                    +
+                  </button>
+                  <button 
+                    onClick={() => { setZoom(100); setPan({ x: 0, y: 0 }); }}
+                    class="tool-btn" 
+                    style={{ width: '26px', height: '26px' }}
+                    title="Reset to 100%"
+                  >
+                    <Maximize2 size={12} />
+                  </button>
                 </div>
               </div>
             </div>
           </Show>
 
-          {/* TAB 3: TASKS (PROJECT KANBAN) */}
+          {/* =========================================================
+             TAB 3: TASKS (PROJECT KANBAN)
+             ========================================================= */}
           <Show when={activeTab() === 'tasks'}>
             <div style={{ height: '100%', "overflow-y": 'auto', padding: '24px 32px', "background-color": '#111317' }}>
               <div style={{ display: 'grid', "grid-template-columns": 'repeat(4, minmax(260px, 1fr))', gap: '16px', "align-items": 'flex-start' }}>
@@ -674,7 +1001,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                         </div>
                       </div>
 
-                      {/* Quick Add input */}
                       <Show when={activeNewTaskCol() === col.key}>
                         <form onSubmit={(e) => { e.preventDefault(); handleCreateTaskInCol(col.key); }}>
                           <input 
@@ -753,9 +1079,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
         </div>
       }>
-        {/* -------------------------------------------------------------
+        {/* =========================================================
            PROJECT DIRECTORY VIEW (When no project is opened)
-           ------------------------------------------------------------- */}
+           ========================================================= */}
         <main style={{ flex: 1, "overflow-y": 'auto', padding: '32px', "background-color": '#111317' }}>
           <div style={{ "max-width": '1100px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '24px' }}>
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>

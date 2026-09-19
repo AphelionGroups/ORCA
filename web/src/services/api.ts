@@ -92,7 +92,7 @@ export interface NoteBlock {
   id: string;
   board_id: string;
   workspace_id: string;
-  type: 'sticky' | 'text' | 'card' | 'image' | 'task_embed';
+  type: 'sticky' | 'text' | 'card' | 'image' | 'task_embed' | 'shape';
   pos_x: number;
   pos_y: number;
   width?: number;
@@ -233,7 +233,20 @@ export const api = {
     return res.data;
   },
 
-  // Boards
+  createBoard: async (data: Partial<NoteBoard>): Promise<NoteBoard> => {
+    const res = await request<{ data: NoteBoard }>('/boards', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+  updateBoard: async (id: string, data: Partial<NoteBoard>): Promise<NoteBoard> => {
+    const res = await request<{ data: NoteBoard }>(`/boards/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
   getBoards: async (filters: { space_id?: string; project_id?: string } = {}): Promise<NoteBoard[]> => {
     const params = new URLSearchParams();
     if (filters.space_id) params.set('space_id', filters.space_id);
@@ -247,11 +260,23 @@ export const api = {
     const res = await request<{ data: NoteBlock[] }>(`/boards/${boardId}/blocks`);
     return res.data;
   },
+  createNoteBlock: async (boardId: string, data: Partial<NoteBlock>): Promise<NoteBlock> => {
+    const res = await request<{ data: NoteBlock }>(`/boards/${boardId}/blocks`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
   updateNoteBlock: async (id: string, data: Partial<NoteBlock>): Promise<NoteBlock> => {
     const res = await request<{ data: NoteBlock }>(`/blocks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
     return res.data;
+  },
+  deleteNoteBlock: async (id: string): Promise<void> => {
+    await request(`/blocks/${id}`, {
+      method: 'DELETE',
+    });
   },
 };
