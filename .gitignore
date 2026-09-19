@@ -16,6 +16,7 @@ bin/
 node_modules/
 dist/
 .vite/
+web/src/assets/
 
 # IDE and OS files
 .idea/

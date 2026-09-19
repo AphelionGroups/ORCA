@@ -93,6 +93,51 @@ Semua spesifikasi detail proyek dikelola secara terstruktur di dalam folder [`do
 
 ---
 
+## 🚀 Quickstart & Self-Hosting
+
+ORCA dirancang sebagai *first-class citizen* untuk self-hosting. Seluruh subsistem (PostgreSQL 16, Redis 7, Go Modular Monolith API, dan SolidJS Frontend Nginx) dapat dijalankan dalam 1 perintah:
+
+### 1. Menjalankan dengan Docker Compose
+
+```bash
+# Clone repositori
+git clone https://github.com/AphelionGroups/ORCA.git
+cd ORCA
+
+# Jalankan seluruh stack (Database, Redis, Go API, Frontend)
+docker compose up -d --build
+```
+
+### 2. Titik Akses Layanan
+
+| Komponen | URL / Port | Keterangan |
+|---|---|---|
+| **Web Frontend (Operating System)** | [`http://localhost:3000`](http://localhost:3000) | Antarmuka SolidJS SPA (Nginx) dengan dark obsidian theme & reverse proxy `/api/`. |
+| **Backend REST API** | [`http://localhost:8080/api/v1`](http://localhost:8080/api/v1) | Go Modular Monolith API. Healthcheck di `/healthz`. |
+| **PostgreSQL Database** | `localhost:5432` | User: `orca`, Pass: `orca_secret`, DB: `orca_db`. Otomatis terisi schema & seed. |
+| **Redis Cache** | `localhost:6379` | In-memory cache & pub/sub broker. |
+
+> **Header Multi-Tenancy:**  
+> Setiap request API menggunakan header:  
+> `X-Workspace-ID: 018f0000-0000-7000-8000-000000000001`
+
+---
+
+### 3. Pengujian Otomatis (Smoke Test & Health Verification)
+
+Validasi seluruh endpoint API dan aset frontend secara otomatis:
+
+```powershell
+# Windows (PowerShell)
+powershell -ExecutionPolicy Bypass -File ./scripts/verify_e2e.ps1
+
+# Linux / macOS (Bash)
+chmod +x ./scripts/verify_e2e.sh
+./scripts/verify_e2e.sh
+```
+
+---
+
 ## 📄 Lisensi
 
 Proyek ini dirilis di bawah lisensi [MIT](LICENSE).

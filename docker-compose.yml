@@ -12,6 +12,7 @@ services:
     volumes:
       - orca_pgdata:/var/lib/postgresql/data
       - ./migrations/000001_init_schema.up.sql:/docker-entrypoint-initdb.d/01_init_schema.sql:ro
+      - ./scripts/seed_demo.sql:/docker-entrypoint-initdb.d/02_seed_demo.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U orca -d orca_db"]
       interval: 5s
@@ -26,6 +27,46 @@ services:
       - "6379:6379"
     volumes:
       - orca_redisdata:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orca-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgres://orca:orca_secret@db:5432/orca_db?sslmode=disable
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: orca-web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 volumes:
   orca_pgdata:
