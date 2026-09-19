@@ -1093,144 +1093,134 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
 }
 
 /* =========================================================
-   Live Markdown In-Place Preview & Editing System
+   Unified Live Markdown Document & Seamless Editor
    ========================================================= */
-.canvas-markdown-body {
+.canvas-block-content {
   width: 100%;
   min-height: 48px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  cursor: default;
 }
 
-.md-line-preview {
-  padding: 1px 4px;
-  border-radius: 4px;
-  transition: background-color 100ms ease;
-  min-height: 22px;
-  display: flex;
-  align-items: baseline;
-  word-break: break-word;
+.canvas-block-formatted {
+  width: 100%;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
   user-select: text;
+  word-break: break-word;
 }
 
-.md-line-preview:hover {
-  background-color: rgba(255, 255, 255, 0.04);
-}
-
-.md-line-h1 {
-  font-size: 16px;
+.md-render-h1 {
+  font-size: 17px;
   font-weight: 700;
-  color: #fff;
-  line-height: 1.35;
-  margin: 4px 0 2px 0;
+  color: #ffffff;
+  margin: 2px 0 6px 0;
+  line-height: 1.3;
 }
 
-.md-line-h2 {
-  font-size: 14px;
+.md-render-h2 {
+  font-size: 15px;
   font-weight: 600;
   color: #f1f2f6;
+  margin: 3px 0 4px 0;
   line-height: 1.35;
-  margin: 3px 0 1px 0;
 }
 
-.md-line-h3 {
+.md-render-h3 {
   font-size: 13px;
   font-weight: 600;
   color: #e2e4ea;
-  line-height: 1.35;
-  margin: 2px 0 1px 0;
+  margin: 2px 0 3px 0;
+  line-height: 1.4;
 }
 
-.md-line-bullet {
+.md-render-ul,
+.md-render-ol {
+  margin: 3px 0;
+  padding-left: 18px;
   display: flex;
-  align-items: baseline;
-  gap: 7px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.md-render-ul {
+  list-style-type: disc;
+}
+
+.md-render-ol {
+  list-style-type: decimal;
+}
+
+.md-render-li {
   font-size: 12px;
   color: var(--text-muted);
   line-height: 1.5;
 }
 
-.md-bullet-symbol {
+.md-render-li::marker {
   color: var(--secondary);
-  font-size: 14px;
-  line-height: 1;
-  user-select: none;
 }
 
-.md-line-numbered {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-
-.md-number-symbol {
-  color: var(--secondary);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  user-select: none;
-}
-
-.md-line-quote {
+.md-render-quote {
   border-left: 2px solid var(--secondary);
-  padding-left: 8px;
+  padding-left: 10px;
+  margin: 4px 0;
   font-style: italic;
   color: var(--text-dim);
   font-size: 12px;
-  line-height: 1.4;
-}
-
-.md-line-p {
-  font-size: 12px;
-  color: var(--text-muted);
   line-height: 1.5;
 }
 
-.md-line-input {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(68, 225, 222, 0.45);
-  border-radius: 4px;
-  font-family: inherit;
+.md-render-p {
   font-size: 12px;
-  color: #fff;
-  padding: 3px 6px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 2px 0;
+}
+
+.md-empty-spacer {
+  height: 8px;
+}
+
+.inline-code-badge {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--secondary);
+}
+
+/* Unified Textarea in Edit Mode - Zero line divisions */
+.canvas-block-unified-editor {
+  width: 100%;
+  min-height: 60px;
+  background: transparent;
+  border: none;
   outline: none;
-  box-sizing: border-box;
-  line-height: 1.4;
-  margin: 1px 0;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #ffffff;
+  padding: 0;
+  margin: 0;
   resize: none;
   overflow: hidden;
-  box-shadow: 0 0 10px rgba(68, 225, 222, 0.15);
+  box-sizing: border-box;
 }
 
-.md-line-input.is-h1 {
-  font-size: 16px;
-  font-weight: 700;
-  color: #fff;
+.canvas-block-unified-editor::placeholder {
+  color: var(--text-dim);
+  font-style: italic;
+  opacity: 0.6;
 }
 
-.md-line-input.is-h2 {
-  font-size: 14px;
-  font-weight: 600;
-  color: #f1f2f6;
-}
-
-.md-line-input.is-h3 {
-  font-size: 13px;
-  font-weight: 600;
-  color: #e2e4ea;
-}
-
-.md-empty-placeholder {
+.canvas-block-placeholder {
   color: var(--text-dim);
   font-style: italic;
   font-size: 12px;
-  padding: 8px 4px;
+  padding: 4px 0;
   user-select: none;
   opacity: 0.65;
 }

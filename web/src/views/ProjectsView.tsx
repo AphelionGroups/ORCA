@@ -30,63 +30,104 @@ interface Connection {
 }
 
 // -------------------------------------------------------------
-// INLINE LIVE MARKDOWN PARSER & LINE-BY-LINE LIVE EDITOR
+// UNIFIED LIVE MARKDOWN PARSER & SEAMLESS DOCUMENT BLOCK
 // -------------------------------------------------------------
-function renderMarkdownLine(raw: string): { type: string; contentHtml: string } {
-  if (!raw || !raw.trim()) {
-    return { type: 'empty', contentHtml: '&nbsp;' };
-  }
-
-  let type = 'paragraph';
-  let text = raw;
-
-  if (raw.startsWith('### ')) {
-    type = 'h3';
-    text = raw.slice(4);
-  } else if (raw.startsWith('## ')) {
-    type = 'h2';
-    text = raw.slice(3);
-  } else if (raw.startsWith('# ')) {
-    type = 'h1';
-    text = raw.slice(2);
-  } else if (raw.startsWith('- ') || raw.startsWith('* ')) {
-    type = 'bullet';
-    text = raw.slice(2);
-  } else if (/^\d+\.\s/.test(raw)) {
-    type = 'numbered';
-    text = raw.replace(/^\d+\.\s/, '');
-  } else if (raw.startsWith('> ')) {
-    type = 'quote';
-    text = raw.slice(2);
-  }
-
-  // Escape HTML characters for XSS safety
+function formatInlineMarkdown(text: string): string {
   let html = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
-
   // Bold **text**
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight:700;color:#fff;">$1</strong>');
   // Italic *text*
   html = html.replace(/\*(.*?)\*/g, '<em style="font-style:italic;color:var(--secondary);">$1</em>');
   // Inline code `code`
-  html = html.replace(/`(.*?)`/g, '<code style="background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:3px;font-family:var(--font-mono);font-size:0.9em;color:var(--secondary);">$1</code>');
+  html = html.replace(/`(.*?)`/g, '<code class="inline-code-badge">$1</code>');
   // Strikethrough ~~text~~
   html = html.replace(/~~(.*?)~~/g, '<del style="opacity:0.6;">$1</del>');
-
-  return { type, contentHtml: html };
+  return html;
 }
 
-interface MarkdownLiveEditorProps {
+function renderFullMarkdown(raw: string): string {
+  if (!raw || !raw.trim()) return '';
+
+  const lines = raw.replace(/\r\n/g, '\n').split('\n');
+  const result: string[] = [];
+  let inUl = false;
+  let inOl = false;
+
+  const closeLists = () => {
+    if (inUl) {
+      result.push('</ul>');
+      inUl = false;
+    }
+    if (inOl) {
+      result.push('</ol>');
+      inOl = false;
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      closeLists();
+      result.push('<div class="md-empty-spacer"></div>');
+      continue;
+    }
+
+    if (line.startsWith('# ')) {
+      closeLists();
+      result.push(`<div class="md-render-h1">${formatInlineMarkdown(line.slice(2))}</div>`);
+    } else if (line.startsWith('## ')) {
+      closeLists();
+      result.push(`<div class="md-render-h2">${formatInlineMarkdown(line.slice(3))}</div>`);
+    } else if (line.startsWith('### ')) {
+      closeLists();
+      result.push(`<div class="md-render-h3">${formatInlineMarkdown(line.slice(4))}</div>`);
+    } else if (line.startsWith('> ')) {
+      closeLists();
+      result.push(`<div class="md-render-quote">${formatInlineMarkdown(line.slice(2))}</div>`);
+    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      if (inOl) {
+        result.push('</ol>');
+        inOl = false;
+      }
+      if (!inUl) {
+        result.push('<ul class="md-render-ul">');
+        inUl = true;
+      }
+      result.push(`<li class="md-render-li">${formatInlineMarkdown(line.slice(2))}</li>`);
+    } else if (/^\d+\.\s/.test(line)) {
+      if (inUl) {
+        result.push('</ul>');
+        inUl = false;
+      }
+      if (!inOl) {
+        result.push('<ol class="md-render-ol">');
+        inOl = true;
+      }
+      result.push(`<li class="md-render-li">${formatInlineMarkdown(line.replace(/^\d+\.\s/, ''))}</li>`);
+    } else {
+      closeLists();
+      result.push(`<div class="md-render-p">${formatInlineMarkdown(line)}</div>`);
+    }
+  }
+
+  closeLists();
+  return result.join('');
+}
+
+interface UnifiedMarkdownBlockProps {
   block: NoteBlock;
   isEditing: boolean;
-  onStartEdit: (initialLineIdx?: number) => void;
+  onStartEdit: () => void;
   onFinishEdit: () => void;
   onChangeText: (newText: string) => void;
 }
 
-const MarkdownLiveEditor: Component<MarkdownLiveEditorProps> = (props) => {
+const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props) => {
   const getRaw = () => {
     const c = props.block.content;
     if (!c) return '';
@@ -99,108 +140,19 @@ const MarkdownLiveEditor: Component<MarkdownLiveEditorProps> = (props) => {
     return '';
   };
 
-  const [lines, setLines] = createSignal<string[]>(['']);
-  const [activeLineIndex, setActiveLineIndex] = createSignal<number>(0);
+  const [text, setText] = createSignal<string>(getRaw());
 
-  // Sync internal lines state when block changes
+  // Keep local text in sync when not actively editing
   createEffect(() => {
-    const raw = getRaw();
-    const split = raw.split('\n');
-    setLines(split.length > 0 ? split : ['']);
+    if (!props.isEditing) {
+      setText(getRaw());
+    }
   });
 
-  const updateLine = (index: number, val: string) => {
-    const updated = [...lines()];
-    updated[index] = val;
-    setLines(updated);
-    props.onChangeText(updated.join('\n'));
-  };
-
-  const handleLineKeyDown = (e: KeyboardEvent, index: number) => {
-    const target = e.currentTarget as HTMLTextAreaElement;
-    const val = target.value;
-    const selStart = target.selectionStart ?? val.length;
-    const selEnd = target.selectionEnd ?? val.length;
-
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      const before = val.slice(0, selStart);
-      const after = val.slice(selEnd);
-      const updated = [...lines()];
-      updated[index] = before;
-      updated.splice(index + 1, 0, after);
-      setLines(updated);
-      props.onChangeText(updated.join('\n'));
-      setActiveLineIndex(index + 1);
-      return;
-    }
-
-    if (e.key === 'Backspace' && selStart === 0 && selEnd === 0) {
-      if (index > 0) {
-        e.preventDefault();
-        const prevText = lines()[index - 1];
-        const updated = [...lines()];
-        updated[index - 1] = prevText + val;
-        updated.splice(index, 1);
-        setLines(updated);
-        props.onChangeText(updated.join('\n'));
-        setActiveLineIndex(index - 1);
-      }
-      return;
-    }
-
-    if (e.key === 'ArrowUp' && index > 0) {
-      if (selStart === 0 || !val.includes('\n')) {
-        e.preventDefault();
-        setActiveLineIndex(index - 1);
-      }
-      return;
-    }
-
-    if (e.key === 'ArrowDown' && index < lines().length - 1) {
-      if (selStart === val.length || !val.includes('\n')) {
-        e.preventDefault();
-        setActiveLineIndex(index + 1);
-      }
-      return;
-    }
-
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      props.onFinishEdit();
-      return;
-    }
-  };
-
-  const handleLinePaste = (e: ClipboardEvent, index: number) => {
-    const pasted = e.clipboardData?.getData('text');
-    if (pasted && pasted.includes('\n')) {
-      e.preventDefault();
-      const target = e.currentTarget as HTMLTextAreaElement;
-      const val = target.value;
-      const selStart = target.selectionStart ?? val.length;
-      const selEnd = target.selectionEnd ?? val.length;
-      const before = val.slice(0, selStart);
-      const after = val.slice(selEnd);
-
-      const pasteLines = pasted.replace(/\r\n/g, '\n').split('\n');
-      const firstCombined = before + pasteLines[0];
-      const lastCombined = pasteLines[pasteLines.length - 1] + after;
-      const middleLines = pasteLines.slice(1, -1);
-
-      const inserted = [firstCombined, ...middleLines, lastCombined];
-      const updated = [...lines()];
-      updated.splice(index, 1, ...inserted);
-      setLines(updated);
-      props.onChangeText(updated.join('\n'));
-      setActiveLineIndex(index + inserted.length - 1);
-    }
-  };
-
-  const autoResizeTextarea = (el: HTMLTextAreaElement | undefined) => {
+  const autoResizeTextarea = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.max(24, el.scrollHeight)}px`;
+    el.style.height = `${Math.max(60, el.scrollHeight)}px`;
   };
 
   const placeholderText = () => {
@@ -212,116 +164,62 @@ const MarkdownLiveEditor: Component<MarkdownLiveEditorProps> = (props) => {
     }
   };
 
-  const isBlank = () => lines().every(l => !l.trim());
-
   return (
     <div 
-      class="canvas-markdown-body"
+      class="canvas-block-content"
       onDblClick={(e) => {
         e.stopPropagation();
         if (!props.isEditing) {
-          props.onStartEdit(0);
-          setActiveLineIndex(0);
+          props.onStartEdit();
         }
       }}
     >
-      <Show 
-        when={!isBlank() || props.isEditing}
+      <Show
+        when={props.isEditing}
         fallback={
-          <div class="md-empty-placeholder">
-            {placeholderText()}
-          </div>
+          <Show
+            when={text().trim().length > 0}
+            fallback={
+              <div class="canvas-block-placeholder">
+                {placeholderText()}
+              </div>
+            }
+          >
+            <div 
+              class="canvas-block-formatted"
+              innerHTML={renderFullMarkdown(text())}
+            />
+          </Show>
         }
       >
-        <For each={lines()}>
-          {(lineText, idx) => {
-            const isCurrent = () => props.isEditing && activeLineIndex() === idx();
-
-            return (
-              <Show
-                when={isCurrent()}
-                fallback={
-                  <div
-                    class="md-line-preview"
-                    onClick={(e) => {
-                      if (props.isEditing) {
-                        e.stopPropagation();
-                        setActiveLineIndex(idx());
-                      }
-                    }}
-                    onDblClick={(e) => {
-                      e.stopPropagation();
-                      props.onStartEdit(idx());
-                      setActiveLineIndex(idx());
-                    }}
-                  >
-                    {(() => {
-                      const rendered = renderMarkdownLine(lineText);
-                      switch (rendered.type) {
-                        case 'h1':
-                          return <div class="md-line-h1" innerHTML={rendered.contentHtml} />;
-                        case 'h2':
-                          return <div class="md-line-h2" innerHTML={rendered.contentHtml} />;
-                        case 'h3':
-                          return <div class="md-line-h3" innerHTML={rendered.contentHtml} />;
-                        case 'bullet':
-                          return (
-                            <div class="md-line-bullet">
-                              <span class="md-bullet-symbol">•</span>
-                              <span innerHTML={rendered.contentHtml} />
-                            </div>
-                          );
-                        case 'numbered':
-                          return (
-                            <div class="md-line-numbered">
-                              <span class="md-number-symbol">1.</span>
-                              <span innerHTML={rendered.contentHtml} />
-                            </div>
-                          );
-                        case 'quote':
-                          return <div class="md-line-quote" innerHTML={rendered.contentHtml} />;
-                        case 'empty':
-                          return <div style={{ height: '14px' }}>&nbsp;</div>;
-                        default:
-                          return <div class="md-line-p" innerHTML={rendered.contentHtml} />;
-                      }
-                    })()}
-                  </div>
-                }
-              >
-                <textarea
-                  ref={(el) => {
-                    if (el) {
-                      setTimeout(() => {
-                        el.focus();
-                        autoResizeTextarea(el);
-                        el.setSelectionRange(el.value.length, el.value.length);
-                      }, 10);
-                    }
-                  }}
-                  rows={1}
-                  class={`md-line-input ${lineText.startsWith('# ') ? 'is-h1' : lineText.startsWith('## ') ? 'is-h2' : lineText.startsWith('### ') ? 'is-h3' : ''}`}
-                  value={lineText}
-                  onInput={(e) => {
-                    updateLine(idx(), e.currentTarget.value);
-                    autoResizeTextarea(e.currentTarget);
-                  }}
-                  onKeyDown={(e) => handleLineKeyDown(e, idx())}
-                  onPaste={(e) => handleLinePaste(e, idx())}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      const active = document.activeElement;
-                      if (!active || !active.classList.contains('md-line-input')) {
-                        props.onFinishEdit();
-                      }
-                    }, 120);
-                  }}
-                  placeholder="Type line (# heading, - list, etc.)..."
-                />
-              </Show>
-            );
+        <textarea
+          ref={(el) => {
+            if (el) {
+              setTimeout(() => {
+                el.focus();
+                autoResizeTextarea(el);
+                el.setSelectionRange(el.value.length, el.value.length);
+              }, 10);
+            }
           }}
-        </For>
+          class="canvas-block-unified-editor"
+          value={text()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onInput={(e) => {
+            const val = e.currentTarget.value;
+            setText(val);
+            autoResizeTextarea(e.currentTarget);
+            props.onChangeText(val);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              props.onFinishEdit();
+            }
+          }}
+          onBlur={() => props.onFinishEdit()}
+          placeholder={placeholderText()}
+        />
       </Show>
     </div>
   );
@@ -1382,7 +1280,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                           outline: isConnectingSource() ? '2px dashed var(--secondary)' : undefined
                         }}
                       >
-                        <MarkdownLiveEditor
+                        <UnifiedMarkdownBlock
                           block={block}
                           isEditing={editingBlockId() === block.id}
                           onStartEdit={() => {
