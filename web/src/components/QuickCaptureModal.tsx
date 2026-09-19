@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, onMount } from 'solid-js';
+import { createSignal, onMount, For } from 'solid-js';
 import { Bolt, X, Link, Folder } from 'lucide-solid';
 import { api } from '../services/api';
 import type { Space } from '../services/api';
@@ -40,18 +40,26 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
 
     try {
       const spaceId = selectedSpaceId() || (spaces()[0]?.id || '');
+      if (!spaceId) {
+        throw new Error('No active space found to associate item with.');
+      }
+
       if (type() === 'Task') {
-        if (spaceId) {
-          await api.createTask({
-            title: title().trim(),
-            description: note().trim() || undefined,
-            space_id: spaceId,
-            status: 'todo',
-            priority: 'medium',
-          });
-        }
+        await api.createTask({
+          title: title().trim(),
+          description: note().trim() || undefined,
+          space_id: spaceId,
+          status: 'todo',
+          priority: 'medium',
+        });
       } else {
-        console.log("Draft captured:", { type: type(), title: title(), note: note(), spaceId });
+        await api.createDocument({
+          title: title().trim(),
+          content: note().trim() || 'Quick captured document draft...',
+          space_id: spaceId,
+          doc_type: 'notes',
+          is_pinned: false,
+        });
       }
 
       setTitle('');
@@ -99,7 +107,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
           <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
             <Bolt size={16} color="var(--secondary)" />
             <h3 style={{ "font-size": '12px', "font-weight": 600, color: '#fff', "letter-spacing": '0.05em', "text-transform": 'uppercase', "font-family": 'var(--font-mono)', margin: 0 }}>
-              Quick Capture & Link
+              Quick Capture & Ingestion
             </h3>
           </div>
           <button 
@@ -154,6 +162,30 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
             </div>
           </div>
 
+          {/* Space Selector */}
+          <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
+            <span style={{ "font-size": '11px', color: 'var(--text-dim)', "text-transform": 'uppercase', "font-family": 'var(--font-mono)' }}>Space</span>
+            <select
+              value={selectedSpaceId()}
+              onChange={e => setSelectedSpaceId(e.currentTarget.value)}
+              style={{
+                "background-color": '#111317',
+                color: '#fff',
+                border: '1px solid var(--border-default)',
+                "border-radius": '4px',
+                padding: '4px 8px',
+                "font-size": '11px',
+                outline: 'none'
+              }}
+            >
+              <For each={spaces()}>
+                {(sp) => (
+                  <option value={sp.id}>{sp.name}</option>
+                )}
+              </For>
+            </select>
+          </div>
+
           <div>
             <label style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase' }}>Title</label>
             <input 
@@ -166,7 +198,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                 width: '100%',
                 "background-color": '#111317',
                 border: '1px solid var(--border-default)',
-                "border-radius": '2px',
+                "border-radius": '4px',
                 padding: '6px 12px',
                 "font-size": '12px',
                 color: '#fff',
@@ -177,17 +209,19 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
           </div>
 
           <div>
-            <label style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase' }}>Note Content</label>
+            <label style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase' }}>
+              {type() === 'Task' ? 'Task Details / Context' : 'Document Markdown Content'}
+            </label>
             <textarea 
               rows={3} 
               value={note()}
               onInput={e => setNote(e.currentTarget.value)}
-              placeholder="Key thoughts, context reference, or markdown bullet points..."
+              placeholder="Key thoughts, architectural reference, or markdown bullet points..."
               style={{
                 width: '100%',
                 "background-color": '#111317',
                 border: '1px solid var(--border-default)',
-                "border-radius": '2px',
+                "border-radius": '4px',
                 padding: '6px 12px',
                 "font-size": '12px',
                 color: 'var(--text-muted)',
@@ -201,7 +235,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
           <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "padding-top": '8px', "border-top": '1px solid rgba(255,255,255,0.1)', "font-size": '12px' }}>
             <div style={{ display: 'flex', "align-items": 'center', gap: '6px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)', "font-size": '11px' }}>
               <Folder size={13} />
-              <span>Inbox Triage</span>
+              <span>{type() === 'Task' ? 'Inbox Triage' : 'Document Store'}</span>
             </div>
             <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
               <button 
@@ -216,11 +250,11 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                 onClick={handleSave}
                 disabled={loading()}
                 style={{
-                  padding: '4px 12px',
+                  padding: '5px 14px',
                   "background-color": '#fff',
                   color: '#000',
                   "font-weight": 500,
-                  "border-radius": '2px',
+                  "border-radius": '4px',
                   border: 'none',
                   cursor: 'pointer',
                   display: 'flex',
@@ -230,7 +264,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                 }}
               >
                 <Link size={13} />
-                <span>{loading() ? 'Saving...' : 'Capture to Inbox'}</span>
+                <span>{loading() ? 'Saving...' : `Capture ${type()}`}</span>
               </button>
             </div>
           </div>

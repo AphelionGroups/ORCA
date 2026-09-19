@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, onMount, onCleanup, For, Show } from 'solid-js';
+import { createSignal, onMount, onCleanup, For, Show, createEffect } from 'solid-js';
 import { 
   FolderKanban, 
   FileText, 
@@ -10,8 +10,12 @@ import {
   Hand, 
   Square, 
   Share2, 
-  Type
+  Type,
+  ChevronRight,
+  RotateCcw
 } from 'lucide-solid';
+import { api } from '../services/api';
+import type { Project, Space, Document as OrcaDoc, NoteBoard, NoteBlock, Task } from '../services/api';
 
 interface ProjectsViewProps {
   onOpenQuickCapture: () => void;
@@ -19,51 +23,58 @@ interface ProjectsViewProps {
 }
 
 export const ProjectsView: Component<ProjectsViewProps> = (props) => {
+  // Projects & Spaces from Backend
+  const [projects, setProjects] = createSignal<Project[]>([]);
+  const [spaces, setSpaces] = createSignal<Space[]>([]);
+  const [loadingProjects, setLoadingProjects] = createSignal(true);
+
   // Active Project & Tab state
-  const [selectedProjectId, setSelectedProjectId] = createSignal<string | null>('proj-rebrand');
+  const [selectedProjectId, setSelectedProjectId] = createSignal<string | null>(null);
   const [activeTab, setActiveTab] = createSignal<'docs' | 'board' | 'tasks'>('board');
 
-  // Spatial Canvas Draggable state
-  const [pos1, setPos1] = createSignal({ x: 60, y: 150 });
-  const [pos2, setPos2] = createSignal({ x: 440, y: 140 });
-  const [pos3, setPos3] = createSignal({ x: 840, y: 140 });
+  // Sub-entity states for active project
+  const [docs, setDocs] = createSignal<OrcaDoc[]>([]);
+  const [selectedDocId, setSelectedDocId] = createSignal<string | null>(null);
+  const [boards, setBoards] = createSignal<NoteBoard[]>([]);
+  const [blocks, setBlocks] = createSignal<NoteBlock[]>([]);
+  const [tasks, setTasks] = createSignal<Task[]>([]);
+  const [loadingSubData, setLoadingSubData] = createSignal(false);
+
+  // Canvas Viewport & Tool state
   const [zoom, setZoom] = createSignal(100);
   const [activeCanvasTool, setActiveCanvasTool] = createSignal('select');
 
-  // Documents Tab state
-  const [selectedDoc, setSelectedDoc] = createSignal('Brand Identity & Strategy');
+  // Quick task input in board/tasks tab
+  const [newTaskTitle, setNewTaskTitle] = createSignal('');
+  const [activeNewTaskCol, setActiveNewTaskCol] = createSignal<string | null>(null);
 
-  let draggingState: { nodeId: number; startX: number; startY: number; initialPos: { x: number; y: number } } | null = null;
+  // Dragging state for canvas blocks
+  let draggingBlockState: { blockId: string; startX: number; startY: number; initialX: number; initialY: number } | null = null;
 
-  const handleMouseDown = (e: MouseEvent, nodeId: number) => {
-    const target = e.target as HTMLElement;
-    if (['button', 'input', 'textarea', 'a', 'select'].includes(target.tagName.toLowerCase())) return;
+  // Load all projects and spaces
+  const loadProjects = async () => {
+    setLoadingProjects(true);
+    try {
+      const [fetchedProjects, fetchedSpaces] = await Promise.all([
+        api.getProjects(props.activeSpaceId || undefined),
+        api.getSpaces()
+      ]);
+      setProjects(fetchedProjects || []);
+      setSpaces(fetchedSpaces || []);
 
-    const initial = nodeId === 1 ? { ...pos1() } : nodeId === 2 ? { ...pos2() } : { ...pos3() };
-    draggingState = {
-      nodeId,
-      startX: e.clientX,
-      startY: e.clientY,
-      initialPos: initial
-    };
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!draggingState) return;
-    const { nodeId, startX, startY, initialPos } = draggingState;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-
-    if (nodeId === 1) setPos1({ x: Math.max(20, initialPos.x + dx), y: Math.max(20, initialPos.y + dy) });
-    if (nodeId === 2) setPos2({ x: Math.max(20, initialPos.x + dx), y: Math.max(20, initialPos.y + dy) });
-    if (nodeId === 3) setPos3({ x: Math.max(20, initialPos.x + dx), y: Math.max(20, initialPos.y + dy) });
-  };
-
-  const handleMouseUp = () => {
-    draggingState = null;
+      // If no project selected yet, select first project
+      if (!selectedProjectId() && fetchedProjects && fetchedProjects.length > 0) {
+        setSelectedProjectId(fetchedProjects[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to load projects:', err);
+    } finally {
+      setLoadingProjects(false);
+    }
   };
 
   onMount(() => {
+    loadProjects();
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
   });
@@ -73,53 +84,184 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     window.removeEventListener('mouseup', handleMouseUp);
   });
 
+  // Re-fetch projects if activeSpaceId changes
+  createEffect(() => {
+    const spaceId = props.activeSpaceId;
+    api.getProjects(spaceId || undefined).then(res => {
+      setProjects(res || []);
+      if (res && res.length > 0 && (!selectedProjectId() || !res.some(p => p.id === selectedProjectId()))) {
+        setSelectedProjectId(res[0].id);
+      }
+    }).catch(console.error);
+  });
+
+  // Load Project Detail sub-entities when selectedProjectId changes
+  createEffect(async () => {
+    const pId = selectedProjectId();
+    if (!pId) return;
+
+    setLoadingSubData(true);
+    try {
+      const [fetchedDocs, fetchedBoards, fetchedTasks] = await Promise.all([
+        api.getDocuments({ project_id: pId }),
+        api.getBoards({ project_id: pId }),
+        api.getTasks({ project_id: pId })
+      ]);
+
+      setDocs(fetchedDocs || []);
+      if (fetchedDocs && fetchedDocs.length > 0) {
+        setSelectedDocId(fetchedDocs[0].id);
+      } else {
+        setSelectedDocId(null);
+      }
+
+      setBoards(fetchedBoards || []);
+      if (fetchedBoards && fetchedBoards.length > 0) {
+        const fetchedBlocks = await api.getBoardBlocks(fetchedBoards[0].id);
+        setBlocks(fetchedBlocks || []);
+      } else {
+        setBlocks([]);
+      }
+
+      setTasks(fetchedTasks || []);
+    } catch (err) {
+      console.error('Failed to load project sub-data:', err);
+    } finally {
+      setLoadingSubData(false);
+    }
+  });
+
+  const currentProject = () => projects().find(p => p.id === selectedProjectId()) || projects()[0];
+  const currentDoc = () => docs().find(d => d.id === selectedDocId()) || docs()[0];
+  const getSpaceName = (spaceId?: string) => {
+    if (!spaceId) return 'Workspace';
+    return spaces().find(s => s.id === spaceId)?.name || 'Space';
+  };
+
+  // Canvas Mouse Dragging
+  const handleMouseDown = (e: MouseEvent, block: NoteBlock) => {
+    const target = e.target as HTMLElement;
+    if (['button', 'input', 'textarea', 'a', 'select'].includes(target.tagName.toLowerCase())) return;
+
+    draggingBlockState = {
+      blockId: block.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: block.pos_x,
+      initialY: block.pos_y
+    };
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!draggingBlockState) return;
+    const { blockId, startX, startY, initialX, initialY } = draggingBlockState;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    setBlocks(blocks().map(b => {
+      if (b.id === blockId) {
+        return {
+          ...b,
+          pos_x: Math.max(20, initialX + dx),
+          pos_y: Math.max(20, initialY + dy)
+        };
+      }
+      return b;
+    }));
+  };
+
+  const handleMouseUp = async () => {
+    if (!draggingBlockState) return;
+    const blockId = draggingBlockState.blockId;
+    draggingBlockState = null;
+
+    const block = blocks().find(b => b.id === blockId);
+    if (block) {
+      try {
+        await api.updateNoteBlock(block.id, {
+          pos_x: Math.round(block.pos_x),
+          pos_y: Math.round(block.pos_y)
+        });
+      } catch (err) {
+        console.error('Failed to persist block position:', err);
+      }
+    }
+  };
+
+  // Dynamic SVG connector path between the first two blocks
   const connectorPath = () => {
-    const p1X = pos1().x + 310;
-    const p1Y = pos1().y + 115;
-    const p2X = pos2().x;
-    const p2Y = pos2().y + 115;
+    const blist = blocks();
+    if (blist.length < 2) return '';
+    const b1 = blist[0];
+    const b2 = blist[1];
+    const p1X = b1.pos_x + (b1.width || 310);
+    const p1Y = b1.pos_y + 115;
+    const p2X = b2.pos_x;
+    const p2Y = b2.pos_y + 115;
     const deltaX = Math.max(40, (p2X - p1X) * 0.5);
     return `M ${p1X} ${p1Y} C ${p1X + deltaX} ${p1Y}, ${p2X - deltaX} ${p2Y}, ${p2X} ${p2Y}`;
   };
 
-  // Sample Projects
-  const projects = [
-    {
-      id: 'proj-rebrand',
-      name: 'Rebranding & Launch',
-      spaceName: 'Bisnis A',
-      status: 'Active Sprint',
-      desc: 'Luxury hardware & software design ecosystem overhaul and flagship launch readiness.',
-      docsCount: 4,
-      tasksCount: 24,
-      boardsCount: 5,
-      progress: '62%'
-    },
-    {
-      id: 'proj-packaging',
-      name: 'Packaging CAD & Dieline',
-      spaceName: 'Bisnis A',
-      status: 'Planning',
-      desc: '3D specular maps, carton tensile specs, and luxury unboxing tactile architecture.',
-      docsCount: 2,
-      tasksCount: 8,
-      boardsCount: 2,
-      progress: '35%'
-    },
-    {
-      id: 'proj-infra',
-      name: 'Cloud Microservices v2',
-      spaceName: 'Bisnis B',
-      status: 'In Review',
-      desc: 'Distributed API gateway routing, local-first CRDT sync engine, and PostgreSQL partitioning.',
-      docsCount: 6,
-      tasksCount: 19,
-      boardsCount: 4,
-      progress: '91%'
+  // Task Status Cycling in Kanban
+  const handleCycleTaskStatus = async (task: Task) => {
+    const statusCycle: Record<string, Task['status']> = {
+      'todo': 'in_progress',
+      'in_progress': 'in_review',
+      'in_review': 'done',
+      'done': 'todo'
+    };
+    const nextStatus = statusCycle[task.status] || 'in_progress';
+    try {
+      await api.updateTaskStatus(task.id, nextStatus);
+      setTasks(tasks().map(t => t.id === task.id ? { ...t, status: nextStatus } : t));
+    } catch (err) {
+      console.error('Failed to update task status:', err);
     }
-  ];
+  };
 
-  const currentProject = () => projects.find(p => p.id === selectedProjectId()) || projects[0];
+  // Create task in specific column
+  const handleCreateTaskInCol = async (status: Task['status']) => {
+    const title = newTaskTitle().trim();
+    if (!title) return;
+    const proj = currentProject();
+    if (!proj) return;
+
+    try {
+      const created = await api.createTask({
+        title,
+        project_id: proj.id,
+        space_id: proj.space_id,
+        status,
+        priority: 'medium'
+      });
+      setTasks([...tasks(), created]);
+      setNewTaskTitle('');
+      setActiveNewTaskCol(null);
+    } catch (err) {
+      console.error('Failed to create task:', err);
+    }
+  };
+
+  // Create new document
+  const handleCreateNewDoc = async () => {
+    const proj = currentProject();
+    if (!proj) return;
+
+    try {
+      const newDoc = await api.createDocument({
+        project_id: proj.id,
+        space_id: proj.space_id,
+        title: `Document ${docs().length + 1}`,
+        doc_type: 'notes',
+        content: 'Write editorial markdown notes and strategic architecture guidelines here...',
+        is_pinned: false
+      });
+      setDocs([newDoc, ...docs()]);
+      setSelectedDocId(newDoc.id);
+    } catch (err) {
+      console.error('Failed to create document:', err);
+    }
+  };
 
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', "flex-direction": 'column', "background-color": 'var(--surface)', overflow: 'hidden' }}>
@@ -136,11 +278,11 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             <span>Projects</span>
           </button>
           
-          <Show when={selectedProjectId()}>
+          <Show when={selectedProjectId() && currentProject()}>
             <span class="breadcrumb-sep">/</span>
             <span class="breadcrumb-title">
               <span class="status-dot" style={{ "background-color": 'var(--secondary)' }}></span>
-              {currentProject().name}
+              {currentProject()?.name}
             </span>
           </Show>
         </div>
@@ -154,6 +296,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             >
               <FileText size={13} color={activeTab() === 'docs' ? 'var(--tertiary)' : 'var(--text-dim)'} />
               <span>Docs & Plans</span>
+              <Show when={docs().length > 0}>
+                <span style={{ "font-size": '10px', opacity: 0.6 }}>({docs().length})</span>
+              </Show>
             </button>
             <button 
               class={`seg-btn ${activeTab() === 'board' ? 'active' : ''}`}
@@ -161,6 +306,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             >
               <LayoutGrid size={13} color={activeTab() === 'board' ? 'var(--secondary)' : 'var(--text-dim)'} />
               <span>Board</span>
+              <Show when={blocks().length > 0}>
+                <span style={{ "font-size": '10px', opacity: 0.6 }}>({blocks().length})</span>
+              </Show>
             </button>
             <button 
               class={`seg-btn ${activeTab() === 'tasks' ? 'active' : ''}`}
@@ -168,12 +316,30 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             >
               <CheckSquare size={13} color={activeTab() === 'tasks' ? 'var(--primary)' : 'var(--text-dim)'} />
               <span>Tasks</span>
+              <Show when={tasks().length > 0}>
+                <span style={{ "font-size": '10px', opacity: 0.6 }}>({tasks().length})</span>
+              </Show>
             </button>
           </div>
         </Show>
 
         {/* Right Controls */}
         <div class="header-actions">
+          <button 
+            onClick={loadProjects}
+            title="Refresh"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-dim)',
+              cursor: 'pointer',
+              display: 'flex',
+              "align-items": 'center',
+              padding: '6px'
+            }}
+          >
+            <RotateCcw size={14} />
+          </button>
           <button 
             onClick={props.onOpenQuickCapture}
             class="btn-pill-white"
@@ -196,80 +362,112 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
               {/* Left Doc Index */}
               <aside style={{ width: '280px', "background-color": 'var(--surface-container-low)', "border-right": '1px solid var(--border-default)', padding: '16px', display: 'flex', "flex-direction": 'column', gap: '8px' }}>
-                <div style={{ "font-size": '11px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--text-dim)', "margin-bottom": '6px' }}>
-                  Project Documentation
+                <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '6px' }}>
+                  <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--text-dim)' }}>
+                    Documentation
+                  </span>
+                  <button
+                    onClick={handleCreateNewDoc}
+                    title="Add new document"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      "align-items": 'center',
+                      padding: '2px'
+                    }}
+                  >
+                    <Plus size={14} />
+                  </button>
                 </div>
-                <For each={['Brand Identity & Strategy', 'Packaging Visual Hierarchy & Specs', 'Q3 Product Lineup Blueprint', 'Market Positioning Whitepaper']}>
-                  {(docTitle) => (
-                    <div 
-                      onClick={() => setSelectedDoc(docTitle)}
-                      style={{
-                        padding: '10px 12px',
-                        "border-radius": '6px',
-                        "background-color": selectedDoc() === docTitle ? 'var(--surface-container-high)' : 'transparent',
-                        border: selectedDoc() === docTitle ? '1px solid rgba(255,255,255,0.08)' : '1px solid transparent',
-                        color: selectedDoc() === docTitle ? '#fff' : 'var(--text-muted)',
-                        cursor: 'pointer',
-                        "font-size": '12px',
-                        display: 'flex',
-                        "align-items": 'center',
-                        gap: '8px'
-                      }}
-                    >
-                      <FileText size={14} color={selectedDoc() === docTitle ? 'var(--tertiary)' : 'var(--text-dim)'} />
-                      <span style={{ overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>{docTitle}</span>
-                    </div>
-                  )}
-                </For>
+
+                <Show when={!loadingSubData()} fallback={
+                  <div style={{ "font-size": '11px', color: 'var(--text-dim)', padding: '12px 0' }}>Loading documents...</div>
+                }>
+                  <Show when={docs().length > 0} fallback={
+                    <div style={{ "font-size": '11px', color: 'var(--text-dim)', padding: '12px 0' }}>No documents created yet.</div>
+                  }>
+                    <For each={docs()}>
+                      {(doc) => (
+                        <div 
+                          onClick={() => setSelectedDocId(doc.id)}
+                          style={{
+                            padding: '10px 12px',
+                            "border-radius": '6px',
+                            "background-color": selectedDocId() === doc.id ? 'var(--surface-container-high)' : 'transparent',
+                            border: selectedDocId() === doc.id ? '1px solid rgba(255,255,255,0.08)' : '1px solid transparent',
+                            color: selectedDocId() === doc.id ? '#fff' : 'var(--text-muted)',
+                            cursor: 'pointer',
+                            "font-size": '12px',
+                            display: 'flex',
+                            "align-items": 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <FileText size={14} color={selectedDocId() === doc.id ? 'var(--tertiary)' : 'var(--text-dim)'} />
+                          <span style={{ overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>{doc.title}</span>
+                        </div>
+                      )}
+                    </For>
+                  </Show>
+                </Show>
               </aside>
 
               {/* Right Editorial View */}
               <main style={{ flex: 1, "overflow-y": 'auto', padding: '40px 64px', "background-color": '#111317' }}>
-                <div style={{ "max-width": '760px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '24px' }}>
-                  <div style={{ display: 'flex', "align-items": 'center', gap: '8px', "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--secondary)' }}>
-                    <span>STAGE 02 / LAUNCH ASSETS</span>
+                <Show when={currentDoc()} fallback={
+                  <div style={{ color: 'var(--text-dim)', padding: '40px 0', "text-align": 'center' }}>
+                    Select or create a document to view contents.
                   </div>
+                }>
+                  <div style={{ "max-width": '760px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '24px' }}>
+                    <div style={{ display: 'flex', "align-items": 'center', gap: '8px', "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--secondary)' }}>
+                      <span>DOC / {currentDoc()?.doc_type?.toUpperCase() || 'SPECIFICATION'}</span>
+                    </div>
 
-                  <h1 style={{ "font-size": '32px', "font-weight": 700, color: '#fff', "letter-spacing": '-0.02em', margin: 0 }}>
-                    {selectedDoc()}
-                  </h1>
+                    <h1 style={{ "font-size": '32px', "font-weight": 700, color: '#fff', "letter-spacing": '-0.02em', margin: 0 }}>
+                      {currentDoc()?.title}
+                    </h1>
 
-                  <blockquote style={{
-                    "border-left": '2px solid var(--secondary)',
-                    padding: '8px 16px',
-                    margin: 0,
-                    "font-style": 'italic',
-                    color: 'var(--text-muted)',
-                    "font-size": '14px',
-                    "background-color": 'rgba(68, 225, 222, 0.04)',
-                    "border-radius": '0 4px 4px 0'
-                  }}>
-                    "Simplicity is not the absence of clutter, that's a consequence of simplicity. Simplicity somehow essentially describes the purpose and place of an object and product."
-                  </blockquote>
+                    <blockquote style={{
+                      "border-left": '2px solid var(--secondary)',
+                      padding: '8px 16px',
+                      margin: 0,
+                      "font-style": 'italic',
+                      color: 'var(--text-muted)',
+                      "font-size": '14px',
+                      "background-color": 'rgba(68, 225, 222, 0.04)',
+                      "border-radius": '0 4px 4px 0'
+                    }}>
+                      "Simplicity is not the absence of clutter, that's a consequence of simplicity. Simplicity essentially describes the purpose and place of an object and product."
+                    </blockquote>
 
-                  <p style={{ "font-size": '14px', "line-height": 1.7, color: 'var(--text-muted)', margin: 0 }}>
-                    The core identity architecture pivots on three structural pillars: <strong>Restraint</strong>, <strong>Material Honesty</strong>, and <strong>Spatial Cohesion</strong>. All subsequent collateral—from physical packaging die-cuts to procedural shaders—must adhere to these coordinates.
-                  </p>
+                    <div style={{ "font-size": '14px', "line-height": 1.7, color: 'var(--text-muted)', "white-space": 'pre-wrap' }}>
+                      {currentDoc()?.content}
+                    </div>
 
-                  {/* Color Palette Swatches */}
-                  <div style={{ display: 'flex', "flex-direction": 'column', gap: '10px' }}>
-                    <h3 style={{ "font-size": '13px', "font-weight": 600, color: '#fff', margin: 0 }}>Primary Chromatic Scale</h3>
-                    <div style={{ display: 'grid', "grid-template-columns": 'repeat(3, 1fr)', gap: '12px' }}>
-                      <div style={{ padding: '12px', "border-radius": '6px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "align-items": 'center', gap: '8px' }}>
-                        <span style={{ width: '20px', height: '20px', "border-radius": '4px', "background-color": '#8b8df8' }}></span>
-                        <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: '#fff' }}>Primary #8b8df8</span>
-                      </div>
-                      <div style={{ padding: '12px', "border-radius": '6px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "align-items": 'center', gap: '8px' }}>
-                        <span style={{ width: '20px', height: '20px', "border-radius": '4px', "background-color": '#44e1de' }}></span>
-                        <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: '#fff' }}>Cyan #44e1de</span>
-                      </div>
-                      <div style={{ padding: '12px', "border-radius": '6px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "align-items": 'center', gap: '8px' }}>
-                        <span style={{ width: '20px', height: '20px', "border-radius": '4px', "background-color": '#cebdff' }}></span>
-                        <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: '#fff' }}>Lilac #cebdff</span>
+                    {/* Chromatic Palette Reference */}
+                    <div style={{ display: 'flex', "flex-direction": 'column', gap: '10px', "margin-top": '16px' }}>
+                      <h3 style={{ "font-size": '13px', "font-weight": 600, color: '#fff', margin: 0 }}>Design Token Coordinates</h3>
+                      <div style={{ display: 'grid', "grid-template-columns": 'repeat(3, 1fr)', gap: '12px' }}>
+                        <div style={{ padding: '12px', "border-radius": '6px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "align-items": 'center', gap: '8px' }}>
+                          <span style={{ width: '20px', height: '20px', "border-radius": '4px', "background-color": '#8b8df8' }}></span>
+                          <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: '#fff' }}>Primary #8b8df8</span>
+                        </div>
+                        <div style={{ padding: '12px', "border-radius": '6px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "align-items": 'center', gap: '8px' }}>
+                          <span style={{ width: '20px', height: '20px', "border-radius": '4px', "background-color": '#44e1de' }}></span>
+                          <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: '#fff' }}>Cyan #44e1de</span>
+                        </div>
+                        <div style={{ padding: '12px', "border-radius": '6px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "align-items": 'center', gap: '8px' }}>
+                          <span style={{ width: '20px', height: '20px', "border-radius": '4px', "background-color": '#cebdff' }}></span>
+                          <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: '#fff' }}>Lilac #cebdff</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </Show>
               </main>
             </div>
           </Show>
@@ -277,6 +475,12 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           {/* TAB 2: BOARD (SPATIAL CANVAS) */}
           <Show when={activeTab() === 'board'}>
             <div style={{ position: 'relative', width: '100%', height: '100%', "background-color": '#111317', overflow: 'hidden' }}>
+              {/* Board Title Pill */}
+              <div style={{ position: 'absolute', top: '16px', left: '16px', "z-index": 15, display: 'flex', "align-items": 'center', gap: '8px', padding: '6px 12px', "border-radius": '6px', "background-color": 'rgba(24, 26, 32, 0.85)', border: '1px solid var(--border-default)', "font-size": '11px', color: 'var(--text-muted)', "backdrop-filter": 'blur(8px)' }}>
+                <span style={{ color: 'var(--secondary)', "font-family": 'var(--font-mono)' }}>CANVAS:</span>
+                <span style={{ color: '#fff' }}>{boards()[0]?.title || 'Spatial Ideation Board'}</span>
+              </div>
+
               {/* Dot Grid Background */}
               <div 
                 style={{
@@ -300,124 +504,85 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 />
               </svg>
 
-              {/* CARD 01: STRATEGY NOTE */}
-              <div
-                onMouseDown={(e) => handleMouseDown(e, 1)}
-                style={{
-                  position: 'absolute',
-                  left: `${pos1().x}px`,
-                  top: `${pos1().y}px`,
-                  width: '310px',
-                  "background-color": '#181a20',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  "border-radius": '6px',
-                  padding: '16px',
-                  "z-index": 20,
-                  cursor: 'grab',
-                  "box-shadow": '0 20px 40px rgba(0, 0, 0, 0.4)'
-                }}
-              >
-                <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '12px' }}>
-                  <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--secondary)', background: 'rgba(68,225,222,0.1)', padding: '2px 6px', "border-radius": '3px' }}>
-                    01 • Strategy Node
-                  </span>
-                  <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>Pinned</span>
-                </div>
-                <h3 style={{ "font-size": '14px', "font-weight": 600, color: '#fff', margin: '0 0 8px 0' }}>
-                  Brand Identity Core Pillars
-                </h3>
-                <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: 0, "line-height": 1.5 }}>
-                  Synthesize architectural brutalism with Nordic luxury restraint. Pure Obsidian base tone with secondary neon accents.
-                </p>
-                <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-top": '14px', "padding-top": '10px', "border-top": '1px solid rgba(255,255,255,0.05)', "font-size": '11px', color: 'var(--text-dim)' }}>
-                  <span>3 Subnodes linked</span>
-                  <span style={{ color: 'var(--secondary)' }}>Active</span>
-                </div>
-              </div>
+              {/* Dynamic Blocks Rendered from Live PostgreSQL */}
+              <For each={blocks()}>
+                {(block, index) => {
+                  const contentObj = typeof block.content === 'object' && block.content !== null ? block.content : { title: 'Note Node', body: String(block.content || '') };
+                  const isFirst = index() === 0;
+                  const isSecond = index() === 1;
 
-              {/* CARD 02: ACTION NODE & LINK */}
-              <div
-                onMouseDown={(e) => handleMouseDown(e, 2)}
-                style={{
-                  position: 'absolute',
-                  left: `${pos2().x}px`,
-                  top: `${pos2().y}px`,
-                  width: '320px',
-                  "background-color": '#181a20',
-                  border: '1px solid rgba(68, 225, 222, 0.3)',
-                  "border-radius": '6px',
-                  padding: '16px',
-                  "z-index": 20,
-                  cursor: 'grab',
-                  "box-shadow": '0 20px 40px rgba(0, 0, 0, 0.4)'
-                }}
-              >
-                <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '12px' }}>
-                  <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--primary)', background: 'rgba(139,141,248,0.1)', padding: '2px 6px', "border-radius": '3px' }}>
-                    02 • Connected Action
-                  </span>
-                  <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>Synced</span>
-                </div>
-                <h3 style={{ "font-size": '14px', "font-weight": 600, color: '#fff', margin: '0 0 8px 0' }}>
-                  CAD Packaging Specifications
-                </h3>
-                <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: 0, "line-height": 1.5 }}>
-                  Spot varnishes, box-die cut margin with luxury tactile feeling. Directly linked to factory sprint.
-                </p>
-                <div style={{ display: 'flex', gap: '8px', "margin-top": '14px' }}>
-                  <button 
-                    onClick={() => setActiveTab('docs')}
-                    style={{ flex: 1, padding: '6px', "background-color": 'var(--surface-container-high)', border: '1px solid var(--border-default)', "border-radius": '4px', color: '#fff', "font-size": '11px', cursor: 'pointer', display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '4px' }}
-                  >
-                    <FileText size={12} />
-                    <span>View Doc</span>
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('tasks')}
-                    style={{ flex: 1, padding: '6px', "background-color": 'rgba(68,225,222,0.1)', border: '1px solid rgba(68,225,222,0.3)', "border-radius": '4px', color: 'var(--secondary)', "font-size": '11px', cursor: 'pointer', display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '4px' }}
-                  >
-                    <CheckSquare size={12} />
-                    <span>Open Task</span>
-                  </button>
-                </div>
-              </div>
+                  return (
+                    <div
+                      onMouseDown={(e) => handleMouseDown(e, block)}
+                      style={{
+                        position: 'absolute',
+                        left: `${block.pos_x}px`,
+                        top: `${block.pos_y}px`,
+                        width: `${block.width || 310}px`,
+                        "background-color": '#181a20',
+                        border: isSecond ? '1px solid rgba(68, 225, 222, 0.3)' : '1px solid rgba(255, 255, 255, 0.12)',
+                        "border-radius": '6px',
+                        "clip-path": block.type === 'sticky' ? 'polygon(0px 0px, calc(100% - 14px) 0px, 100% 14px, 100% 100%, 0px 100%)' : 'none',
+                        padding: '16px',
+                        "z-index": 20,
+                        cursor: 'grab',
+                        "box-shadow": '0 20px 40px rgba(0, 0, 0, 0.4)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '12px' }}>
+                        <span style={{
+                          "font-size": '10px',
+                          "font-family": 'var(--font-mono)',
+                          "text-transform": 'uppercase',
+                          color: isFirst ? 'var(--secondary)' : isSecond ? 'var(--primary)' : 'var(--tertiary)',
+                          background: isFirst ? 'rgba(68,225,222,0.1)' : isSecond ? 'rgba(139,141,248,0.1)' : 'rgba(206,189,255,0.1)',
+                          padding: '2px 6px',
+                          "border-radius": '3px'
+                        }}>
+                          0{index() + 1} • {block.type === 'sticky' ? 'Quick Draft' : isFirst ? 'Strategy Node' : 'Connected Action'}
+                        </span>
+                        <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                          {block.type === 'sticky' ? 'Chamfered' : 'Synced'}
+                        </span>
+                      </div>
 
-              {/* CARD 03: CHAMFERED QUICK DRAFT */}
-              <div
-                onMouseDown={(e) => handleMouseDown(e, 3)}
-                style={{
-                  position: 'absolute',
-                  left: `${pos3().x}px`,
-                  top: `${pos3().y}px`,
-                  width: '320px',
-                  "background-color": '#181a20',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  "border-radius": '6px',
-                  "clip-path": 'polygon(0px 0px, calc(100% - 14px) 0px, 100% 14px, 100% 100%, 0px 100%)',
-                  padding: '16px',
-                  "z-index": 20,
-                  cursor: 'grab',
-                  "box-shadow": '0 20px 40px rgba(0, 0, 0, 0.5)'
+                      <h3 style={{ "font-size": '14px', "font-weight": 600, color: '#fff', margin: '0 0 8px 0' }}>
+                        {contentObj.title || 'Untitled Node'}
+                      </h3>
+
+                      <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: 0, "line-height": 1.5 }}>
+                        {contentObj.body || contentObj.text || ''}
+                      </p>
+
+                      <Show when={isSecond}>
+                        <div style={{ display: 'flex', gap: '8px', "margin-top": '14px' }}>
+                          <button 
+                            onClick={() => setActiveTab('docs')}
+                            style={{ flex: 1, padding: '6px', "background-color": 'var(--surface-container-high)', border: '1px solid var(--border-default)', "border-radius": '4px', color: '#fff', "font-size": '11px', cursor: 'pointer', display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '4px' }}
+                          >
+                            <FileText size={12} />
+                            <span>View Doc</span>
+                          </button>
+                          <button 
+                            onClick={() => setActiveTab('tasks')}
+                            style={{ flex: 1, padding: '6px', "background-color": 'rgba(68,225,222,0.1)', border: '1px solid rgba(68,225,222,0.3)', "border-radius": '4px', color: 'var(--secondary)', "font-size": '11px', cursor: 'pointer', display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '4px' }}
+                          >
+                            <CheckSquare size={12} />
+                            <span>Open Task</span>
+                          </button>
+                        </div>
+                      </Show>
+
+                      <Show when={isFirst}>
+                        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-top": '14px', "padding-top": '10px', "border-top": '1px solid rgba(255,255,255,0.05)', "font-size": '11px', color: 'var(--text-dim)' }}>
+                          <span>Live node: x={Math.round(block.pos_x)}, y={Math.round(block.pos_y)}</span>
+                          <span style={{ color: 'var(--secondary)' }}>Active</span>
+                        </div>
+                      </Show>
+                    </div>
+                  );
                 }}
-              >
-                <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '12px' }}>
-                  <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--tertiary)', background: 'rgba(206,189,255,0.1)', padding: '2px 6px', "border-radius": '3px' }}>
-                    03 • Quick Draft & Link
-                  </span>
-                  <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>Chamfered</span>
-                </div>
-                <input 
-                  readOnly 
-                  value="Packaging Visual Hierarchy & Specs"
-                  style={{ width: '100%', "background-color": '#111317', border: '1px solid var(--border-default)', "border-radius": '4px', padding: '6px 10px', "font-size": '12px', color: '#fff', "margin-bottom": '8px', outline: 'none' }}
-                />
-                <textarea 
-                  readOnly 
-                  rows={2} 
-                  value="Align typographic contrast and box-die cut margin with luxury voice."
-                  style={{ width: '100%', "background-color": '#111317', border: '1px solid var(--border-default)', "border-radius": '4px', padding: '6px 10px', "font-size": '11px', color: 'var(--text-muted)', outline: 'none', resize: 'none' }}
-                />
-              </div>
+              </For>
 
               {/* Floating Canvas Toolbar */}
               <div class="canvas-toolbar">
@@ -473,67 +638,115 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             <div style={{ height: '100%', "overflow-y": 'auto', padding: '24px 32px', "background-color": '#111317' }}>
               <div style={{ display: 'grid', "grid-template-columns": 'repeat(4, minmax(260px, 1fr))', gap: '16px', "align-items": 'flex-start' }}>
                 {[
-                  {
-                    title: 'Backlog',
-                    color: 'var(--outline-variant)',
-                    tasks: [
-                      { id: '#TSK-102', title: 'Competitor Typography Benchmark', priority: 'P4', date: 'May 14', user: 'AR' },
-                      { id: '#TSK-108', title: '3D Asset Render Specs', priority: 'P2', date: 'May 18', user: 'DL' }
-                    ]
-                  },
-                  {
-                    title: 'In Progress',
-                    color: 'var(--primary)',
-                    tasks: [
-                      { id: '#TSK-097', title: 'Finalize Packaging Print Specs', priority: 'Urgent', date: 'Tomorrow', user: 'HN', urgent: true },
-                      { id: '#TSK-104', title: 'Obsidian Glass Calibration', priority: 'P1', date: 'May 16', user: 'VR' }
-                    ]
-                  },
-                  {
-                    title: 'In Review',
-                    color: 'var(--tertiary)',
-                    tasks: [
-                      { id: '#TSK-089', title: 'Brand Identity Guidelines v1.2', priority: 'P1', date: 'Waiting on CEO', user: 'FA' }
-                    ]
-                  },
-                  {
-                    title: 'Done',
-                    color: 'var(--secondary)',
-                    tasks: [
-                      { id: '#TSK-078', title: 'Core Value Pillars Definition', priority: 'Done', date: 'May 10', user: 'DL' }
-                    ]
-                  }
-                ].map(col => (
-                  <div style={{ padding: '12px', "border-radius": '8px', "background-color": 'var(--surface-container-low)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', "flex-direction": 'column', gap: '10px' }}>
-                    <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-                      <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-                        <span style={{ width: '8px', height: '8px', "border-radius": '50%', "background-color": col.color }}></span>
-                        <span style={{ "font-size": '12px', "font-weight": 600, color: '#fff' }}>{col.title}</span>
-                      </div>
-                      <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 5px', "border-radius": '3px', "background-color": 'rgba(255,255,255,0.05)' }}>
-                        {col.tasks.length}
-                      </span>
-                    </div>
+                  { key: 'todo' as const, title: 'Backlog', color: 'var(--outline-variant)' },
+                  { key: 'in_progress' as const, title: 'In Progress', color: 'var(--primary)' },
+                  { key: 'in_review' as const, title: 'In Review', color: 'var(--tertiary)' },
+                  { key: 'done' as const, title: 'Done', color: 'var(--secondary)' }
+                ].map(col => {
+                  const colTasks = () => tasks().filter(t => t.status === col.key);
 
-                    <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
-                      <For each={col.tasks}>
-                        {(t) => (
-                          <div style={{ padding: '12px', "border-radius": '6px', "background-color": 'var(--surface-container)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', gap: '6px' }}>
-                            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-                              <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>{t.id}</span>
-                              <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', padding: '1px 5px', "border-radius": '3px', background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>{t.priority}</span>
+                  return (
+                    <div style={{ padding: '12px', "border-radius": '8px', "background-color": 'var(--surface-container-low)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', "flex-direction": 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
+                        <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
+                          <span style={{ width: '8px', height: '8px', "border-radius": '50%', "background-color": col.color }}></span>
+                          <span style={{ "font-size": '12px', "font-weight": 600, color: '#fff' }}>{col.title}</span>
+                        </div>
+                        <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
+                          <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 5px', "border-radius": '3px', "background-color": 'rgba(255,255,255,0.05)' }}>
+                            {colTasks().length}
+                          </span>
+                          <button
+                            onClick={() => setActiveNewTaskCol(activeNewTaskCol() === col.key ? null : col.key)}
+                            title="Add task in this column"
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--text-dim)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              "align-items": 'center',
+                              padding: '2px'
+                            }}
+                          >
+                            <Plus size={13} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Quick Add input */}
+                      <Show when={activeNewTaskCol() === col.key}>
+                        <form onSubmit={(e) => { e.preventDefault(); handleCreateTaskInCol(col.key); }}>
+                          <input 
+                            autofocus
+                            type="text"
+                            placeholder="Task name... Enter to add"
+                            value={newTaskTitle()}
+                            onInput={e => setNewTaskTitle(e.currentTarget.value)}
+                            style={{
+                              width: '100%',
+                              padding: '6px 8px',
+                              "font-size": '11px',
+                              "background-color": 'var(--surface-container-high)',
+                              border: '1px solid var(--border-default)',
+                              "border-radius": '4px',
+                              color: '#fff',
+                              outline: 'none',
+                              "box-sizing": 'border-box'
+                            }}
+                          />
+                        </form>
+                      </Show>
+
+                      <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
+                        <For each={colTasks()}>
+                          {(t) => (
+                            <div 
+                              onClick={() => handleCycleTaskStatus(t)}
+                              title="Click to advance status"
+                              style={{
+                                padding: '12px',
+                                "border-radius": '6px',
+                                "background-color": 'var(--surface-container)',
+                                border: '1px solid var(--border-default)',
+                                display: 'flex',
+                                "flex-direction": 'column',
+                                gap: '6px',
+                                cursor: 'pointer',
+                                transition: 'transform 0.1s ease'
+                              }}
+                            >
+                              <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
+                                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                                  #{t.id.slice(-4)}
+                                </span>
+                                <span style={{
+                                  "font-size": '9px',
+                                  "font-family": 'var(--font-mono)',
+                                  padding: '1px 5px',
+                                  "border-radius": '3px',
+                                  background: t.priority === 'urgent' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.06)',
+                                  color: t.priority === 'urgent' ? '#f87171' : 'var(--text-muted)'
+                                }}>
+                                  {t.priority}
+                                </span>
+                              </div>
+                              <h4 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>
+                                {t.title}
+                              </h4>
+                              <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '10px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
+                                <span>{t.due_date ? new Date(t.due_date).toLocaleDateString() : 'No date'}</span>
+                                <span style={{ color: col.color, display: 'flex', "align-items": 'center', gap: '2px' }}>
+                                  Advance <ChevronRight size={10} />
+                                </span>
+                              </div>
                             </div>
-                            <h4 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>{t.title}</h4>
-                            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '10px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
-                              <span>{t.date}</span>
-                              <span>{t.user}</span>
-                            </div>
-                          </div>
-                        )}
-                      </For>
+                          )}
+                        </For>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </Show>
@@ -555,54 +768,54 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             </div>
 
             <div style={{ display: 'grid', "grid-template-columns": 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-              <For each={projects}>
-                {(proj) => (
-                  <div 
-                    onClick={() => setSelectedProjectId(proj.id)}
-                    style={{
-                      padding: '20px',
-                      "border-radius": '8px',
-                      "background-color": 'var(--surface-container-low)',
-                      border: '1px solid var(--border-default)',
-                      display: 'flex',
-                      "flex-direction": 'column',
-                      "justify-content": 'space-between',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
-                      <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-                        <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--secondary)', background: 'rgba(68,225,222,0.1)', padding: '2px 6px', "border-radius": '3px' }}>
-                          {proj.spaceName}
-                        </span>
-                        <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
-                          {proj.status}
-                        </span>
+              <Show when={!loadingProjects()} fallback={
+                <div style={{ color: 'var(--text-dim)', padding: '24px 0' }}>Loading projects...</div>
+              }>
+                <For each={projects()}>
+                  {(proj) => (
+                    <div 
+                      onClick={() => setSelectedProjectId(proj.id)}
+                      style={{
+                        padding: '20px',
+                        "border-radius": '8px',
+                        "background-color": 'var(--surface-container-low)',
+                        border: '1px solid var(--border-default)',
+                        display: 'flex',
+                        "flex-direction": 'column',
+                        "justify-content": 'space-between',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
+                          <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--secondary)', background: 'rgba(68,225,222,0.1)', padding: '2px 6px', "border-radius": '3px' }}>
+                            {getSpaceName(proj.space_id)}
+                          </span>
+                          <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', "text-transform": 'capitalize' }}>
+                            {proj.status}
+                          </span>
+                        </div>
+
+                        <h3 style={{ "font-size": '15px', "font-weight": 600, color: '#fff', margin: 0 }}>
+                          {proj.name}
+                        </h3>
+
+                        <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: 0, "line-height": 1.5 }}>
+                          {proj.description || 'No description provided.'}
+                        </p>
                       </div>
 
-                      <h3 style={{ "font-size": '15px', "font-weight": 600, color: '#fff', margin: 0 }}>
-                        {proj.name}
-                      </h3>
-
-                      <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: 0, "line-height": 1.5 }}>
-                        {proj.desc}
-                      </p>
-                    </div>
-
-                    <div style={{ "margin-top": '16px', "padding-top": '12px', "border-top": '1px solid rgba(255,255,255,0.05)', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '11px', color: 'var(--text-dim)' }}>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <span>{proj.docsCount} Docs</span>
-                        <span>·</span>
-                        <span>{proj.boardsCount} Boards</span>
-                        <span>·</span>
-                        <span>{proj.tasksCount} Tasks</span>
+                      <div style={{ "margin-top": '16px', "padding-top": '12px', "border-top": '1px solid rgba(255,255,255,0.05)', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '11px', color: 'var(--text-dim)' }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <span>Target: {proj.target_date ? new Date(proj.target_date).toLocaleDateString() : 'Ongoing'}</span>
+                        </div>
+                        <span style={{ color: 'var(--secondary)', "font-family": 'var(--font-mono)' }}>Open Hub →</span>
                       </div>
-                      <span style={{ color: 'var(--secondary)', "font-family": 'var(--font-mono)' }}>{proj.progress}</span>
                     </div>
-                  </div>
-                )}
-              </For>
+                  )}
+                </For>
+              </Show>
             </div>
           </div>
         </main>

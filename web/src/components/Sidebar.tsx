@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { For } from 'solid-js';
+import { createSignal, onMount, For } from 'solid-js';
 import { 
   Inbox, 
   FolderKanban, 
@@ -9,6 +9,7 @@ import {
   Bolt,
   PanelLeftClose
 } from 'lucide-solid';
+import { api, type Space } from '../services/api';
 
 interface SidebarProps {
   currentRoute: string;
@@ -18,13 +19,25 @@ interface SidebarProps {
 }
 
 export const Sidebar: Component<SidebarProps> = (props) => {
-  const spaces = [
+  const [spaces, setSpaces] = createSignal<{ id: string | null; name: string; slug: string }[]>([
     { id: null, name: 'All Spaces', slug: 'all' },
-    { id: 'kantor', name: 'Kantor', slug: 'kantor' },
-    { id: 'pribadi', name: 'Pribadi', slug: 'pribadi' },
-    { id: 'bisnis-a', name: 'Bisnis A', slug: 'bisnis-a' },
-    { id: 'bisnis-b', name: 'Bisnis B', slug: 'bisnis-b' }
-  ];
+    { id: '018f0000-0000-7000-8000-000000000010', name: 'Kantor', slug: 'kantor' },
+    { id: '018f0000-0000-7000-8000-000000000020', name: 'Pribadi', slug: 'pribadi' },
+    { id: '018f0000-0000-7000-8000-000000000030', name: 'Bisnis A', slug: 'bisnis-a' },
+    { id: '018f0000-0000-7000-8000-000000000040', name: 'Bisnis B', slug: 'bisnis-b' }
+  ]);
+
+  onMount(async () => {
+    try {
+      const data = await api.getSpaces();
+      if (data && data.length > 0) {
+        setSpaces([
+          { id: null, name: 'All Spaces', slug: 'all' },
+          ...data.map((s: Space) => ({ id: s.id, name: s.name, slug: s.slug }))
+        ]);
+      }
+    } catch (_) {}
+  });
 
   return (
     <aside class="orca-sidebar">
@@ -59,7 +72,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           </div>
 
           <div style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
-            <For each={spaces}>
+            <For each={spaces()}>
               {(s) => {
                 const isActive = () => props.activeSpaceId === s.id;
                 return (

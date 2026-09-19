@@ -39,7 +39,7 @@ export interface Task {
   parent_task_id?: string;
   title: string;
   description?: string;
-  status: 'todo' | 'in_progress' | 'done' | 'cancelled';
+  status: 'todo' | 'in_progress' | 'in_review' | 'done' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   due_date?: string;
   planned_date?: string;
@@ -183,6 +183,18 @@ export const api = {
       body: JSON.stringify({ status }),
     });
   },
+  updateTask: async (id: string, data: Partial<Task>): Promise<Task> => {
+    const res = await request<{ data: Task }>(`/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+  deleteTask: async (id: string): Promise<void> => {
+    await request(`/tasks/${id}`, {
+      method: 'DELETE',
+    });
+  },
 
   // Documents
   getDocuments: async (filters: { space_id?: string; project_id?: string } = {}): Promise<Document[]> => {
@@ -192,6 +204,13 @@ export const api = {
 
     const qs = params.toString() ? `?${params.toString()}` : '';
     const res = await request<{ data: Document[] }>(`/documents${qs}`);
+    return res.data;
+  },
+  createDocument: async (data: Partial<Document>): Promise<Document> => {
+    const res = await request<{ data: Document }>('/documents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
     return res.data;
   },
 
@@ -204,6 +223,13 @@ export const api = {
 
     const qs = params.toString() ? `?${params.toString()}` : '';
     const res = await request<{ data: CalendarEvent[] }>(`/events${qs}`);
+    return res.data;
+  },
+  createEvent: async (data: Partial<CalendarEvent>): Promise<CalendarEvent> => {
+    const res = await request<{ data: CalendarEvent }>('/events', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
     return res.data;
   },
 
@@ -219,6 +245,13 @@ export const api = {
   },
   getBoardBlocks: async (boardId: string): Promise<NoteBlock[]> => {
     const res = await request<{ data: NoteBlock[] }>(`/boards/${boardId}/blocks`);
+    return res.data;
+  },
+  updateNoteBlock: async (id: string, data: Partial<NoteBlock>): Promise<NoteBlock> => {
+    const res = await request<{ data: NoteBlock }>(`/blocks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
     return res.data;
   },
 };
