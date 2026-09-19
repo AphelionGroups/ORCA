@@ -1,12 +1,21 @@
 import type { Component } from 'solid-js';
 import { createSignal, For } from 'solid-js';
+import { 
+  Calendar, 
+  Clock, 
+  Plus, 
+  ChevronLeft, 
+  ChevronRight, 
+  GripVertical, 
+  Box
+} from 'lucide-solid';
 
-interface CalendarScreenProps {
+interface CalendarViewProps {
   onOpenQuickCapture: () => void;
-  onNavigate?: (route: string, spaceId?: string) => void;
+  onNavigate?: (route: string, spaceId?: string | null) => void;
 }
 
-export const CalendarScreen: Component<CalendarScreenProps> = (props) => {
+export const CalendarView: Component<CalendarViewProps> = (props) => {
   const [spaceFilter, setSpaceFilter] = createSignal('all');
   const [scheduleView, setScheduleView] = createSignal('Week');
 
@@ -23,12 +32,12 @@ export const CalendarScreen: Component<CalendarScreenProps> = (props) => {
       <header class="orca-top-header" style={{ position: 'sticky', top: 0, "z-index": 40 }}>
         <div style={{ display: 'flex', "align-items": 'center', gap: '12px' }}>
           <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-            <span class="material-symbols-outlined" style={{ "font-size": '20px', color: 'var(--primary)' }}>calendar_month</span>
+            <Calendar size={18} color="var(--primary)" />
             <span style={{ "font-size": '14px', color: '#fff', "font-weight": 500 }}>Calendar</span>
           </div>
           <div style={{ width: '1px', height: '16px', "background-color": 'rgba(255,255,255,0.1)' }}></div>
-          <div style={{ display: 'flex', "align-items": 'center', gap: '4px', "font-size": '11px', "font-family": 'monospace', color: 'var(--text-dim)' }}>
-            <span class="material-symbols-outlined" style={{ "font-size": '14px' }}>schedule</span>
+          <div style={{ display: 'flex', "align-items": 'center', gap: '4px', "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
+            <Clock size={13} />
             <span>Temporal Matrix View</span>
           </div>
         </div>
@@ -47,7 +56,7 @@ export const CalendarScreen: Component<CalendarScreenProps> = (props) => {
               display: 'flex',
               "align-items": 'center',
               gap: '6px',
-              padding: '4px 12px',
+              padding: '5px 12px',
               "font-size": '12px',
               "font-weight": 500,
               color: '#fff',
@@ -57,31 +66,31 @@ export const CalendarScreen: Component<CalendarScreenProps> = (props) => {
               cursor: 'pointer'
             }}
           >
-            <span class="material-symbols-outlined" style={{ "font-size": '15px', color: 'var(--secondary)' }}>add</span>
+            <Plus size={14} color="var(--secondary)" />
             <span>Add Event</span>
           </button>
         </div>
       </header>
 
       {/* Ribbon Controls */}
-      <div style={{ padding: '32px 32px 16px 32px', display: 'flex', "flex-wrap": 'wrap', "align-items": 'center', "justify-content": 'space-between', gap: '16px' }}>
+      <div style={{ padding: '24px 32px 16px 32px', display: 'flex', "flex-wrap": 'wrap', "align-items": 'center', "justify-content": 'space-between', gap: '16px' }}>
         <div style={{ display: 'flex', "align-items": 'center', gap: '24px' }}>
           <div style={{ display: 'flex', "align-items": 'baseline', gap: '8px' }}>
-            <span style={{ "font-size": '24px', color: '#fff', "font-weight": 500, "letter-spacing": '-0.02em' }}>October</span>
-            <span style={{ "font-size": '18px', color: 'var(--text-muted)', "font-weight": 300 }}>2024</span>
+            <span style={{ "font-size": '22px', color: '#fff', "font-weight": 600, "letter-spacing": '-0.02em' }}>October</span>
+            <span style={{ "font-size": '16px', color: 'var(--text-muted)', "font-weight": 300 }}>2024</span>
           </div>
-          <div style={{ display: 'flex', "align-items": 'center', padding: '2px', "border-radius": '4px', "background-color": 'var(--surface-container-low)' }}>
+          <div style={{ display: 'flex', "align-items": 'center', padding: '2px', "border-radius": '4px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)' }}>
             <button style={{ width: '28px', height: '28px', display: 'flex', "align-items": 'center', "justify-content": 'center', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
-              <span class="material-symbols-outlined" style={{ "font-size": '16px' }}>chevron_left</span>
+              <ChevronLeft size={16} />
             </button>
-            <button style={{ padding: '2px 12px', "font-size": '12px', color: '#fff', background: 'none', border: 'none', cursor: 'pointer' }}>Today</button>
+            <button style={{ padding: '2px 10px', "font-size": '12px', color: '#fff', background: 'none', border: 'none', cursor: 'pointer' }}>Today</button>
             <button style={{ width: '28px', height: '28px', display: 'flex', "align-items": 'center', "justify-content": 'center', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
-              <span class="material-symbols-outlined" style={{ "font-size": '16px' }}>chevron_right</span>
+              <ChevronRight size={16} />
             </button>
           </div>
 
           {/* Space Filters */}
-          <div style={{ display: 'flex', "align-items": 'center', gap: '6px', padding: '4px', "border-radius": '9999px', "background-color": 'var(--surface-container-lowest)', border: '1px solid var(--border-default)' }}>
+          <div style={{ display: 'flex', "align-items": 'center', gap: '4px', padding: '3px', "border-radius": '9999px', "background-color": 'var(--surface-container-lowest)', border: '1px solid var(--border-default)' }}>
             <For each={['all', 'bisnis-a', 'kantor', 'pribadi']}>
               {(sp) => (
                 <button
@@ -106,7 +115,7 @@ export const CalendarScreen: Component<CalendarScreenProps> = (props) => {
         </div>
 
         <div style={{ display: 'flex', "align-items": 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', "align-items": 'center', padding: '2px', "border-radius": '4px', "background-color": 'var(--surface-container-low)' }}>
+          <div style={{ display: 'flex', "align-items": 'center', padding: '2px', "border-radius": '4px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)' }}>
             <For each={['Month', 'Week', 'Day', 'Timeline']}>
               {(mode) => (
                 <button
@@ -133,39 +142,39 @@ export const CalendarScreen: Component<CalendarScreenProps> = (props) => {
       {/* Matrix & Backlog */}
       <div style={{ padding: '0 32px 48px 32px', display: 'flex', gap: '24px', "align-items": 'flex-start' }}>
         {/* Left Unscheduled Backlog */}
-        <div style={{ width: '288px', "flex-shrink": 0, display: 'flex', "flex-direction": 'column', gap: '12px' }}>
-          <div style={{ padding: '16px', "border-radius": '12px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', gap: '4px' }}>
+        <div style={{ width: '280px', "flex-shrink": 0, display: 'flex', "flex-direction": 'column', gap: '12px' }}>
+          <div style={{ padding: '16px', "border-radius": '8px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', gap: '4px' }}>
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-              <span style={{ "font-size": '11px', "font-family": 'monospace', "text-transform": 'uppercase', "letter-spacing": '0.1em', color: 'var(--text-dim)' }}>Unscheduled Nodes</span>
+              <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', "letter-spacing": '0.1em', color: 'var(--text-dim)' }}>Unscheduled Nodes</span>
               <span style={{ padding: '2px 6px', "border-radius": '4px', "background-color": 'rgba(255,255,255,0.1)', "font-size": '10px', color: '#fff' }}>4</span>
             </div>
-            <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Drag spatial elements onto time blocks to lock sprint momentum.</p>
+            <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: '4px 0 0 0', "line-height": 1.4 }}>Drag items onto time slots to block momentum.</p>
           </div>
 
           <For each={backlogItems}>
             {(item) => (
               <div 
                 style={{
-                  padding: '16px',
-                  "border-radius": '12px',
+                  padding: '14px',
+                  "border-radius": '8px',
                   "background-color": 'var(--surface-container-low)',
-                  border: '1px solid rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.06)',
                   cursor: 'grab'
                 }}
               >
                 <div style={{ display: 'flex', "align-items": 'flex-start', "justify-content": 'space-between', "margin-bottom": '6px' }}>
-                  <span style={{ padding: '2px 8px', "border-radius": '4px', "font-size": '10px', "font-family": 'monospace', "text-transform": 'uppercase', "letter-spacing": '0.05em', "background-color": 'rgba(68,225,222,0.1)', color: 'var(--secondary)' }}>
+                  <span style={{ padding: '2px 6px', "border-radius": '4px', "font-size": '10px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', "background-color": 'rgba(68,225,222,0.1)', color: 'var(--secondary)' }}>
                     {item.tag}
                   </span>
-                  <span class="material-symbols-outlined" style={{ "font-size": '15px', color: 'var(--text-dim)' }}>drag_indicator</span>
+                  <GripVertical size={14} color="var(--text-dim)" />
                 </div>
                 <h4 style={{ "font-size": '12px', "font-weight": 600, color: '#fff', margin: 0, "line-height": 1.4 }}>{item.title}</h4>
                 <div style={{ "margin-top": '8px', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '11px', color: 'var(--text-dim)' }}>
                   <div style={{ display: 'flex', "align-items": 'center', gap: '4px' }}>
-                    <span class="material-symbols-outlined" style={{ "font-size": '13px', color: 'var(--secondary)' }}>view_in_ar</span>
+                    <Box size={12} color="var(--secondary)" />
                     <span>{item.canvas}</span>
                   </div>
-                  <span style={{ "font-family": 'monospace' }}>{item.duration}</span>
+                  <span style={{ "font-family": 'var(--font-mono)' }}>{item.duration}</span>
                 </div>
               </div>
             )}
@@ -173,10 +182,10 @@ export const CalendarScreen: Component<CalendarScreenProps> = (props) => {
         </div>
 
         {/* Main Weekly Architectural Grid */}
-        <div style={{ flex: 1, "min-width": 0, "border-radius": '12px', "background-color": 'var(--surface-container-lowest)', border: '1px solid var(--border-default)', overflow: 'hidden', display: 'flex', "flex-direction": 'column' }}>
+        <div style={{ flex: 1, "min-width": 0, "border-radius": '8px', "background-color": 'var(--surface-container-lowest)', border: '1px solid var(--border-default)', overflow: 'hidden', display: 'flex', "flex-direction": 'column' }}>
           {/* Day Columns Header */}
           <div style={{ display: 'grid', "grid-template-columns": '60px repeat(5, 1fr)', "background-color": 'var(--surface-container-low)', "border-bottom": '1px solid var(--border-default)', "text-align": 'center' }}>
-            <div style={{ padding: '12px 0', "font-size": '10px', "font-family": 'monospace', color: 'var(--text-dim)' }}>GMT+7</div>
+            <div style={{ padding: '12px 0', "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>GMT+7</div>
             <div style={{ padding: '12px 0', "border-left": '1px solid rgba(255,255,255,0.05)' }}><span style={{ "font-size": '12px', color: 'var(--text-dim)' }}>Mon 21</span></div>
             <div style={{ padding: '12px 0', "border-left": '1px solid rgba(255,255,255,0.05)' }}><span style={{ "font-size": '12px', color: 'var(--text-dim)' }}>Tue 22</span></div>
             <div style={{ padding: '12px 0', "border-left": '1px solid rgba(255,255,255,0.05)', "background-color": 'rgba(26,28,34,0.6)', position: 'relative' }}>
@@ -188,9 +197,9 @@ export const CalendarScreen: Component<CalendarScreenProps> = (props) => {
           </div>
 
           {/* Time Slots Area */}
-          <div style={{ position: 'relative', display: 'grid', "grid-template-columns": '60px repeat(5, 1fr)', height: '640px', "overflow-y": 'auto' }}>
+          <div style={{ position: 'relative', display: 'grid', "grid-template-columns": '60px repeat(5, 1fr)', height: '620px', "overflow-y": 'auto' }}>
             {/* Time labels column */}
-            <div style={{ display: 'flex', "flex-direction": 'column', "text-align": 'right', "font-family": 'monospace', "font-size": '10px', color: 'rgba(100,116,139,0.6)', "padding-right": '8px', "padding-top": '8px', "border-right": '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'flex', "flex-direction": 'column', "text-align": 'right', "font-family": 'var(--font-mono)', "font-size": '10px', color: 'rgba(100,116,139,0.6)', "padding-right": '8px', "padding-top": '8px', "border-right": '1px solid rgba(255,255,255,0.05)' }}>
               <div style={{ height: '64px' }}>08:00</div>
               <div style={{ height: '64px' }}>10:00</div>
               <div style={{ height: '64px' }}>12:00</div>
@@ -201,23 +210,23 @@ export const CalendarScreen: Component<CalendarScreenProps> = (props) => {
 
             {/* Col Mon */}
             <div style={{ position: 'relative', "border-right": '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ position: 'absolute', top: '16px', left: '6px', right: '6px', height: '96px', "border-radius": '8px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
+              <div style={{ position: 'absolute', top: '16px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
                 <div>
-                  <span style={{ "font-size": '9px', "font-family": 'monospace', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
+                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
                   <h5 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0, overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>Brand Visual Alignment</h5>
                 </div>
-                <span style={{ "font-size": '10px', "font-family": 'monospace', color: 'var(--text-dim)' }}>08:30 - 10:15</span>
+                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>08:30 - 10:15</span>
               </div>
             </div>
 
             {/* Col Tue */}
             <div style={{ position: 'relative', "border-right": '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ position: 'absolute', top: '112px', left: '6px', right: '6px', height: '112px', "border-radius": '8px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
+              <div style={{ position: 'absolute', top: '112px', left: '6px', right: '6px', height: '112px', "border-radius": '6px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
                 <div>
-                  <span style={{ "font-size": '9px', "font-family": 'monospace', color: 'var(--primary)', "text-transform": 'uppercase' }}>Kantor</span>
+                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--primary)', "text-transform": 'uppercase' }}>Kantor</span>
                   <h5 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>Sprint Architecture Sync</h5>
                 </div>
-                <span style={{ "font-size": '10px', "font-family": 'monospace', color: 'var(--text-dim)' }}>10:00 - 12:30</span>
+                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>10:00 - 12:30</span>
               </div>
             </div>
 
@@ -227,45 +236,45 @@ export const CalendarScreen: Component<CalendarScreenProps> = (props) => {
               <div style={{ position: 'absolute', top: '160px', left: 0, right: 0, "z-index": 30, display: 'flex', "align-items": 'center', "pointer-events": 'none' }}>
                 <div style={{ width: '8px', height: '8px', "border-radius": '50%', "background-color": 'var(--secondary)', "margin-left": '-4px' }}></div>
                 <div style={{ height: '1px', flex: 1, "background-color": 'var(--secondary)', "box-shadow": '0 0 8px rgba(68,225,222,0.8)' }}></div>
-                <span style={{ "font-size": '9px', "font-family": 'monospace', "background-color": 'var(--secondary)', color: '#000', padding: '0 4px', "border-radius": '2px', "margin-right": '4px' }}>11:15</span>
+                <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', "background-color": 'var(--secondary)', color: '#000', padding: '0 4px', "border-radius": '2px', "margin-right": '4px' }}>11:15</span>
               </div>
 
-              <div style={{ position: 'absolute', top: '40px', left: '6px', right: '6px', height: '112px', "border-radius": '8px', padding: '10px', "background-color": 'var(--surface-container-high)', border: '1px solid rgba(68,225,222,0.4)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
+              <div style={{ position: 'absolute', top: '40px', left: '6px', right: '6px', height: '112px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-high)', border: '1px solid rgba(68,225,222,0.4)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
                 <div>
-                  <span style={{ "font-size": '9px', "font-family": 'monospace', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A • Live</span>
+                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A • Live</span>
                   <h5 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>Rebranding Presentation Deck</h5>
                 </div>
-                <span style={{ "font-size": '10px', "font-family": 'monospace', color: 'var(--secondary)' }}>09:00 - 11:00</span>
+                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--secondary)' }}>09:00 - 11:00</span>
               </div>
 
-              <div style={{ position: 'absolute', top: '208px', left: '6px', right: '6px', height: '128px', "border-radius": '8px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
+              <div style={{ position: 'absolute', top: '208px', left: '6px', right: '6px', height: '128px', "border-radius": '6px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
                 <div>
-                  <span style={{ "font-size": '9px', "font-family": 'monospace', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
+                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
                   <h5 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>Packaging CAD & Material Signoff</h5>
                 </div>
-                <span style={{ "font-size": '10px', "font-family": 'monospace', color: 'var(--text-dim)' }}>14:00 - 16:30</span>
+                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>14:00 - 16:30</span>
               </div>
             </div>
 
             {/* Col Thu */}
             <div style={{ position: 'relative', "border-right": '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ position: 'absolute', top: '80px', left: '6px', right: '6px', height: '96px', "border-radius": '8px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
+              <div style={{ position: 'absolute', top: '80px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
                 <div>
-                  <span style={{ "font-size": '9px', "font-family": 'monospace', color: 'var(--primary)', "text-transform": 'uppercase' }}>Kantor</span>
+                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--primary)', "text-transform": 'uppercase' }}>Kantor</span>
                   <h5 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>Quarterly Budget Modeling</h5>
                 </div>
-                <span style={{ "font-size": '10px', "font-family": 'monospace', color: 'var(--text-dim)' }}>09:30 - 11:30</span>
+                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>09:30 - 11:30</span>
               </div>
             </div>
 
             {/* Col Fri */}
             <div style={{ position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '144px', left: '6px', right: '6px', height: '96px', "border-radius": '8px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
+              <div style={{ position: 'absolute', top: '144px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
                 <div>
-                  <span style={{ "font-size": '9px', "font-family": 'monospace', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
+                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
                   <h5 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>Launch Campaign Review</h5>
                 </div>
-                <span style={{ "font-size": '10px', "font-family": 'monospace', color: 'var(--text-dim)' }}>11:00 - 12:30</span>
+                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>11:00 - 12:30</span>
               </div>
             </div>
           </div>

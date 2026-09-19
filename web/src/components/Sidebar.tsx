@@ -1,19 +1,29 @@
 import type { Component } from 'solid-js';
+import { For } from 'solid-js';
+import { 
+  Inbox, 
+  FolderKanban, 
+  CheckSquare, 
+  Calendar, 
+  SlidersHorizontal, 
+  Bolt,
+  PanelLeftClose
+} from 'lucide-solid';
 
 interface SidebarProps {
   currentRoute: string;
-  activeSpaceId: string;
-  onNavigate: (route: string, spaceId?: string) => void;
+  activeSpaceId: string | null;
+  onNavigate: (route: string, spaceId?: string | null) => void;
   onOpenQuickCapture: () => void;
 }
 
 export const Sidebar: Component<SidebarProps> = (props) => {
   const spaces = [
-    { id: 'all', name: 'All Spaces', route: 'spaces' },
-    { id: 'kantor', name: 'Kantor', route: 'spaces' },
-    { id: 'pribadi', name: 'Pribadi', route: 'spaces' },
-    { id: 'bisnis-a', name: 'Bisnis A', route: 'canvas' },
-    { id: 'bisnis-b', name: 'Bisnis B', route: 'spaces' }
+    { id: null, name: 'All Spaces', slug: 'all' },
+    { id: 'kantor', name: 'Kantor', slug: 'kantor' },
+    { id: 'pribadi', name: 'Pribadi', slug: 'pribadi' },
+    { id: 'bisnis-a', name: 'Bisnis A', slug: 'bisnis-a' },
+    { id: 'bisnis-b', name: 'Bisnis B', slug: 'bisnis-b' }
   ];
 
   return (
@@ -21,7 +31,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
       <div style={{ display: 'flex', "flex-direction": 'column', gap: '24px' }}>
         {/* Wordmark Header */}
         <div class="sidebar-brand-row">
-          <div class="brand-logo" onClick={() => props.onNavigate('spaces')}>
+          <div class="brand-logo" onClick={() => props.onNavigate('projects', null)}>
             <span class="brand-text">ORCA</span>
             <span class="brand-cyan-dot"></span>
           </div>
@@ -30,7 +40,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
             class="btn-ghost-icon"
             style={{ width: '28px', height: '28px' }}
           >
-            <span class="material-symbols-outlined" style={{ "font-size": '17px' }}>dock_to_right</span>
+            <PanelLeftClose size={16} color="var(--text-dim)" />
           </button>
         </div>
 
@@ -41,40 +51,27 @@ export const Sidebar: Component<SidebarProps> = (props) => {
             <button 
               class="btn-ghost-icon" 
               style={{ width: '20px', height: '20px' }} 
-              onClick={() => props.onNavigate('spaces')}
-              title="Manage Spaces"
+              onClick={() => props.onNavigate('projects', null)}
+              title="Filter Spaces"
             >
-              <span class="material-symbols-outlined" style={{ "font-size": '14px' }}>tune</span>
+              <SlidersHorizontal size={13} color="var(--text-dim)" />
             </button>
           </div>
 
           <div style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
-            {spaces.map(s => {
-              const isCanvasRoute = ['canvas', 'documents', 'tasks'].includes(props.currentRoute);
-              const isActive = (s.id === 'bisnis-a' && isCanvasRoute) || 
-                               (s.id === 'all' && props.currentRoute === 'spaces' && props.activeSpaceId === 'all') ||
-                               (props.activeSpaceId === s.id);
-
-              return (
-                <div
-                  class={`sidebar-nav-item ${isActive ? 'active' : ''}`}
-                  onClick={() => props.onNavigate(s.route, s.id)}
-                >
-                  <span>{s.name}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Subproject under active space */}
-          <div style={{ "margin-top": '-4px' }}>
-            <span 
-              class="subproject-link"
-              style={{ cursor: 'pointer' }}
-              onClick={() => props.onNavigate('canvas', 'bisnis-a')}
-            >
-              Rebranding & Launch
-            </span>
+            <For each={spaces}>
+              {(s) => {
+                const isActive = () => props.activeSpaceId === s.id;
+                return (
+                  <div
+                    class={`sidebar-nav-item ${isActive() ? 'active' : ''}`}
+                    onClick={() => props.onNavigate(props.currentRoute, s.id)}
+                  >
+                    <span>{s.name}</span>
+                  </div>
+                );
+              }}
+            </For>
           </div>
         </div>
 
@@ -82,51 +79,39 @@ export const Sidebar: Component<SidebarProps> = (props) => {
         <div style={{ display: 'flex', "flex-direction": 'column', gap: '6px' }}>
           <div class="sidebar-section-header">Views</div>
           <nav style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
+            {/* 1. Inbox */}
             <div 
-              class={`sidebar-nav-item ${props.currentRoute === 'spaces' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('spaces')}
+              class={`sidebar-nav-item ${props.currentRoute === 'inbox' ? 'active' : ''}`}
+              onClick={() => props.onNavigate('inbox')}
             >
-              <span class="material-symbols-outlined" style={{ "font-size": '17px', color: 'var(--text-dim)' }}>grid_view</span>
-              <span>Spaces Master</span>
+              <Inbox size={16} color={props.currentRoute === 'inbox' ? 'var(--secondary)' : 'var(--text-dim)'} />
+              <span>Inbox</span>
             </div>
 
+            {/* 2. Projects */}
             <div 
-              class={`sidebar-nav-item ${props.currentRoute === 'canvas-hub' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('canvas-hub')}
+              class={`sidebar-nav-item ${props.currentRoute === 'projects' ? 'active' : ''}`}
+              onClick={() => props.onNavigate('projects')}
             >
-              <span class="material-symbols-outlined" style={{ "font-size": '17px', color: 'var(--secondary)' }}>dashboard</span>
-              <span>Canvas Hub</span>
+              <FolderKanban size={16} color={props.currentRoute === 'projects' ? 'var(--primary)' : 'var(--text-dim)'} />
+              <span>Projects</span>
             </div>
 
-            <div 
-              class={`sidebar-nav-item ${props.currentRoute === 'canvas' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('canvas')}
-            >
-              <span class="material-symbols-outlined" style={{ "font-size": '17px', color: 'var(--secondary)' }}>gesture</span>
-              <span>Spatial Canvas</span>
-            </div>
-
-            <div 
-              class={`sidebar-nav-item ${props.currentRoute === 'documents' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('documents')}
-            >
-              <span class="material-symbols-outlined" style={{ "font-size": '17px', color: 'var(--tertiary)' }}>description</span>
-              <span>Documents</span>
-            </div>
-
+            {/* 3. Tasks */}
             <div 
               class={`sidebar-nav-item ${props.currentRoute === 'tasks' ? 'active' : ''}`}
               onClick={() => props.onNavigate('tasks')}
             >
-              <span class="material-symbols-outlined" style={{ "font-size": '17px', color: 'var(--secondary)' }}>check_circle</span>
-              <span>Tasks & Sprint</span>
+              <CheckSquare size={16} color={props.currentRoute === 'tasks' ? 'var(--secondary)' : 'var(--text-dim)'} />
+              <span>Tasks</span>
             </div>
 
+            {/* 4. Calendar */}
             <div 
               class={`sidebar-nav-item ${props.currentRoute === 'calendar' ? 'active' : ''}`}
               onClick={() => props.onNavigate('calendar')}
             >
-              <span class="material-symbols-outlined" style={{ "font-size": '17px', color: 'var(--primary)' }}>calendar_today</span>
+              <Calendar size={16} color={props.currentRoute === 'calendar' ? 'var(--tertiary)' : 'var(--text-dim)'} />
               <span>Calendar</span>
             </div>
           </nav>
@@ -141,7 +126,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           type="button"
         >
           <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-            <span class="material-symbols-outlined" style={{ "font-size": '16px', color: 'var(--secondary)' }}>bolt</span>
+            <Bolt size={15} color="var(--secondary)" />
             <span style={{ "font-weight": 500 }}>Quick Capture</span>
           </div>
           <span class="kbd-badge">Ctrl+K</span>

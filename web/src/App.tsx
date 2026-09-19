@@ -2,21 +2,21 @@ import type { Component } from 'solid-js';
 import { createSignal, onMount, onCleanup, Switch, Match } from 'solid-js';
 import { Sidebar } from './components/Sidebar';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
-import { SpatialCanvasScreen } from './views/SpatialCanvasScreen';
-import { CanvasHubScreen } from './views/CanvasHubScreen';
-import { DocumentsScreen } from './views/DocumentsScreen';
-import { TasksBoardScreen } from './views/TasksBoardScreen';
-import { SpacesMasterScreen } from './views/SpacesMasterScreen';
-import { CalendarScreen } from './views/CalendarScreen';
+import { InboxView } from './views/InboxView';
+import { ProjectsView } from './views/ProjectsView';
+import { TasksView } from './views/TasksView';
+import { CalendarView } from './views/CalendarView';
 
 export const App: Component = () => {
-  const [currentRoute, setCurrentRoute] = createSignal<string>('canvas');
-  const [activeSpaceId, setActiveSpaceId] = createSignal<string>('bisnis-a');
+  const [currentRoute, setCurrentRoute] = createSignal<string>('projects');
+  const [activeSpaceId, setActiveSpaceId] = createSignal<string | null>(null);
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = createSignal<boolean>(false);
 
-  const handleNavigate = (route: string, spaceId?: string) => {
+  const handleNavigate = (route: string, spaceId?: string | null) => {
     setCurrentRoute(route);
-    if (spaceId) setActiveSpaceId(spaceId);
+    if (spaceId !== undefined) {
+      setActiveSpaceId(spaceId);
+    }
   };
 
   // Global keyboard shortcut Ctrl+K / Cmd+K
@@ -48,38 +48,26 @@ export const App: Component = () => {
       {/* Main View Area */}
       <div class="orca-main-viewport">
         <Switch>
-          <Match when={currentRoute() === 'canvas'}>
-            <SpatialCanvasScreen 
+          <Match when={currentRoute() === 'inbox'}>
+            <InboxView 
               onNavigate={handleNavigate}
               onOpenQuickCapture={() => setIsQuickCaptureOpen(true)} 
             />
           </Match>
-          <Match when={currentRoute() === 'canvas-hub'}>
-            <CanvasHubScreen 
-              onNavigate={handleNavigate} 
-              onOpenQuickCapture={() => setIsQuickCaptureOpen(true)} 
-            />
-          </Match>
-          <Match when={currentRoute() === 'documents'}>
-            <DocumentsScreen 
-              onNavigate={handleNavigate} 
+          <Match when={currentRoute() === 'projects'}>
+            <ProjectsView 
+              activeSpaceId={activeSpaceId()} 
               onOpenQuickCapture={() => setIsQuickCaptureOpen(true)} 
             />
           </Match>
           <Match when={currentRoute() === 'tasks'}>
-            <TasksBoardScreen 
-              onNavigate={handleNavigate} 
-              onOpenQuickCapture={() => setIsQuickCaptureOpen(true)} 
-            />
-          </Match>
-          <Match when={currentRoute() === 'spaces'}>
-            <SpacesMasterScreen 
-              onNavigate={handleNavigate} 
+            <TasksView 
+              activeSpaceId={activeSpaceId()} 
               onOpenQuickCapture={() => setIsQuickCaptureOpen(true)} 
             />
           </Match>
           <Match when={currentRoute() === 'calendar'}>
-            <CalendarScreen 
+            <CalendarView 
               onNavigate={handleNavigate} 
               onOpenQuickCapture={() => setIsQuickCaptureOpen(true)} 
             />
