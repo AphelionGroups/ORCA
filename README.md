@@ -24,7 +24,7 @@ Dirancang khusus dengan prinsip **self-host first-class citizen**, **modular mon
 | Layer | Teknologi | Alasan Utama |
 |---|---|---|
 | **Frontend App** | **SolidJS + TypeScript + Vite** | Fine-grained reactivity tanpa Virtual DOM; sangat cepat dan hemat memori saat menangani interaksi canvas/board. |
-| **Styling & Components** | **Tailwind CSS + Kobalte / Corvu** | Headless primitives yang aksesibel dengan kebebasan desain visual 100% tanpa batas template. |
+| **Styling & Components** | **Vanilla CSS (Design Tokens & CSS Variables) + Kobalte / Corvu** | Fleksibilitas penuh tanpa abstraksi utility class, performa rendering kanvas maksimal, dan kontrol 100% atas efek visual custom. |
 | **Canvas / Board Engine** | **Custom Spatial DOM + SVG Connectors** | Meniru arsitektur Milanote: kartu menggunakan elemen HTML native (mudah untuk rich text & form), garis penghubung dirender via SVG. |
 | **Backend API** | **Go (Golang)** | Single static binary, footprint RAM sangat kecil (~15–30 MB), konkurensi native (goroutine) untuk sync worker, minim maintenance jangka panjang. |
 | **Database** | **PostgreSQL** | Relasi antar entitas yang kuat, didukung kolom `JSONB` untuk payload block canvas yang fleksibel, dan UUIDv7 sebagai ID standar. |

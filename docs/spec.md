@@ -14,7 +14,7 @@ Dokumen ini mendokumentasikan spesifikasi teknis, arsitektur sistem, skema basis
                      │  - Project Hub (Docs + Board + Tasks)         │
                      │  - Custom Spatial DOM Canvas + SVG Connectors │
                      │  - Unified Calendar & Daily Planning Ritual   │
-                     │  - Tailwind CSS + Kobalte Primitives          │
+                     │  - Vanilla CSS Design Tokens + Kobalte Primitives │
                      └───────────────────────┬───────────────────────┘
                                              │ HTTPS / REST (JSON)
                                              ▼
