@@ -67,9 +67,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   let isPanningCanvas = false;
   let panStart = { x: 0, y: 0 };
   let initialPan = { x: 0, y: 0 };
-  let animFrameId: number | null = null;
-  let isSmoothPanning = false;
-  let targetPan = { x: 0, y: 0 };
 
   let draggingBlockState: {
     blockId: string;
@@ -109,10 +106,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   });
 
   onCleanup(() => {
-    if (animFrameId) {
-      cancelAnimationFrame(animFrameId);
-      animFrameId = null;
-    }
     window.removeEventListener('mousemove', handleGlobalMouseMove);
     window.removeEventListener('mouseup', handleGlobalMouseUp);
     window.removeEventListener('keydown', handleGlobalKeyDown);
@@ -199,8 +192,40 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   // SPATIAL CANVAS INTERACTIONS (PAN, DRAG, ADD, EDIT, DELETE)
   // -------------------------------------------------------------
 
+  // -------------------------------------------------------------
+  // UNIFIED CANVAS PAN FUNCTIONS (EXACT SAME PAN TOOL LOGIC)
+  // -------------------------------------------------------------
+  const startCanvasPan = (clientX: number, clientY: number) => {
+    isPanningCanvas = true;
+    panStart = { x: clientX, y: clientY };
+    initialPan = { ...pan() };
+    setIsActivelyPanning(true);
+  };
+
+  const updateCanvasPan = (clientX: number, clientY: number) => {
+    if (!isPanningCanvas) return;
+    const dx = clientX - panStart.x;
+    const dy = clientY - panStart.y;
+    setPan({
+      x: initialPan.x + dx,
+      y: initialPan.y + dy
+    });
+  };
+
+  const stopCanvasPan = () => {
+    isPanningCanvas = false;
+    setIsActivelyPanning(false);
+  };
+
   // Canvas background mouse down (Panning or Drop Block)
   const handleCanvasMouseDown = (e: MouseEvent) => {
+    // Right-click (2) or Middle-click (1) anywhere on canvas starts pan tool
+    if (e.button === 1 || e.button === 2) {
+      e.preventDefault();
+      startCanvasPan(e.clientX, e.clientY);
+      return;
+    }
+
     // If clicking on a block or button, ignore background handler
     const target = e.target as HTMLElement;
     if (target.closest('.canvas-block') || target.closest('.canvas-toolbar') || target.closest('button')) {
@@ -210,23 +235,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     // Deselect active block if clicking on canvas
     setSelectedBlockId(null);
     setConnectingSourceId(null);
-
-    // Cancel any ongoing smooth inertia
-    if (animFrameId) {
-      cancelAnimationFrame(animFrameId);
-      animFrameId = null;
-      isSmoothPanning = false;
-    }
-
-    // Right-click (2) or Middle-click (1) anywhere on canvas starts panning immediately
-    if (e.button === 1 || e.button === 2) {
-      e.preventDefault();
-      isPanningCanvas = true;
-      panStart = { x: e.clientX, y: e.clientY };
-      initialPan = { ...pan() };
-      setIsActivelyPanning(true);
-      return;
-    }
 
     // If a creation tool is active, place a block at clicked position
     if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
@@ -239,12 +247,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       return;
     }
 
-    // Default left click on canvas background (in 'select', 'pan', or with spacebar):
-    // Directly enables smooth fluid pan like Milanote, Figma & Miro!
-    isPanningCanvas = true;
-    panStart = { x: e.clientX, y: e.clientY };
-    initialPan = { ...pan() };
-    setIsActivelyPanning(true);
+    // Default left click on canvas background starts pan tool
+    startCanvasPan(e.clientX, e.clientY);
   };
 
   // Block mouse down (Start Dragging or Connection)
@@ -281,14 +285,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
   // Global mouse move for Dragging & Panning
   const handleGlobalMouseMove = (e: MouseEvent) => {
-    // 1. Panning canvas
+    // 1. Panning canvas (Exact Pan Tool logic)
     if (isPanningCanvas) {
-      const dx = e.clientX - panStart.x;
-      const dy = e.clientY - panStart.y;
-      setPan({
-        x: initialPan.x + dx,
-        y: initialPan.y + dy
-      });
+      updateCanvasPan(e.clientX, e.clientY);
       return;
     }
 
@@ -314,8 +313,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
   // Global mouse up
   const handleGlobalMouseUp = async () => {
-    isPanningCanvas = false;
-    setIsActivelyPanning(false);
+    stopCanvasPan();
 
     if (!draggingBlockState) return;
     const blockId = draggingBlockState.blockId;
@@ -335,31 +333,11 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   };
 
   // -------------------------------------------------------------
-  // TWO-FINGER SCROLL / PAN (TRACKPAD & TOUCHSCREEN GESTURES)
+  // TWO-FINGER SCROLL & TOUCH GESTURES (USING PAN TOOL LOGIC)
   // -------------------------------------------------------------
   let canvasContainerRef: HTMLDivElement | undefined;
 
-  // Smooth lerp physics loop for omnidirectional glide
-  const updateSmoothPan = () => {
-    const current = pan();
-    const dx = targetPan.x - current.x;
-    const dy = targetPan.y - current.y;
-
-    if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-      // 0.40 lerp factor creates an organic, silky-smooth glide in any 360-degree direction
-      setPan({
-        x: Math.round((current.x + dx * 0.40) * 10) / 10,
-        y: Math.round((current.y + dy * 0.40) * 10) / 10
-      });
-      animFrameId = requestAnimationFrame(updateSmoothPan);
-    } else {
-      setPan({ x: targetPan.x, y: targetPan.y });
-      isSmoothPanning = false;
-      animFrameId = null;
-    }
-  };
-
-  // Trackpad 2-finger scroll and wheel zoom with fluid omnidirectional response
+  // Trackpad 2-finger scroll and wheel zoom
   const handleCanvasWheel = (e: WheelEvent) => {
     // If inside an editable textarea/input that has its own scroll, preserve it
     const target = e.target as HTMLElement;
@@ -373,12 +351,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
     if (e.ctrlKey || e.metaKey) {
       // Pinch-to-zoom on trackpad or Ctrl + MouseWheel
-      if (animFrameId) {
-        cancelAnimationFrame(animFrameId);
-        animFrameId = null;
-        isSmoothPanning = false;
-      }
-
       const zoomFactor = -e.deltaY * 0.01;
       const currentZoom = zoom();
       const newZoom = Math.min(250, Math.max(25, Math.round(currentZoom * (1 + zoomFactor))));
@@ -401,86 +373,36 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       }
       setZoom(newZoom);
     } else {
-      // Normalize wheel deltas across browser line/pixel modes
-      let dx = e.deltaX;
-      let dy = e.deltaY;
-      if (e.deltaMode === 1) { // Line mode
-        dx *= 18;
-        dy *= 18;
-      }
-
-      if (!isSmoothPanning) {
-        targetPan = { ...pan() };
-        isSmoothPanning = true;
-      }
-      // Apply delta directly to 2D vector for true omnidirectional fluid panning
-      targetPan.x -= dx;
-      targetPan.y -= dy;
-
-      if (!animFrameId) {
-        animFrameId = requestAnimationFrame(updateSmoothPan);
-      }
+      // Direct pan delta: exactly -e.deltaX and -e.deltaY in any direction
+      setPan(prev => ({
+        x: prev.x - e.deltaX,
+        y: prev.y - e.deltaY
+      }));
     }
   };
 
-  // Touchscreen 2-finger gestures (Pan & Pinch-to-Zoom)
-  let initialTouchMid = { x: 0, y: 0 };
-  let initialTouchDist = 0;
-  let initialTouchPan = { x: 0, y: 0 };
-  let initialTouchZoom = 100;
-  let isTwoFingerTouching = false;
-
+  // Touchscreen 2-finger gestures (Pan Tool logic)
   const handleCanvasTouchStart = (e: TouchEvent) => {
     if (e.touches.length === 2) {
-      isTwoFingerTouching = true;
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-
-      initialTouchMid = {
-        x: (t1.clientX + t2.clientX) / 2,
-        y: (t1.clientY + t2.clientY) / 2
-      };
-      initialTouchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      initialTouchPan = { ...pan() };
-      initialTouchZoom = zoom();
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      startCanvasPan(midX, midY);
       e.preventDefault();
     }
   };
 
   const handleCanvasTouchMove = (e: TouchEvent) => {
-    if (isTwoFingerTouching && e.touches.length === 2) {
+    if (e.touches.length === 2 && isPanningCanvas) {
       e.preventDefault();
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-
-      const currentMid = {
-        x: (t1.clientX + t2.clientX) / 2,
-        y: (t1.clientY + t2.clientY) / 2
-      };
-      const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-
-      // Midpoint movement translates canvas in any direction
-      const dx = currentMid.x - initialTouchMid.x;
-      const dy = currentMid.y - initialTouchMid.y;
-
-      // Pinch distance scales zoom
-      let newZoom = initialTouchZoom;
-      if (initialTouchDist > 0 && currentDist > 0) {
-        const zoomRatio = currentDist / initialTouchDist;
-        newZoom = Math.min(250, Math.max(25, Math.round(initialTouchZoom * zoomRatio)));
-      }
-
-      setZoom(newZoom);
-      setPan({
-        x: Math.round(initialTouchPan.x + dx),
-        y: Math.round(initialTouchPan.y + dy)
-      });
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      updateCanvasPan(midX, midY);
     }
   };
 
   const handleCanvasTouchEnd = (e: TouchEvent) => {
     if (e.touches.length < 2) {
-      isTwoFingerTouching = false;
+      stopCanvasPan();
     }
   };
 
