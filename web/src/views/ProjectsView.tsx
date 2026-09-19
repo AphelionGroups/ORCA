@@ -254,13 +254,14 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     setConnectingSourceId(null);
 
     // If a creation tool is active, place a block at clicked position with default size
-    // KEEPS PLACEMENT TOOL ACTIVE so user can place multiple objects in succession!
     if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
       const scale = zoom() / 100;
       const containerRect = canvasContainerRef ? canvasContainerRef.getBoundingClientRect() : (e.currentTarget as HTMLElement).getBoundingClientRect();
       const clickX = Math.round((e.clientX - containerRect.left - pan().x) / scale);
       const clickY = Math.round((e.clientY - containerRect.top - pan().y) / scale);
       handleCreateBlock(activeCanvasTool() as any, clickX, clickY);
+      setActiveCanvasTool('select');
+      setCursorCanvasPos(null);
       return;
     }
 
@@ -276,7 +277,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       return;
     }
 
-    // If a creation tool is active, place the new object right where clicked (keeps placement active)
+    // If a creation tool is active, place the new object right where clicked
     if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
       const scale = zoom() / 100;
       const containerRect = canvasContainerRef?.getBoundingClientRect();
@@ -284,6 +285,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         const clickX = Math.round((e.clientX - containerRect.left - pan().x) / scale);
         const clickY = Math.round((e.clientY - containerRect.top - pan().y) / scale);
         handleCreateBlock(activeCanvasTool() as any, clickX, clickY);
+        setActiveCanvasTool('select');
+        setCursorCanvasPos(null);
       }
       return;
     }
