@@ -57,6 +57,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const [connectingSourceId, setConnectingSourceId] = createSignal<string | null>(null);
   const [connections, setConnections] = createSignal<Connection[]>([]);
   const [isSpacePressed, setIsSpacePressed] = createSignal(false);
+  const [isActivelyPanning, setIsActivelyPanning] = createSignal(false);
 
   // Quick task input in tasks tab
   const [newTaskTitle, setNewTaskTitle] = createSignal('');
@@ -66,6 +67,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   let isPanningCanvas = false;
   let panStart = { x: 0, y: 0 };
   let initialPan = { x: 0, y: 0 };
+  let animFrameId: number | null = null;
+  let isSmoothPanning = false;
+  let targetPan = { x: 0, y: 0 };
 
   let draggingBlockState: {
     blockId: string;
@@ -105,6 +109,10 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   });
 
   onCleanup(() => {
+    if (animFrameId) {
+      cancelAnimationFrame(animFrameId);
+      animFrameId = null;
+    }
     window.removeEventListener('mousemove', handleGlobalMouseMove);
     window.removeEventListener('mouseup', handleGlobalMouseUp);
     window.removeEventListener('keydown', handleGlobalKeyDown);
@@ -203,11 +211,20 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     setSelectedBlockId(null);
     setConnectingSourceId(null);
 
-    // Pan canvas
-    if (activeCanvasTool() === 'pan' || isSpacePressed() || e.button === 1) {
+    // Cancel any ongoing smooth inertia
+    if (animFrameId) {
+      cancelAnimationFrame(animFrameId);
+      animFrameId = null;
+      isSmoothPanning = false;
+    }
+
+    // Right-click (2) or Middle-click (1) anywhere on canvas starts panning immediately
+    if (e.button === 1 || e.button === 2) {
+      e.preventDefault();
       isPanningCanvas = true;
       panStart = { x: e.clientX, y: e.clientY };
       initialPan = { ...pan() };
+      setIsActivelyPanning(true);
       return;
     }
 
@@ -219,7 +236,15 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       const clickY = Math.round((e.clientY - rect.top - pan().y) / scale);
       handleCreateBlock(activeCanvasTool() as any, clickX, clickY);
       setActiveCanvasTool('select');
+      return;
     }
+
+    // Default left click on canvas background (in 'select', 'pan', or with spacebar):
+    // Directly enables smooth fluid pan like Milanote, Figma & Miro!
+    isPanningCanvas = true;
+    panStart = { x: e.clientX, y: e.clientY };
+    initialPan = { ...pan() };
+    setIsActivelyPanning(true);
   };
 
   // Block mouse down (Start Dragging or Connection)
@@ -290,6 +315,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   // Global mouse up
   const handleGlobalMouseUp = async () => {
     isPanningCanvas = false;
+    setIsActivelyPanning(false);
 
     if (!draggingBlockState) return;
     const blockId = draggingBlockState.blockId;
@@ -313,7 +339,27 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   // -------------------------------------------------------------
   let canvasContainerRef: HTMLDivElement | undefined;
 
-  // Trackpad 2-finger scroll and wheel zoom
+  // Smooth lerp physics loop for omnidirectional glide
+  const updateSmoothPan = () => {
+    const current = pan();
+    const dx = targetPan.x - current.x;
+    const dy = targetPan.y - current.y;
+
+    if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+      // 0.40 lerp factor creates an organic, silky-smooth glide in any 360-degree direction
+      setPan({
+        x: Math.round((current.x + dx * 0.40) * 10) / 10,
+        y: Math.round((current.y + dy * 0.40) * 10) / 10
+      });
+      animFrameId = requestAnimationFrame(updateSmoothPan);
+    } else {
+      setPan({ x: targetPan.x, y: targetPan.y });
+      isSmoothPanning = false;
+      animFrameId = null;
+    }
+  };
+
+  // Trackpad 2-finger scroll and wheel zoom with fluid omnidirectional response
   const handleCanvasWheel = (e: WheelEvent) => {
     // If inside an editable textarea/input that has its own scroll, preserve it
     const target = e.target as HTMLElement;
@@ -327,6 +373,12 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
     if (e.ctrlKey || e.metaKey) {
       // Pinch-to-zoom on trackpad or Ctrl + MouseWheel
+      if (animFrameId) {
+        cancelAnimationFrame(animFrameId);
+        animFrameId = null;
+        isSmoothPanning = false;
+      }
+
       const zoomFactor = -e.deltaY * 0.01;
       const currentZoom = zoom();
       const newZoom = Math.min(250, Math.max(25, Math.round(currentZoom * (1 + zoomFactor))));
@@ -349,11 +401,25 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       }
       setZoom(newZoom);
     } else {
-      // 2-Finger scroll / Pan in any direction (X, Y, diagonal)
-      setPan(prev => ({
-        x: Math.round(prev.x - e.deltaX),
-        y: Math.round(prev.y - e.deltaY)
-      }));
+      // Normalize wheel deltas across browser line/pixel modes
+      let dx = e.deltaX;
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) { // Line mode
+        dx *= 18;
+        dy *= 18;
+      }
+
+      if (!isSmoothPanning) {
+        targetPan = { ...pan() };
+        isSmoothPanning = true;
+      }
+      // Apply delta directly to 2D vector for true omnidirectional fluid panning
+      targetPan.x -= dx;
+      targetPan.y -= dy;
+
+      if (!animFrameId) {
+        animFrameId = requestAnimationFrame(updateSmoothPan);
+      }
     }
   };
 
@@ -797,6 +863,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 });
               }}
               onMouseDown={handleCanvasMouseDown}
+              onContextMenu={(e) => e.preventDefault()}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -804,7 +871,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 "background-color": '#111317',
                 overflow: 'hidden',
                 "touch-action": 'none',
-                cursor: activeCanvasTool() === 'pan' || isSpacePressed() ? 'grab' : 'default'
+                cursor: isActivelyPanning() ? 'grabbing' : (activeCanvasTool() === 'pan' || isSpacePressed() ? 'grab' : 'default')
               }}
             >
               {/* Board Header Info */}
