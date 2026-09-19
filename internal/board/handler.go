@@ -243,6 +243,9 @@ func (h *Handler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 		Height:      req.Height,
 		Content:     req.Content,
 	}
+	if req.ID != nil && *req.ID != uuid.Nil {
+		block.ID = *req.ID
+	}
 
 	if err := h.repo.CreateBlock(r.Context(), &block); err != nil {
 		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create block: "+err.Error())

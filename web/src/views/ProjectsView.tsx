@@ -14,7 +14,9 @@ import {
   ChevronRight,
   RotateCcw,
   StickyNote,
-  Maximize2
+  Maximize2,
+  Undo,
+  Redo
 } from 'lucide-solid';
 import { api } from '../services/api';
 import type { Project, Space, Document as OrcaDoc, NoteBoard, NoteBlock, Task } from '../services/api';
@@ -28,6 +30,31 @@ interface Connection {
   fromId: string;
   toId: string;
 }
+
+type CanvasAction =
+  | {
+      type: 'create_block';
+      block: NoteBlock;
+    }
+  | {
+      type: 'delete_blocks';
+      blocks: NoteBlock[];
+      connections: Connection[];
+    }
+  | {
+      type: 'move_blocks';
+      moves: Array<{ id: string; fromX: number; fromY: number; toX: number; toY: number }>;
+    }
+  | {
+      type: 'update_text';
+      blockId: string;
+      prevContent: any;
+      newContent: any;
+    }
+  | {
+      type: 'create_connection';
+      connection: Connection;
+    };
 
 // -------------------------------------------------------------
 // UNIFIED LIVE MARKDOWN PARSER & SEAMLESS DOCUMENT BLOCK
@@ -123,7 +150,7 @@ interface UnifiedMarkdownBlockProps {
   block: NoteBlock;
   isEditing: boolean;
   onStartEdit: () => void;
-  onFinishEdit: () => void;
+  onFinishEdit: (finalText?: string) => void;
   onChangeText: (newText: string) => void;
 }
 
@@ -214,10 +241,10 @@ const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props) => {
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.preventDefault();
-              props.onFinishEdit();
+              props.onFinishEdit(e.currentTarget.value);
             }
           }}
-          onBlur={() => props.onFinishEdit()}
+          onBlur={(e) => props.onFinishEdit(e.currentTarget.value)}
           placeholder={placeholderText()}
         />
       </Show>
@@ -261,6 +288,15 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const [isSpacePressed, setIsSpacePressed] = createSignal(false);
   const [isActivelyPanning, setIsActivelyPanning] = createSignal(false);
   const [cursorCanvasPos, setCursorCanvasPos] = createSignal<{ x: number, y: number } | null>(null);
+
+  // Canvas Undo & Redo History Stacks
+  const [undoStack, setUndoStack] = createSignal<CanvasAction[]>([]);
+  const [redoStack, setRedoStack] = createSignal<CanvasAction[]>([]);
+
+  const pushUndoAction = (action: CanvasAction) => {
+    setUndoStack(prev => [...prev.slice(-49), action]);
+    setRedoStack([]);
+  };
 
   // Quick task input in tasks tab
   const [newTaskTitle, setNewTaskTitle] = createSignal('');
@@ -322,6 +358,24 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     const target = e.target as HTMLElement;
     if (['input', 'textarea'].includes(target.tagName.toLowerCase())) return;
 
+    // Undo (Ctrl+Z) & Redo (Ctrl+Y or Ctrl+Shift+Z)
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+        return;
+      }
+      if (e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+        return;
+      }
+    }
+
     if (e.code === 'Space' && !isSpacePressed()) {
       setIsSpacePressed(true);
     }
@@ -344,11 +398,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     if ((e.key === 'Delete' || e.key === 'Backspace') && (selectedBlockIds().length > 0 || selectedBlockId())) {
       e.preventDefault();
       const idsToDelete = selectedBlockIds().length > 0 ? [...selectedBlockIds()] : [selectedBlockId()!];
-      for (const id of idsToDelete) {
-        handleDeleteBlock(id);
-      }
-      setSelectedBlockIds([]);
-      setSelectedBlockId(null);
+      handleDeleteBlocks(idsToDelete);
     }
   };
 
@@ -539,7 +589,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       if (!connectingSourceId()) {
         setConnectingSourceId(block.id);
       } else if (connectingSourceId() !== block.id) {
-        setConnections([...connections(), { fromId: connectingSourceId()!, toId: block.id }]);
+        const newConn = { fromId: connectingSourceId()!, toId: block.id };
+        setConnections([...connections(), newConn]);
+        pushUndoAction({ type: 'create_connection', connection: newConn });
         setConnectingSourceId(null);
         setActiveCanvasTool('select');
       }
@@ -674,9 +726,18 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
       // Persist updated positions for all moved blocks
       const currentBlocks = blocks();
+      const moves: Array<{ id: string; fromX: number; fromY: number; toX: number; toY: number }> = [];
+
       for (const initial of movedPositions) {
         const b = currentBlocks.find(item => item.id === initial.id);
         if (b && (b.pos_x !== initial.x || b.pos_y !== initial.y)) {
+          moves.push({
+            id: b.id,
+            fromX: initial.x,
+            fromY: initial.y,
+            toX: b.pos_x,
+            toY: b.pos_y
+          });
           try {
             await api.updateNoteBlock(b.id, {
               pos_x: b.pos_x,
@@ -686,6 +747,10 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             console.error('Failed to persist block position:', err);
           }
         }
+      }
+
+      if (moves.length > 0) {
+        pushUndoAction({ type: 'move_blocks', moves });
       }
     }
   };
@@ -799,6 +864,11 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         content: defaultContent[type] || { text: '' }
       });
 
+      pushUndoAction({
+        type: 'create_block',
+        block: created
+      });
+
       setBlocks([...blocks(), created]);
       setSelectedBlockId(created.id);
       setSelectedBlockIds([created.id]);
@@ -807,14 +877,30 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
   };
 
-  // Inline update of block markdown text
-  const handleUpdateBlockText = async (block: NoteBlock, newText: string) => {
-    const updatedContent = { text: newText };
+  // Real-time update of block markdown text while typing
+  const handleUpdateBlockText = (block: NoteBlock, newText: string) => {
+    setBlocks(blocks().map(b => b.id === block.id ? { ...b, content: { text: newText } } : b));
+  };
 
-    // Update local state immediately
+  // Handle block text edit finish, push to Undo stack, and persist to database
+  const handleFinishBlockEdit = async (block: NoteBlock, finalText?: string) => {
+    setEditingBlockId(null);
+    if (finalText === undefined) return;
+    const prevRaw = typeof block.content === 'string' ? block.content : block.content?.text ?? '';
+    if (prevRaw === finalText) return;
+
+    const prevContent = block.content || { text: '' };
+    const updatedContent = { text: finalText };
+
+    pushUndoAction({
+      type: 'update_text',
+      blockId: block.id,
+      prevContent,
+      newContent: updatedContent
+    });
+
     setBlocks(blocks().map(b => b.id === block.id ? { ...b, content: updatedContent } : b));
 
-    // Save to database
     try {
       await api.updateNoteBlock(block.id, { content: updatedContent });
     } catch (err) {
@@ -822,18 +908,187 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
   };
 
-  // Delete a block from canvas and database
-  const handleDeleteBlock = async (blockId: string) => {
-    setBlocks(blocks().filter(b => b.id !== blockId));
-    setConnections(connections().filter(c => c.fromId !== blockId && c.toId !== blockId));
-    if (selectedBlockId() === blockId) setSelectedBlockId(null);
-    setSelectedBlockIds(selectedBlockIds().filter(id => id !== blockId));
+  // Delete multiple blocks with full undo history support
+  const handleDeleteBlocks = async (blockIds: string[]) => {
+    const toDelete = blocks().filter(b => blockIds.includes(b.id));
+    if (toDelete.length === 0) return;
 
-    try {
-      await api.deleteNoteBlock(blockId);
-    } catch (err) {
-      console.error('Failed to delete block:', err);
+    const idSet = new Set(blockIds);
+    const affectedConnections = connections().filter(c => idSet.has(c.fromId) || idSet.has(c.toId));
+
+    pushUndoAction({
+      type: 'delete_blocks',
+      blocks: toDelete,
+      connections: affectedConnections
+    });
+
+    setBlocks(blocks().filter(b => !idSet.has(b.id)));
+    setConnections(connections().filter(c => !idSet.has(c.fromId) && !idSet.has(c.toId)));
+    if (selectedBlockId() && idSet.has(selectedBlockId()!)) setSelectedBlockId(null);
+    setSelectedBlockIds(selectedBlockIds().filter(id => !idSet.has(id)));
+
+    for (const id of blockIds) {
+      try {
+        await api.deleteNoteBlock(id);
+      } catch (err) {
+        console.error('Failed to delete block:', err);
+      }
     }
+  };
+
+
+  // Canvas Undo Handler (Ctrl+Z)
+  const handleUndo = async () => {
+    const stack = undoStack();
+    if (stack.length === 0) return;
+    const action = stack[stack.length - 1];
+    setUndoStack(prev => prev.slice(0, -1));
+
+    switch (action.type) {
+      case 'create_block': {
+        setBlocks(prev => prev.filter(b => b.id !== action.block.id));
+        setConnections(prev => prev.filter(c => c.fromId !== action.block.id && c.toId !== action.block.id));
+        if (selectedBlockId() === action.block.id) setSelectedBlockId(null);
+        setSelectedBlockIds(prev => prev.filter(id => id !== action.block.id));
+        try {
+          await api.deleteNoteBlock(action.block.id);
+        } catch (e) {
+          console.error('Undo create block failed:', e);
+        }
+        break;
+      }
+      case 'delete_blocks': {
+        setBlocks(prev => [...prev, ...action.blocks]);
+        if (action.connections && action.connections.length > 0) {
+          setConnections(prev => [...prev, ...action.connections]);
+        }
+        const board = boards()[0];
+        if (board) {
+          for (const b of action.blocks) {
+            try {
+              await api.createNoteBlock(board.id, {
+                id: b.id,
+                type: b.type,
+                pos_x: b.pos_x,
+                pos_y: b.pos_y,
+                width: b.width,
+                height: b.height,
+                content: b.content
+              });
+            } catch (e) {
+              console.error('Undo delete block failed:', e);
+            }
+          }
+        }
+        break;
+      }
+      case 'move_blocks': {
+        const moveMap = new Map(action.moves.map(m => [m.id, { x: m.fromX, y: m.fromY }]));
+        setBlocks(prev => prev.map(b => {
+          const p = moveMap.get(b.id);
+          return p ? { ...b, pos_x: p.x, pos_y: p.y } : b;
+        }));
+        for (const m of action.moves) {
+          try {
+            await api.updateNoteBlock(m.id, { pos_x: m.fromX, pos_y: m.fromY });
+          } catch (e) {
+            console.error('Undo move block failed:', e);
+          }
+        }
+        break;
+      }
+      case 'update_text': {
+        setBlocks(prev => prev.map(b => b.id === action.blockId ? { ...b, content: action.prevContent } : b));
+        try {
+          await api.updateNoteBlock(action.blockId, { content: action.prevContent });
+        } catch (e) {
+          console.error('Undo text update failed:', e);
+        }
+        break;
+      }
+      case 'create_connection': {
+        setConnections(prev => prev.filter(c => !(c.fromId === action.connection.fromId && c.toId === action.connection.toId)));
+        break;
+      }
+    }
+
+    setRedoStack(prev => [...prev, action]);
+  };
+
+  // Canvas Redo Handler (Ctrl+Y or Ctrl+Shift+Z)
+  const handleRedo = async () => {
+    const stack = redoStack();
+    if (stack.length === 0) return;
+    const action = stack[stack.length - 1];
+    setRedoStack(prev => prev.slice(0, -1));
+
+    switch (action.type) {
+      case 'create_block': {
+        setBlocks(prev => [...prev, action.block]);
+        const board = boards()[0];
+        if (board) {
+          try {
+            await api.createNoteBlock(board.id, {
+              id: action.block.id,
+              type: action.block.type,
+              pos_x: action.block.pos_x,
+              pos_y: action.block.pos_y,
+              width: action.block.width,
+              height: action.block.height,
+              content: action.block.content
+            });
+          } catch (e) {
+            console.error('Redo create block failed:', e);
+          }
+        }
+        break;
+      }
+      case 'delete_blocks': {
+        const idSet = new Set(action.blocks.map(b => b.id));
+        setBlocks(prev => prev.filter(b => !idSet.has(b.id)));
+        setConnections(prev => prev.filter(c => !idSet.has(c.fromId) && !idSet.has(c.toId)));
+        if (selectedBlockId() && idSet.has(selectedBlockId()!)) setSelectedBlockId(null);
+        setSelectedBlockIds(prev => prev.filter(id => !idSet.has(id)));
+        for (const b of action.blocks) {
+          try {
+            await api.deleteNoteBlock(b.id);
+          } catch (e) {
+            console.error('Redo delete block failed:', e);
+          }
+        }
+        break;
+      }
+      case 'move_blocks': {
+        const moveMap = new Map(action.moves.map(m => [m.id, { x: m.toX, y: m.toY }]));
+        setBlocks(prev => prev.map(b => {
+          const p = moveMap.get(b.id);
+          return p ? { ...b, pos_x: p.x, pos_y: p.y } : b;
+        }));
+        for (const m of action.moves) {
+          try {
+            await api.updateNoteBlock(m.id, { pos_x: m.toX, pos_y: m.toY });
+          } catch (e) {
+            console.error('Redo move block failed:', e);
+          }
+        }
+        break;
+      }
+      case 'update_text': {
+        setBlocks(prev => prev.map(b => b.id === action.blockId ? { ...b, content: action.newContent } : b));
+        try {
+          await api.updateNoteBlock(action.blockId, { content: action.newContent });
+        } catch (e) {
+          console.error('Redo text update failed:', e);
+        }
+        break;
+      }
+      case 'create_connection': {
+        setConnections(prev => [...prev, action.connection]);
+        break;
+      }
+    }
+
+    setUndoStack(prev => [...prev, action]);
   };
 
   // Render SVG Bézier curves for all active connections
@@ -1288,7 +1543,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                             setSelectedBlockId(block.id);
                             setSelectedBlockIds([block.id]);
                           }}
-                          onFinishEdit={() => setEditingBlockId(null)}
+                          onFinishEdit={(finalText) => handleFinishBlockEdit(block, finalText)}
                           onChangeText={(newText) => handleUpdateBlockText(block, newText)}
                         />
                       </div>
@@ -1320,6 +1575,34 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                   <Hand size={15} />
                   <span class="tool-tooltip">
                     Hand / Pan <span class="tool-tooltip-kbd">H</span>
+                  </span>
+                </button>
+
+                <div class="tool-divider"></div>
+
+                {/* Undo Tool */}
+                <button 
+                  class={`tool-btn ${undoStack().length === 0 ? 'disabled' : ''}`}
+                  onClick={handleUndo}
+                  disabled={undoStack().length === 0}
+                  style={{ opacity: undoStack().length === 0 ? 0.35 : 1, cursor: undoStack().length === 0 ? 'not-allowed' : 'pointer' }}
+                >
+                  <Undo size={15} />
+                  <span class="tool-tooltip">
+                    Undo <span class="tool-tooltip-kbd">Ctrl+Z</span>
+                  </span>
+                </button>
+
+                {/* Redo Tool */}
+                <button 
+                  class={`tool-btn ${redoStack().length === 0 ? 'disabled' : ''}`}
+                  onClick={handleRedo}
+                  disabled={redoStack().length === 0}
+                  style={{ opacity: redoStack().length === 0 ? 0.35 : 1, cursor: redoStack().length === 0 ? 'not-allowed' : 'pointer' }}
+                >
+                  <Redo size={15} />
+                  <span class="tool-tooltip">
+                    Redo <span class="tool-tooltip-kbd">Ctrl+Y</span>
                   </span>
                 </button>
 

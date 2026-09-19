@@ -48,6 +48,7 @@ type UpdateBoardRequest struct {
 }
 
 type CreateBlockRequest struct {
+	ID      *uuid.UUID      `json:"id,omitempty"`
 	BoardID uuid.UUID       `json:"board_id"`
 	Type    string          `json:"type"`
 	PosX    float64         `json:"pos_x"`
