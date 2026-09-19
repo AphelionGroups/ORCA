@@ -29,6 +29,304 @@ interface Connection {
   toId: string;
 }
 
+// -------------------------------------------------------------
+// INLINE LIVE MARKDOWN PARSER & LINE-BY-LINE LIVE EDITOR
+// -------------------------------------------------------------
+function renderMarkdownLine(raw: string): { type: string; contentHtml: string } {
+  if (!raw || !raw.trim()) {
+    return { type: 'empty', contentHtml: '&nbsp;' };
+  }
+
+  let type = 'paragraph';
+  let text = raw;
+
+  if (raw.startsWith('### ')) {
+    type = 'h3';
+    text = raw.slice(4);
+  } else if (raw.startsWith('## ')) {
+    type = 'h2';
+    text = raw.slice(3);
+  } else if (raw.startsWith('# ')) {
+    type = 'h1';
+    text = raw.slice(2);
+  } else if (raw.startsWith('- ') || raw.startsWith('* ')) {
+    type = 'bullet';
+    text = raw.slice(2);
+  } else if (/^\d+\.\s/.test(raw)) {
+    type = 'numbered';
+    text = raw.replace(/^\d+\.\s/, '');
+  } else if (raw.startsWith('> ')) {
+    type = 'quote';
+    text = raw.slice(2);
+  }
+
+  // Escape HTML characters for XSS safety
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Bold **text**
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight:700;color:#fff;">$1</strong>');
+  // Italic *text*
+  html = html.replace(/\*(.*?)\*/g, '<em style="font-style:italic;color:var(--secondary);">$1</em>');
+  // Inline code `code`
+  html = html.replace(/`(.*?)`/g, '<code style="background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:3px;font-family:var(--font-mono);font-size:0.9em;color:var(--secondary);">$1</code>');
+  // Strikethrough ~~text~~
+  html = html.replace(/~~(.*?)~~/g, '<del style="opacity:0.6;">$1</del>');
+
+  return { type, contentHtml: html };
+}
+
+interface MarkdownLiveEditorProps {
+  block: NoteBlock;
+  isEditing: boolean;
+  onStartEdit: (initialLineIdx?: number) => void;
+  onFinishEdit: () => void;
+  onChangeText: (newText: string) => void;
+}
+
+const MarkdownLiveEditor: Component<MarkdownLiveEditorProps> = (props) => {
+  const getRaw = () => {
+    const c = props.block.content;
+    if (!c) return '';
+    if (typeof c === 'string') return c;
+    if (typeof c === 'object') {
+      if (typeof c.text === 'string') return c.text;
+      const parts = [c.title, c.body].filter(Boolean);
+      return parts.join('\n\n');
+    }
+    return '';
+  };
+
+  const [lines, setLines] = createSignal<string[]>(['']);
+  const [activeLineIndex, setActiveLineIndex] = createSignal<number>(0);
+
+  // Sync internal lines state when block changes
+  createEffect(() => {
+    const raw = getRaw();
+    const split = raw.split('\n');
+    setLines(split.length > 0 ? split : ['']);
+  });
+
+  const updateLine = (index: number, val: string) => {
+    const updated = [...lines()];
+    updated[index] = val;
+    setLines(updated);
+    props.onChangeText(updated.join('\n'));
+  };
+
+  const handleLineKeyDown = (e: KeyboardEvent, index: number) => {
+    const target = e.currentTarget as HTMLTextAreaElement;
+    const val = target.value;
+    const selStart = target.selectionStart ?? val.length;
+    const selEnd = target.selectionEnd ?? val.length;
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const before = val.slice(0, selStart);
+      const after = val.slice(selEnd);
+      const updated = [...lines()];
+      updated[index] = before;
+      updated.splice(index + 1, 0, after);
+      setLines(updated);
+      props.onChangeText(updated.join('\n'));
+      setActiveLineIndex(index + 1);
+      return;
+    }
+
+    if (e.key === 'Backspace' && selStart === 0 && selEnd === 0) {
+      if (index > 0) {
+        e.preventDefault();
+        const prevText = lines()[index - 1];
+        const updated = [...lines()];
+        updated[index - 1] = prevText + val;
+        updated.splice(index, 1);
+        setLines(updated);
+        props.onChangeText(updated.join('\n'));
+        setActiveLineIndex(index - 1);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowUp' && index > 0) {
+      if (selStart === 0 || !val.includes('\n')) {
+        e.preventDefault();
+        setActiveLineIndex(index - 1);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown' && index < lines().length - 1) {
+      if (selStart === val.length || !val.includes('\n')) {
+        e.preventDefault();
+        setActiveLineIndex(index + 1);
+      }
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      props.onFinishEdit();
+      return;
+    }
+  };
+
+  const handleLinePaste = (e: ClipboardEvent, index: number) => {
+    const pasted = e.clipboardData?.getData('text');
+    if (pasted && pasted.includes('\n')) {
+      e.preventDefault();
+      const target = e.currentTarget as HTMLTextAreaElement;
+      const val = target.value;
+      const selStart = target.selectionStart ?? val.length;
+      const selEnd = target.selectionEnd ?? val.length;
+      const before = val.slice(0, selStart);
+      const after = val.slice(selEnd);
+
+      const pasteLines = pasted.replace(/\r\n/g, '\n').split('\n');
+      const firstCombined = before + pasteLines[0];
+      const lastCombined = pasteLines[pasteLines.length - 1] + after;
+      const middleLines = pasteLines.slice(1, -1);
+
+      const inserted = [firstCombined, ...middleLines, lastCombined];
+      const updated = [...lines()];
+      updated.splice(index, 1, ...inserted);
+      setLines(updated);
+      props.onChangeText(updated.join('\n'));
+      setActiveLineIndex(index + inserted.length - 1);
+    }
+  };
+
+  const autoResizeTextarea = (el: HTMLTextAreaElement | undefined) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(24, el.scrollHeight)}px`;
+  };
+
+  const placeholderText = () => {
+    switch (props.block.type) {
+      case 'shape': return 'Double-click to label group...';
+      case 'text': return 'Double-click to type text...';
+      case 'sticky': return 'Double-click to write note...';
+      default: return 'Double-click to write (# heading, - list)...';
+    }
+  };
+
+  const isBlank = () => lines().every(l => !l.trim());
+
+  return (
+    <div 
+      class="canvas-markdown-body"
+      onDblClick={(e) => {
+        e.stopPropagation();
+        if (!props.isEditing) {
+          props.onStartEdit(0);
+          setActiveLineIndex(0);
+        }
+      }}
+    >
+      <Show 
+        when={!isBlank() || props.isEditing}
+        fallback={
+          <div class="md-empty-placeholder">
+            {placeholderText()}
+          </div>
+        }
+      >
+        <For each={lines()}>
+          {(lineText, idx) => {
+            const isCurrent = () => props.isEditing && activeLineIndex() === idx();
+
+            return (
+              <Show
+                when={isCurrent()}
+                fallback={
+                  <div
+                    class="md-line-preview"
+                    onClick={(e) => {
+                      if (props.isEditing) {
+                        e.stopPropagation();
+                        setActiveLineIndex(idx());
+                      }
+                    }}
+                    onDblClick={(e) => {
+                      e.stopPropagation();
+                      props.onStartEdit(idx());
+                      setActiveLineIndex(idx());
+                    }}
+                  >
+                    {(() => {
+                      const rendered = renderMarkdownLine(lineText);
+                      switch (rendered.type) {
+                        case 'h1':
+                          return <div class="md-line-h1" innerHTML={rendered.contentHtml} />;
+                        case 'h2':
+                          return <div class="md-line-h2" innerHTML={rendered.contentHtml} />;
+                        case 'h3':
+                          return <div class="md-line-h3" innerHTML={rendered.contentHtml} />;
+                        case 'bullet':
+                          return (
+                            <div class="md-line-bullet">
+                              <span class="md-bullet-symbol">•</span>
+                              <span innerHTML={rendered.contentHtml} />
+                            </div>
+                          );
+                        case 'numbered':
+                          return (
+                            <div class="md-line-numbered">
+                              <span class="md-number-symbol">1.</span>
+                              <span innerHTML={rendered.contentHtml} />
+                            </div>
+                          );
+                        case 'quote':
+                          return <div class="md-line-quote" innerHTML={rendered.contentHtml} />;
+                        case 'empty':
+                          return <div style={{ height: '14px' }}>&nbsp;</div>;
+                        default:
+                          return <div class="md-line-p" innerHTML={rendered.contentHtml} />;
+                      }
+                    })()}
+                  </div>
+                }
+              >
+                <textarea
+                  ref={(el) => {
+                    if (el) {
+                      setTimeout(() => {
+                        el.focus();
+                        autoResizeTextarea(el);
+                        el.setSelectionRange(el.value.length, el.value.length);
+                      }, 10);
+                    }
+                  }}
+                  rows={1}
+                  class={`md-line-input ${lineText.startsWith('# ') ? 'is-h1' : lineText.startsWith('## ') ? 'is-h2' : lineText.startsWith('### ') ? 'is-h3' : ''}`}
+                  value={lineText}
+                  onInput={(e) => {
+                    updateLine(idx(), e.currentTarget.value);
+                    autoResizeTextarea(e.currentTarget);
+                  }}
+                  onKeyDown={(e) => handleLineKeyDown(e, idx())}
+                  onPaste={(e) => handleLinePaste(e, idx())}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      const active = document.activeElement;
+                      if (!active || !active.classList.contains('md-line-input')) {
+                        props.onFinishEdit();
+                      }
+                    }, 120);
+                  }}
+                  placeholder="Type line (# heading, - list, etc.)..."
+                />
+              </Show>
+            );
+          }}
+        </For>
+      </Show>
+    </div>
+  );
+};
+
 export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   // Projects & Spaces from Backend
   const [projects, setProjects] = createSignal<Project[]>([]);
@@ -53,6 +351,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const [activeCanvasTool, setActiveCanvasTool] = createSignal<'select' | 'pan' | 'card' | 'sticky' | 'text' | 'shape' | 'connector'>('select');
   const [selectedBlockId, setSelectedBlockId] = createSignal<string | null>(null);
   const [selectedBlockIds, setSelectedBlockIds] = createSignal<string[]>([]);
+  const [editingBlockId, setEditingBlockId] = createSignal<string | null>(null);
   const [selectionBox, setSelectionBox] = createSignal<{
     x: number;
     y: number;
@@ -142,6 +441,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       setSelectedBlockIds([]);
       setSelectionBox(null);
       isSelectingArea = false;
+      setEditingBlockId(null);
     }
     if ((e.key === 'Delete' || e.key === 'Backspace') && (selectedBlockIds().length > 0 || selectedBlockId())) {
       e.preventDefault();
@@ -275,6 +575,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       setSelectedBlockIds([]);
     }
     setConnectingSourceId(null);
+    if (editingBlockId()) setEditingBlockId(null);
 
     // If a creation tool is active, place a block at clicked position with default size
     if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
@@ -316,6 +617,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     const target = e.target as HTMLElement;
     if (['button', 'input', 'textarea', 'select'].includes(target.tagName.toLowerCase())) {
       return;
+    }
+    if (editingBlockId() && editingBlockId() !== block.id) {
+      setEditingBlockId(null);
     }
 
     // If a creation tool is active, place the new object right where clicked
@@ -576,12 +880,12 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     const y = posY !== undefined ? posY : Math.round((-pan().y + 180) / scale + (blocks().length * 20) % 100);
 
     const defaultContent = {
-      card: { title: '', body: '' },
-      sticky: { title: '', body: '', color: '#44e1de' },
-      text: { title: '', body: '' },
-      shape: { title: '', body: '' },
-      image: { title: '', body: '' },
-      task_embed: { title: '', body: '' }
+      card: { text: '' },
+      sticky: { text: '', color: '#44e1de' },
+      text: { text: '' },
+      shape: { text: '' },
+      image: { text: '' },
+      task_embed: { text: '' }
     };
 
     const width = type === 'text' ? 240 : type === 'shape' ? 440 : 310;
@@ -594,7 +898,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         pos_y: y,
         width,
         height,
-        content: defaultContent[type] || { title: '', body: '' }
+        content: defaultContent[type] || { text: '' }
       });
 
       setBlocks([...blocks(), created]);
@@ -605,10 +909,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
   };
 
-  // Inline update of block title or body
-  const handleUpdateBlockContent = async (block: NoteBlock, key: 'title' | 'body' | 'color', val: string) => {
-    const prevContent = typeof block.content === 'object' && block.content !== null ? block.content : {};
-    const updatedContent = { ...prevContent, [key]: val };
+  // Inline update of block markdown text
+  const handleUpdateBlockText = async (block: NoteBlock, newText: string) => {
+    const updatedContent = { text: newText };
 
     // Update local state immediately
     setBlocks(blocks().map(b => b.id === block.id ? { ...b, content: updatedContent } : b));
@@ -617,7 +920,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     try {
       await api.updateNoteBlock(block.id, { content: updatedContent });
     } catch (err) {
-      console.error('Failed to save block content:', err);
+      console.error('Failed to save block text:', err);
     }
   };
 
@@ -1048,10 +1351,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 {/* Dynamic Blocks */}
                 <For each={blocks()}>
                   {(block) => {
-                    const contentObj = () => typeof block.content === 'object' && block.content !== null 
-                      ? block.content 
-                      : { title: '', body: String(block.content || '') };
-                    
                     const isSelected = () => selectedBlockIds().includes(block.id) || selectedBlockId() === block.id;
                     const isConnectingSource = () => connectingSourceId() === block.id;
 
@@ -1067,33 +1366,32 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                     return (
                       <div
                         onMouseDown={(e) => handleBlockMouseDown(e, block)}
+                        onDblClick={(e) => {
+                          e.stopPropagation();
+                          setEditingBlockId(block.id);
+                          setSelectedBlockId(block.id);
+                          setSelectedBlockIds([block.id]);
+                        }}
                         class={`canvas-block ${blockTypeClass()} ${isSelected() ? 'selected' : ''}`}
                         style={{
                           left: `${block.pos_x}px`,
                           top: `${block.pos_y}px`,
                           width: `${block.width || 310}px`,
                           height: block.height ? `${block.height}px` : 'auto',
+                          "min-height": block.type === 'text' ? '42px' : block.type === 'shape' ? '280px' : '150px',
                           outline: isConnectingSource() ? '2px dashed var(--secondary)' : undefined
                         }}
                       >
-                        {/* Inline Editable Title */}
-                        <input
-                          type="text"
-                          class="block-input-title"
-                          value={contentObj().title || ''}
-                          onInput={(e) => handleUpdateBlockContent(block, 'title', e.currentTarget.value)}
-                          placeholder={block.type === 'shape' ? 'Frame title (optional)...' : block.type === 'text' ? 'Text title...' : 'Title...'}
-                          onMouseDown={(e) => e.stopPropagation()}
-                        />
-
-                        {/* Inline Editable Body */}
-                        <textarea
-                          rows={block.type === 'text' ? 1 : block.type === 'shape' ? 2 : 3}
-                          class="block-textarea-body"
-                          value={contentObj().body || ''}
-                          onInput={(e) => handleUpdateBlockContent(block, 'body', e.currentTarget.value)}
-                          placeholder={block.type === 'shape' ? 'Frame description...' : 'Type note...'}
-                          onMouseDown={(e) => e.stopPropagation()}
+                        <MarkdownLiveEditor
+                          block={block}
+                          isEditing={editingBlockId() === block.id}
+                          onStartEdit={() => {
+                            setEditingBlockId(block.id);
+                            setSelectedBlockId(block.id);
+                            setSelectedBlockIds([block.id]);
+                          }}
+                          onFinishEdit={() => setEditingBlockId(null)}
+                          onChangeText={(newText) => handleUpdateBlockText(block, newText)}
                         />
                       </div>
                     );

@@ -1092,4 +1092,148 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   box-shadow: 0 0 20px rgba(68, 225, 222, 0.18), inset 0 0 10px rgba(68, 225, 222, 0.05);
 }
 
+/* =========================================================
+   Live Markdown In-Place Preview & Editing System
+   ========================================================= */
+.canvas-markdown-body {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: default;
+}
+
+.md-line-preview {
+  padding: 1px 4px;
+  border-radius: 4px;
+  transition: background-color 100ms ease;
+  min-height: 22px;
+  display: flex;
+  align-items: baseline;
+  word-break: break-word;
+  user-select: text;
+}
+
+.md-line-preview:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.md-line-h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.35;
+  margin: 4px 0 2px 0;
+}
+
+.md-line-h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f2f6;
+  line-height: 1.35;
+  margin: 3px 0 1px 0;
+}
+
+.md-line-h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e4ea;
+  line-height: 1.35;
+  margin: 2px 0 1px 0;
+}
+
+.md-line-bullet {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.md-bullet-symbol {
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1;
+  user-select: none;
+}
+
+.md-line-numbered {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.md-number-symbol {
+  color: var(--secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  user-select: none;
+}
+
+.md-line-quote {
+  border-left: 2px solid var(--secondary);
+  padding-left: 8px;
+  font-style: italic;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.md-line-p {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.md-line-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(68, 225, 222, 0.45);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  color: #fff;
+  padding: 3px 6px;
+  outline: none;
+  box-sizing: border-box;
+  line-height: 1.4;
+  margin: 1px 0;
+  resize: none;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(68, 225, 222, 0.15);
+}
+
+.md-line-input.is-h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.md-line-input.is-h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f2f6;
+}
+
+.md-line-input.is-h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e4ea;
+}
+
+.md-empty-placeholder {
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 12px;
+  padding: 8px 4px;
+  user-select: none;
+  opacity: 0.65;
+}
+
+
 
