@@ -11,7 +11,7 @@ services:
       - "5432:5432"
     volumes:
       - orca_pgdata:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d:ro
+      - ./migrations/000001_init_schema.up.sql:/docker-entrypoint-initdb.d/01_init_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U orca -d orca_db"]
       interval: 5s

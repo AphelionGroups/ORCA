@@ -169,3 +169,30 @@ CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id) WHERE delet
 CREATE INDEX IF NOT EXISTS idx_events_workspace_timerange ON events(workspace_id, start_at, end_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_entity_links_from ON entity_links(workspace_id, from_type, from_id);
 CREATE INDEX IF NOT EXISTS idx_entity_links_to ON entity_links(workspace_id, to_type, to_id);
+
+-- =========================================================
+-- DEFAULT SEED DATA (Personal Workspace & Owner)
+-- =========================================================
+INSERT INTO workspaces (id, name, slug, owner_id, created_at, updated_at)
+VALUES (
+    '018f0000-0000-7000-8000-000000000001',
+    'Personal Workspace',
+    'personal',
+    '018f0000-0000-7000-8000-000000000002',
+    NOW(),
+    NOW()
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO users (id, workspace_id, email, password_hash, full_name, created_at, updated_at)
+VALUES (
+    '018f0000-0000-7000-8000-000000000002',
+    '018f0000-0000-7000-8000-000000000001',
+    'user@orca.local',
+    '$2a$12$e0MYzXy/vP7J7o7vGqG19.9r2qK.QpW8e.E4Z8fUq9j1vR5W9B9u',
+    'Personal User',
+    NOW(),
+    NOW()
+)
+ON CONFLICT (id) DO NOTHING;
+

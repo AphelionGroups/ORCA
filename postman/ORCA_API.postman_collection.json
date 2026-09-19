@@ -1,0 +1,1144 @@
+{
+	"info": {
+		"_postman_id": "8a3f8901-b641-4775-8162-817342621094",
+		"name": "ORCA API",
+		"description": "Postman Collection untuk menguji seluruh REST API ORCA (Personal & Business Operating System).\n\nVariabel yang digunakan:\n- `baseUrl`: http://localhost:8080\n- `workspaceId`: UUID tenant workspace (default personal: 018f0000-0000-7000-8000-000000000001)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "workspaceId",
+			"value": "018f0000-0000-7000-8000-000000000001",
+			"type": "string"
+		},
+		{
+			"key": "spaceId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "projectId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "taskId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "docId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "boardId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "blockId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "eventId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "linkId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health & System",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/healthz",
+							"host": ["{{baseUrl}}"],
+							"path": ["healthz"]
+						},
+						"description": "Memeriksa status hidup server, uptime, dan status koneksi PostgreSQL."
+					}
+				},
+				{
+					"name": "API Ping",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/ping",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "ping"]
+						},
+						"description": "Ping endpoint v1"
+					}
+				}
+			]
+		},
+		{
+			"name": "1. Spaces",
+			"item": [
+				{
+					"name": "List Spaces",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/spaces",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "spaces"]
+						}
+					}
+				},
+				{
+					"name": "Create Space",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    if (json.data && json.data.id) {",
+									"        pm.collectionVariables.set('spaceId', json.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Bisnis Utama\",\n  \"slug\": \"bisnis-utama\",\n  \"icon\": \"briefcase\",\n  \"color\": \"#3b82f6\",\n  \"sort_order\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/spaces",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "spaces"]
+						}
+					}
+				},
+				{
+					"name": "Get Space by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/spaces/{{spaceId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "spaces", "{{spaceId}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Space",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Bisnis Utama (Scaleup)\",\n  \"icon\": \"rocket\",\n  \"color\": \"#6366f1\",\n  \"sort_order\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/spaces/{{spaceId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "spaces", "{{spaceId}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Space",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/spaces/{{spaceId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "spaces", "{{spaceId}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Projects",
+			"item": [
+				{
+					"name": "List Projects",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/projects?space_id={{spaceId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "projects"],
+							"query": [
+								{
+									"key": "space_id",
+									"value": "{{spaceId}}"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Project",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    if (json.data && json.data.id) {",
+									"        pm.collectionVariables.set('projectId', json.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"space_id\": \"{{spaceId}}\",\n  \"name\": \"Website Redesign 2026\",\n  \"description\": \"Revamp platform UI menggunakan Vanilla CSS modern tokens\",\n  \"status\": \"active\",\n  \"target_date\": \"2026-10-31T23:59:59Z\",\n  \"kanban_columns\": [\"Backlog\", \"In Progress\", \"Review\", \"Done\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/projects",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "projects"]
+						}
+					}
+				},
+				{
+					"name": "Get Project by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "projects", "{{projectId}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Project",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Website Redesign 2026 (Phase 1)\",\n  \"description\": \"Fokus pada Core Architecture dan Design System\",\n  \"status\": \"active\",\n  \"kanban_columns\": [\"Backlog\", \"Todo\", \"In Progress\", \"Done\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "projects", "{{projectId}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Project",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "projects", "{{projectId}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Documents",
+			"item": [
+				{
+					"name": "List Documents",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/documents?space_id={{spaceId}}&project_id={{projectId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "documents"],
+							"query": [
+								{
+									"key": "space_id",
+									"value": "{{spaceId}}"
+								},
+								{
+									"key": "project_id",
+									"value": "{{projectId}}"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Document",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    if (json.data && json.data.id) {",
+									"        pm.collectionVariables.set('docId', json.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"space_id\": \"{{spaceId}}\",\n  \"project_id\": \"{{projectId}}\",\n  \"title\": \"Brand & Design System Guidelines\",\n  \"doc_type\": \"brand_guideline\",\n  \"content\": \"# ORCA Brand Guidelines\\n\\nModern, sleek, and high-productivity design system tanpa Tailwind.\",\n  \"is_pinned\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/documents",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "documents"]
+						}
+					}
+				},
+				{
+					"name": "Get Document by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/documents/{{docId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "documents", "{{docId}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Document",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Brand Guidelines v1.1\",\n  \"doc_type\": \"brand_guideline\",\n  \"content\": \"Updated with CSS variable typography and color tokens.\",\n  \"is_pinned\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/documents/{{docId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "documents", "{{docId}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Document",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/documents/{{docId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "documents", "{{docId}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Tasks & Inbox",
+			"item": [
+				{
+					"name": "List Tasks (Filters)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/tasks?space_id={{spaceId}}&planned_date=2026-09-19&status=todo",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "tasks"],
+							"query": [
+								{
+									"key": "space_id",
+									"value": "{{spaceId}}"
+								},
+								{
+									"key": "project_id",
+									"value": "{{projectId}}",
+									"disabled": true
+								},
+								{
+									"key": "inbox",
+									"value": "true",
+									"disabled": true
+								},
+								{
+									"key": "planned_date",
+									"value": "2026-09-19"
+								},
+								{
+									"key": "status",
+									"value": "todo"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "List Tasks (Inbox Only)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/tasks?inbox=true",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "tasks"],
+							"query": [
+								{
+									"key": "inbox",
+									"value": "true"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Task",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    if (json.data && json.data.id) {",
+									"        pm.collectionVariables.set('taskId', json.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"space_id\": \"{{spaceId}}\",\n  \"project_id\": \"{{projectId}}\",\n  \"title\": \"Implementasi Token Warna CSS\",\n  \"description\": \"Definisikan --bg-primary, --border-subtle, dll di index.css\",\n  \"status\": \"todo\",\n  \"priority\": \"high\",\n  \"due_date\": \"2026-09-25T18:00:00Z\",\n  \"planned_date\": \"2026-09-19\",\n  \"estimated_minutes\": 60\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/tasks",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "tasks"]
+						}
+					}
+				},
+				{
+					"name": "Get Task by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "tasks", "{{taskId}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Task",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Implementasi Token Warna & Tipografi CSS\",\n  \"description\": \"Termasuk font Outfit / Inter\",\n  \"status\": \"in_progress\",\n  \"priority\": \"urgent\",\n  \"planned_date\": \"2026-09-19\",\n  \"estimated_minutes\": 90\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "tasks", "{{taskId}}"]
+						}
+					}
+				},
+				{
+					"name": "Patch Task Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"done\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "tasks", "{{taskId}}", "status"]
+						}
+					}
+				},
+				{
+					"name": "Delete Task",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "tasks", "{{taskId}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Calendar & Time-Blocking",
+			"item": [
+				{
+					"name": "List Events (Range)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/events?start=2026-09-19T00:00:00Z&end=2026-09-19T23:59:59Z&space_id={{spaceId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "events"],
+							"query": [
+								{
+									"key": "start",
+									"value": "2026-09-19T00:00:00Z"
+								},
+								{
+									"key": "end",
+									"value": "2026-09-19T23:59:59Z"
+								},
+								{
+									"key": "space_id",
+									"value": "{{spaceId}}"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Event (Time Block)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    if (json.data && json.data.id) {",
+									"        pm.collectionVariables.set('eventId', json.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"space_id\": \"{{spaceId}}\",\n  \"linked_task_id\": \"{{taskId}}\",\n  \"title\": \"Deep Work: Implementasi Token Warna CSS\",\n  \"description\": \"Fokus 60 menit menyelesaikan CSS tokens\",\n  \"start_at\": \"2026-09-19T14:00:00Z\",\n  \"end_at\": \"2026-09-19T15:00:00Z\",\n  \"is_all_day\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/events",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "events"]
+						}
+					}
+				},
+				{
+					"name": "Get Event by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/events/{{eventId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "events", "{{eventId}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Event",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Deep Work: Implementasi CSS & Testing\",\n  \"start_at\": \"2026-09-19T14:00:00Z\",\n  \"end_at\": \"2026-09-19T15:30:00Z\",\n  \"is_all_day\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/events/{{eventId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "events", "{{eventId}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Event",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/events/{{eventId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "events", "{{eventId}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "6. Spatial Boards & Canvas Blocks",
+			"item": [
+				{
+					"name": "List Boards",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/boards?space_id={{spaceId}}&project_id={{projectId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "boards"],
+							"query": [
+								{
+									"key": "space_id",
+									"value": "{{spaceId}}"
+								},
+								{
+									"key": "project_id",
+									"value": "{{projectId}}"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Board",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    if (json.data && json.data.id) {",
+									"        pm.collectionVariables.set('boardId', json.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"space_id\": \"{{spaceId}}\",\n  \"project_id\": \"{{projectId}}\",\n  \"title\": \"Moodboard & Spatial Brainstorming\",\n  \"viewport_state\": {\"x\": 100, \"y\": 50, \"zoom\": 1.0}\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/boards",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "boards"]
+						}
+					}
+				},
+				{
+					"name": "Get Board by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/boards/{{boardId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "boards", "{{boardId}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Board",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Moodboard & Spatial Brainstorming (Final)\",\n  \"viewport_state\": {\"x\": 250, \"y\": 150, \"zoom\": 1.2}\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/boards/{{boardId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "boards", "{{boardId}}"]
+						}
+					}
+				},
+				{
+					"name": "List Canvas Blocks",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/boards/{{boardId}}/blocks",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "boards", "{{boardId}}", "blocks"]
+						}
+					}
+				},
+				{
+					"name": "Create Canvas Block (Sticky Note)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    if (json.data && json.data.id) {",
+									"        pm.collectionVariables.set('blockId', json.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"sticky\",\n  \"pos_x\": 120.5,\n  \"pos_y\": 200.0,\n  \"width\": 240.0,\n  \"height\": 180.0,\n  \"content\": {\n    \"text\": \"Gunakan dark mode elegan dengan neutral palette, bukan neon.\",\n    \"color\": \"#fef08a\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/boards/{{boardId}}/blocks",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "boards", "{{boardId}}", "blocks"]
+						}
+					}
+				},
+				{
+					"name": "Get Block by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/blocks/{{blockId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "blocks", "{{blockId}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Block Position & Content",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pos_x\": 180.0,\n  \"pos_y\": 240.0,\n  \"content\": {\n    \"text\": \"Updated text: Dark neutral mode validated.\",\n    \"color\": \"#fed7aa\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/blocks/{{blockId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "blocks", "{{blockId}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Block",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/blocks/{{blockId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "blocks", "{{blockId}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Board",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/boards/{{boardId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "boards", "{{boardId}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "7. Universal Entity Links",
+			"item": [
+				{
+					"name": "List Entity Links",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/links?type=task&id={{taskId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "links"],
+							"query": [
+								{
+									"key": "type",
+									"value": "task"
+								},
+								{
+									"key": "id",
+									"value": "{{taskId}}"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Entity Link",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    if (json.data && json.data.id) {",
+									"        pm.collectionVariables.set('linkId', json.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"from_type\": \"task\",\n  \"from_id\": \"{{taskId}}\",\n  \"to_type\": \"document\",\n  \"to_id\": \"{{docId}}\",\n  \"relation_type\": \"relates_to\",\n  \"metadata\": {\"note\": \"Task ini merujuk ke dokumen Brand Guidelines\"}\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/links",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "links"]
+						}
+					}
+				},
+				{
+					"name": "Delete Entity Link",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Workspace-ID",
+								"value": "{{workspaceId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/links/{{linkId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "links", "{{linkId}}"]
+						}
+					}
+				}
+			]
+		}
+	]
+}
