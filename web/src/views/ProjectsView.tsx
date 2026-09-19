@@ -308,6 +308,116 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
   };
 
+  // -------------------------------------------------------------
+  // TWO-FINGER SCROLL / PAN (TRACKPAD & TOUCHSCREEN GESTURES)
+  // -------------------------------------------------------------
+  let canvasContainerRef: HTMLDivElement | undefined;
+
+  // Trackpad 2-finger scroll and wheel zoom
+  const handleCanvasWheel = (e: WheelEvent) => {
+    // If inside an editable textarea/input that has its own scroll, preserve it
+    const target = e.target as HTMLElement;
+    if (target && (target.tagName.toLowerCase() === 'textarea' || target.tagName.toLowerCase() === 'input')) {
+      if (target.scrollHeight > target.clientHeight) {
+        return;
+      }
+    }
+
+    e.preventDefault();
+
+    if (e.ctrlKey || e.metaKey) {
+      // Pinch-to-zoom on trackpad or Ctrl + MouseWheel
+      const zoomFactor = -e.deltaY * 0.01;
+      const currentZoom = zoom();
+      const newZoom = Math.min(250, Math.max(25, Math.round(currentZoom * (1 + zoomFactor))));
+
+      if (canvasContainerRef) {
+        const rect = canvasContainerRef.getBoundingClientRect();
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+
+        const scaleOld = currentZoom / 100;
+        const scaleNew = newZoom / 100;
+
+        const worldX = (cursorX - pan().x) / scaleOld;
+        const worldY = (cursorY - pan().y) / scaleOld;
+
+        setPan({
+          x: Math.round(cursorX - worldX * scaleNew),
+          y: Math.round(cursorY - worldY * scaleNew)
+        });
+      }
+      setZoom(newZoom);
+    } else {
+      // 2-Finger scroll / Pan in any direction (X, Y, diagonal)
+      setPan(prev => ({
+        x: Math.round(prev.x - e.deltaX),
+        y: Math.round(prev.y - e.deltaY)
+      }));
+    }
+  };
+
+  // Touchscreen 2-finger gestures (Pan & Pinch-to-Zoom)
+  let initialTouchMid = { x: 0, y: 0 };
+  let initialTouchDist = 0;
+  let initialTouchPan = { x: 0, y: 0 };
+  let initialTouchZoom = 100;
+  let isTwoFingerTouching = false;
+
+  const handleCanvasTouchStart = (e: TouchEvent) => {
+    if (e.touches.length === 2) {
+      isTwoFingerTouching = true;
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+
+      initialTouchMid = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2
+      };
+      initialTouchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      initialTouchPan = { ...pan() };
+      initialTouchZoom = zoom();
+      e.preventDefault();
+    }
+  };
+
+  const handleCanvasTouchMove = (e: TouchEvent) => {
+    if (isTwoFingerTouching && e.touches.length === 2) {
+      e.preventDefault();
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+
+      const currentMid = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2
+      };
+      const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+
+      // Midpoint movement translates canvas in any direction
+      const dx = currentMid.x - initialTouchMid.x;
+      const dy = currentMid.y - initialTouchMid.y;
+
+      // Pinch distance scales zoom
+      let newZoom = initialTouchZoom;
+      if (initialTouchDist > 0 && currentDist > 0) {
+        const zoomRatio = currentDist / initialTouchDist;
+        newZoom = Math.min(250, Math.max(25, Math.round(initialTouchZoom * zoomRatio)));
+      }
+
+      setZoom(newZoom);
+      setPan({
+        x: Math.round(initialTouchPan.x + dx),
+        y: Math.round(initialTouchPan.y + dy)
+      });
+    }
+  };
+
+  const handleCanvasTouchEnd = (e: TouchEvent) => {
+    if (e.touches.length < 2) {
+      isTwoFingerTouching = false;
+    }
+  };
+
   // Create a new block at coordinates or viewport center
   const handleCreateBlock = async (type: NoteBlock['type'] = 'card', posX?: number, posY?: number) => {
     const board = boards()[0];
@@ -670,6 +780,22 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
              ========================================================= */}
           <Show when={activeTab() === 'board'}>
             <div 
+              ref={(el) => {
+                canvasContainerRef = el;
+                el.addEventListener('wheel', handleCanvasWheel, { passive: false });
+                el.addEventListener('touchstart', handleCanvasTouchStart, { passive: false });
+                el.addEventListener('touchmove', handleCanvasTouchMove, { passive: false });
+                el.addEventListener('touchend', handleCanvasTouchEnd);
+                el.addEventListener('touchcancel', handleCanvasTouchEnd);
+
+                onCleanup(() => {
+                  el.removeEventListener('wheel', handleCanvasWheel);
+                  el.removeEventListener('touchstart', handleCanvasTouchStart);
+                  el.removeEventListener('touchmove', handleCanvasTouchMove);
+                  el.removeEventListener('touchend', handleCanvasTouchEnd);
+                  el.removeEventListener('touchcancel', handleCanvasTouchEnd);
+                });
+              }}
               onMouseDown={handleCanvasMouseDown}
               style={{
                 position: 'relative',
@@ -677,6 +803,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 height: '100%',
                 "background-color": '#111317',
                 overflow: 'hidden',
+                "touch-action": 'none',
                 cursor: activeCanvasTool() === 'pan' || isSpacePressed() ? 'grab' : 'default'
               }}
             >
