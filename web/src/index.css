@@ -1,0 +1,675 @@
+/* =========================================================
+   ORCA Design System — Pure Vanilla CSS (Zero Tailwind)
+   Faithful recreation of the Stitch Obsidian Dark Aesthetic
+   ========================================================= */
+
+:root {
+  /* Color Palette matching Stitch / demo.html */
+  --surface: #111317;
+  --surface-dim: #0e1013;
+  --surface-container-lowest: #0c0e12;
+  --surface-container-low: #16181d;
+  --surface-container: #1a1c22;
+  --surface-container-high: #22252c;
+  --surface-container-highest: #333539;
+  --surface-border: #272a32;
+  
+  --primary: #8b8df8;
+  --primary-dim: #c1c1ff;
+  --secondary: #44e1de;
+  --secondary-container: #00c5c2;
+  --tertiary: #cebdff;
+  --tertiary-container: #a286f5;
+
+  --text-main: #ffffff;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --outline: #918f9e;
+  --outline-variant: #464552;
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.14);
+  --border-active: rgba(139, 141, 248, 0.4);
+
+  /* Fonts */
+  --font-sans: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Global Reset & Base */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background-color: var(--surface);
+  color: #e2e2e8;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Material Symbols alignment */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* Hide scrollbars cleanly */
+::-webkit-scrollbar { display: none; }
+* { -ms-overflow-style: none; scrollbar-width: none; }
+
+a { color: inherit; text-decoration: none; }
+button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+
+/* App Shell Structure */
+.orca-app {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--surface);
+}
+
+/* Left Sidebar (256px wide) */
+.orca-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 256px;
+  background-color: var(--surface);
+  border-right: 1px solid var(--border-subtle);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 16px 4px;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.brand-text {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--text-main);
+  text-transform: uppercase;
+}
+
+.brand-cyan-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--secondary);
+  box-shadow: 0 0 8px rgba(68, 225, 222, 0.6);
+}
+
+/* Section Header */
+.sidebar-section-header {
+  padding: 0 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+/* Sidebar Links */
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 120ms ease;
+  border: 1px solid transparent;
+}
+
+.sidebar-nav-item:hover {
+  color: var(--text-main);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.sidebar-nav-item.active {
+  color: var(--text-main);
+  background-color: rgba(255, 255, 255, 0.08);
+  border-left: 2px solid var(--primary);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-left: 12px;
+  font-weight: 500;
+}
+
+.subproject-link {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--primary);
+  background-color: rgba(139, 141, 248, 0.12);
+  display: inline-block;
+  font-weight: 500;
+  margin-left: 16px;
+  margin-top: 2px;
+}
+
+/* Quick Capture button bottom of sidebar */
+.sidebar-quick-capture {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 4px;
+  background-color: #181a20;
+  color: var(--text-muted);
+  border: 1px solid var(--border-medium);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.sidebar-quick-capture:hover {
+  background-color: #20232a;
+  color: var(--text-main);
+}
+
+.kbd-badge {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  font-family: var(--font-mono);
+}
+
+/* Main Screen Frame (Offset left by 256px) */
+.orca-main-viewport {
+  margin-left: 256px;
+  width: calc(100vw - 256px);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Universal Header Bar */
+.orca-header {
+  height: 56px;
+  min-height: 56px;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  flex-shrink: 0;
+  z-index: 40;
+}
+
+.header-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+/* Center Segmented View Tabs: Canvas | Documents | Tasks */
+.segmented-tab-group {
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border-radius: 6px;
+  background-color: #181a20;
+  border: 1px solid var(--border-subtle);
+  gap: 2px;
+}
+
+.segmented-tab-btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 120ms ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.segmented-tab-btn:hover {
+  color: var(--text-main);
+}
+
+.segmented-tab-btn.active {
+  background-color: #262932;
+  color: var(--text-main);
+  border-color: var(--border-subtle);
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Right Header Controls */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-pill-white {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #0c0e12;
+  background: #ffffff;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  transition: background 150ms ease;
+}
+
+.btn-pill-white:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.btn-ghost-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.btn-ghost-icon:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* =========================================================
+   Spatial Canvas Styles
+   ========================================================= */
+.spatial-stage {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - 56px);
+  overflow: hidden;
+  background-color: var(--surface);
+}
+
+.spatial-glow-orb {
+  position: absolute;
+  pointer-events: none;
+  width: 640px;
+  height: 640px;
+  border-radius: 50%;
+  filter: blur(200px);
+  background: rgba(255, 255, 255, 0.02);
+  top: 30%;
+  left: 30%;
+  z-index: 0;
+}
+
+/* Signature Chamfered Cards */
+.chamfered-node {
+  position: absolute;
+  background-color: #16181d;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  padding: 24px;
+  cursor: grab;
+  z-index: 20;
+  clip-path: polygon(0px 0px, calc(100% - 14px) 0px, 100% 14px, 100% 100%, 0px 100%);
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.chamfered-node:active {
+  cursor: grabbing;
+}
+
+.chamfered-node:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Protruding handles (+ markers) */
+.node-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #1e2025;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.node-handle-active-primary {
+  border-color: var(--primary);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(139, 141, 248, 0.4);
+}
+
+.node-handle-active-secondary {
+  border-color: var(--secondary);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(68, 225, 222, 0.4);
+}
+
+/* Floating Bottom Canvas Toolbar */
+.floating-canvas-toolbar {
+  position: fixed;
+  bottom: 32px;
+  left: calc(50% + 128px);
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 12px;
+  background-color: rgba(24, 26, 32, 0.95);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  color: var(--text-muted);
+}
+
+.canvas-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.canvas-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+}
+
+.canvas-tool-btn.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  border-color: var(--border-subtle);
+}
+
+/* =========================================================
+   Documents Split Screen (Left index, Right editor)
+   ========================================================= */
+.docs-viewport {
+  display: flex;
+  width: 100%;
+  height: calc(100vh - 56px);
+  overflow: hidden;
+}
+
+.docs-index-panel {
+  width: 320px;
+  min-width: 320px;
+  background-color: var(--surface-container-lowest);
+  border-right: 1px solid var(--border-subtle);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow-y: auto;
+}
+
+.doc-list-item {
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 120ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.doc-list-item:hover {
+  background-color: var(--surface-container);
+  color: var(--text-main);
+}
+
+.doc-list-item.active {
+  background-color: var(--surface-container-high);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+}
+
+.docs-editor-panel {
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--surface);
+  padding: 40px 60px;
+}
+
+.docs-article-wrapper {
+  max-width: 768px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* =========================================================
+   Tasks Sprint Kanban Screen
+   ========================================================= */
+.tasks-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px;
+  background-color: var(--surface);
+}
+
+.kanban-grid-4col {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.kanban-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kanban-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.task-sprint-card {
+  background-color: var(--surface-container-low);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: grab;
+  transition: all 150ms ease;
+}
+
+.task-sprint-card:hover {
+  background-color: var(--surface-container);
+  border-color: var(--border-medium);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* =========================================================
+   Spaces Master Screen
+   ========================================================= */
+.spaces-master-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px;
+  background-color: var(--surface);
+}
+
+.metrics-row-4col {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metric-box {
+  background-color: var(--surface-container-low);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.space-card-master {
+  background-color: rgba(26, 28, 34, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 150ms ease;
+}
+
+.space-card-master:hover {
+  background-color: rgba(26, 28, 34, 0.95);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.space-card-master.active-sprint {
+  border-color: rgba(139, 141, 248, 0.4);
+}
+
+/* =========================================================
+   Temporal Matrix Calendar Screen
+   ========================================================= */
+.calendar-viewport {
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-matrix-container {
+  display: flex;
+  gap: 24px;
+  padding: 0 32px 48px 32px;
+  align-items: flex-start;
+}
+
+.unscheduled-backlog {
+  width: 288px;
+  min-width: 288px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.calendar-week-grid {
+  flex: 1;
+  border-radius: 12px;
+  background-color: var(--surface-container-lowest);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-grid-header {
+  display: grid;
+  grid-template-columns: 60px repeat(5, 1fr);
+  background-color: var(--surface-container-low);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: center;
+}
+
+.calendar-grid-body {
+  display: grid;
+  grid-template-columns: 60px repeat(5, 1fr);
+  height: 640px;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Live time line pulse */
+.live-timeline-marker {
+  position: absolute;
+  top: 160px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.live-timeline-line {
+  height: 1px;
+  flex: 1;
+  background-color: var(--secondary);
+  box-shadow: 0 0 8px rgba(68, 225, 222, 0.8);
+}
