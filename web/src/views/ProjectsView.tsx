@@ -14,8 +14,6 @@ import {
   ChevronRight,
   RotateCcw,
   StickyNote,
-  Trash2,
-  Palette,
   Maximize2
 } from 'lucide-solid';
 import { api } from '../services/api';
@@ -131,6 +129,11 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     if (e.key === 'Escape') {
       setActiveCanvasTool('select');
       setConnectingSourceId(null);
+      setSelectedBlockId(null);
+    }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBlockId()) {
+      e.preventDefault();
+      handleDeleteBlock(selectedBlockId()!);
     }
   };
 
@@ -465,12 +468,12 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     const y = posY !== undefined ? posY : Math.round((-pan().y + 180) / scale + (blocks().length * 20) % 100);
 
     const defaultContent = {
-      card: { title: 'New Strategy Note', body: 'Detail architectural requirements, tokens, or execution ideas here.' },
-      sticky: { title: 'Quick Idea', body: 'Draft sprint thoughts or tactile considerations.', color: '#44e1de' },
-      text: { title: 'Section Header', body: 'Type free-floating label' },
-      shape: { title: 'Group Container', body: 'Drag cards inside this boundary.' },
-      image: { title: 'Image Reference', body: '' },
-      task_embed: { title: 'Embedded Sprint Task', body: '' }
+      card: { title: '', body: '' },
+      sticky: { title: '', body: '', color: '#44e1de' },
+      text: { title: '', body: '' },
+      shape: { title: '', body: '' },
+      image: { title: '', body: '' },
+      task_embed: { title: '', body: '' }
     };
 
     const width = type === 'text' ? 240 : type === 'shape' ? 440 : 310;
@@ -483,7 +486,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         pos_y: y,
         width,
         height,
-        content: defaultContent[type] || { title: 'New Node', body: '' }
+        content: defaultContent[type] || { title: '', body: '' }
       });
 
       setBlocks([...blocks(), created]);
@@ -506,16 +509,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       await api.updateNoteBlock(block.id, { content: updatedContent });
     } catch (err) {
       console.error('Failed to save block content:', err);
-    }
-  };
-
-  // Change block type (card, sticky, text, shape)
-  const handleChangeBlockType = async (block: NoteBlock, newType: NoteBlock['type']) => {
-    setBlocks(blocks().map(b => b.id === block.id ? { ...b, type: newType } : b));
-    try {
-      await api.updateNoteBlock(block.id, { type: newType });
-    } catch (err) {
-      console.error('Failed to update block type:', err);
     }
   };
 
@@ -907,76 +900,32 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                             ? '1px dashed rgba(255,255,255,0.6)' 
                             : '2px dashed var(--secondary)',
                           background: isSticky 
-                            ? 'rgba(68, 225, 222, 0.12)' 
+                            ? 'rgba(68, 225, 222, 0.08)' 
                             : isShape 
-                            ? 'rgba(16, 185, 129, 0.08)' 
+                            ? 'rgba(16, 185, 129, 0.05)' 
                             : isText 
-                            ? 'rgba(255, 255, 255, 0.06)' 
-                            : 'rgba(68, 225, 222, 0.08)',
-                          "border-radius": isShape ? '12px' : '8px',
-                          display: 'flex',
-                          "flex-direction": 'column',
-                          padding: '12px',
-                          color: 'var(--text-muted)',
-                          "backdrop-filter": 'blur(6px)',
+                            ? 'rgba(255, 255, 255, 0.04)' 
+                            : 'rgba(68, 225, 222, 0.06)',
+                          "border-radius": isShape ? '12px' : isSticky ? '4px' : '8px',
+                          "clip-path": isSticky ? 'polygon(0px 0px, calc(100% - 16px) 0px, 100% 16px, 100% 100%, 0px 100%)' : undefined,
+                          "backdrop-filter": 'blur(4px)',
                           "box-shadow": isSticky
-                            ? '0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(68, 225, 222, 0.25)'
+                            ? '0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(68, 225, 222, 0.2)'
                             : isShape
-                            ? '0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.2)'
-                            : '0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(68, 225, 222, 0.2)'
+                            ? '0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.15)'
+                            : '0 16px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(68, 225, 222, 0.15)'
                         }}
-                      >
-                        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '10px' }}>
-                          <span style={{ 
-                            "font-size": '10px', 
-                            "font-family": 'var(--font-mono)', 
-                            "text-transform": 'uppercase', 
-                            color: isSticky ? '#44e1de' : isShape ? '#10b981' : 'var(--secondary)',
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            padding: '2px 6px',
-                            "border-radius": '3px'
-                          }}>
-                            + {tool} preview
-                          </span>
-                          <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
-                            {width}x{height}
-                          </span>
-                        </div>
-
-                        <div style={{
-                          width: isText ? '60%' : '75%',
-                          height: '10px',
-                          background: 'rgba(255, 255, 255, 0.15)',
-                          "border-radius": '3px',
-                          "margin-bottom": '8px'
-                        }} />
-
-                        <Show when={!isText}>
-                          <div style={{
-                            width: '90%',
-                            height: '8px',
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            "border-radius": '3px',
-                            "margin-bottom": '6px'
-                          }} />
-                          <div style={{
-                            width: '65%',
-                            height: '8px',
-                            background: 'rgba(255, 255, 255, 0.06)',
-                            "border-radius": '3px'
-                          }} />
-                        </Show>
-                      </div>
+                      />
                     );
                   })()}
                 </Show>
 
                 {/* Dynamic Blocks */}
                 <For each={blocks()}>
-                  {(block, index) => {
+                  {(block) => {
                     const contentObj = () => typeof block.content === 'object' && block.content !== null 
                       ? block.content 
-                      : { title: 'Note Node', body: String(block.content || '') };
+                      : { title: '', body: String(block.content || '') };
                     
                     const isSelected = () => selectedBlockId() === block.id;
                     const isConnectingSource = () => connectingSourceId() === block.id;
@@ -1002,101 +951,25 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                           outline: isConnectingSource() ? '2px dashed var(--secondary)' : undefined
                         }}
                       >
-                        {/* Header bar with tag, type and action controls */}
-                        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '8px' }}>
-                          <span style={{
-                            "font-size": '10px',
-                            "font-family": 'var(--font-mono)',
-                            "text-transform": 'uppercase',
-                            color: block.type === 'sticky' ? 'var(--tertiary)' : 'var(--secondary)',
-                            background: 'rgba(255, 255, 255, 0.06)',
-                            padding: '2px 6px',
-                            "border-radius": '3px'
-                          }}>
-                            0{index() + 1} • {block.type}
-                          </span>
-
-                          <div class="block-header-actions">
-                            {/* Cycle type */}
-                            <button
-                              class="block-action-btn"
-                              title="Toggle Card / Sticky / Text"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const types: NoteBlock['type'][] = ['card', 'sticky', 'text', 'shape'];
-                                const next = types[(types.indexOf(block.type) + 1) % types.length];
-                                handleChangeBlockType(block, next);
-                              }}
-                            >
-                              <Palette size={12} />
-                            </button>
-
-                            {/* Connect button */}
-                            <button
-                              class="block-action-btn"
-                              title="Connect to another card"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setConnectingSourceId(block.id);
-                                setActiveCanvasTool('connector');
-                              }}
-                            >
-                              <Share2 size={12} color={isConnectingSource() ? 'var(--secondary)' : undefined} />
-                            </button>
-
-                            {/* Delete block */}
-                            <button
-                              class="block-action-btn btn-delete"
-                              title="Delete block"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteBlock(block.id);
-                              }}
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </div>
-
                         {/* Inline Editable Title */}
                         <input
                           type="text"
                           class="block-input-title"
                           value={contentObj().title || ''}
                           onInput={(e) => handleUpdateBlockContent(block, 'title', e.currentTarget.value)}
-                          placeholder="Node Title..."
+                          placeholder={block.type === 'shape' ? 'Frame title (optional)...' : block.type === 'text' ? 'Text title...' : 'Title...'}
                           onMouseDown={(e) => e.stopPropagation()}
                         />
 
                         {/* Inline Editable Body */}
                         <textarea
-                          rows={block.type === 'text' ? 1 : 3}
+                          rows={block.type === 'text' ? 1 : block.type === 'shape' ? 2 : 3}
                           class="block-textarea-body"
                           value={contentObj().body || ''}
                           onInput={(e) => handleUpdateBlockContent(block, 'body', e.currentTarget.value)}
-                          placeholder="Type notes, strategy coordinates, or markdown..."
+                          placeholder={block.type === 'shape' ? 'Frame description...' : 'Type note...'}
                           onMouseDown={(e) => e.stopPropagation()}
                         />
-
-                        {/* Quick Navigation Footer */}
-                        <Show when={block.type === 'card'}>
-                          <div style={{ display: 'flex', gap: '6px', "margin-top": '10px', "padding-top": '8px', "border-top": '1px solid rgba(255,255,255,0.06)' }}>
-                            <button 
-                              onClick={() => setActiveTab('docs')}
-                              style={{ flex: 1, padding: '4px 6px', "background-color": 'var(--surface-container-high)', border: '1px solid var(--border-default)', "border-radius": '4px', color: '#fff', "font-size": '10px', cursor: 'pointer', display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '4px' }}
-                            >
-                              <FileText size={11} />
-                              <span>Doc</span>
-                            </button>
-                            <button 
-                              onClick={() => setActiveTab('tasks')}
-                              style={{ flex: 1, padding: '4px 6px', "background-color": 'rgba(68,225,222,0.1)', border: '1px solid rgba(68,225,222,0.3)', "border-radius": '4px', color: 'var(--secondary)', "font-size": '10px', cursor: 'pointer', display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '4px' }}
-                            >
-                              <CheckSquare size={11} />
-                              <span>Task</span>
-                            </button>
-                          </div>
-                        </Show>
                       </div>
                     );
                   }}
@@ -1111,18 +984,22 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'select' ? 'active' : ''}`}
                   onClick={() => setActiveCanvasTool('select')}
-                  title="Select & Move (V)"
                 >
                   <MousePointer size={15} />
+                  <span class="tool-tooltip">
+                    Select & Move <span class="tool-tooltip-kbd">V</span>
+                  </span>
                 </button>
 
                 {/* Pan Tool */}
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'pan' ? 'active' : ''}`}
                   onClick={() => setActiveCanvasTool('pan')}
-                  title="Hand / Pan Canvas (H or Hold Space)"
                 >
                   <Hand size={15} />
+                  <span class="tool-tooltip">
+                    Hand / Pan <span class="tool-tooltip-kbd">H</span>
+                  </span>
                 </button>
 
                 <div class="tool-divider"></div>
@@ -1131,36 +1008,44 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'card' ? 'active' : ''}`}
                   onClick={() => setActiveCanvasTool(activeCanvasTool() === 'card' ? 'select' : 'card')}
-                  title="Add Strategy Card (C) - Click tool then click canvas to place"
                 >
                   <LayoutGrid size={15} />
+                  <span class="tool-tooltip">
+                    Card <span class="tool-tooltip-kbd">C</span>
+                  </span>
                 </button>
 
                 {/* Add Sticky Note */}
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'sticky' ? 'active' : ''}`}
                   onClick={() => setActiveCanvasTool(activeCanvasTool() === 'sticky' ? 'select' : 'sticky')}
-                  title="Add Sticky Note (S) - Click tool then click canvas to place"
                 >
                   <StickyNote size={15} />
+                  <span class="tool-tooltip">
+                    Sticky Note <span class="tool-tooltip-kbd">S</span>
+                  </span>
                 </button>
 
                 {/* Add Text Block */}
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'text' ? 'active' : ''}`}
                   onClick={() => setActiveCanvasTool(activeCanvasTool() === 'text' ? 'select' : 'text')}
-                  title="Add Text Block (T) - Click tool then click canvas to place"
                 >
                   <Type size={15} />
+                  <span class="tool-tooltip">
+                    Text Block <span class="tool-tooltip-kbd">T</span>
+                  </span>
                 </button>
 
                 {/* Add Shape Container */}
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'shape' ? 'active' : ''}`}
                   onClick={() => setActiveCanvasTool(activeCanvasTool() === 'shape' ? 'select' : 'shape')}
-                  title="Add Shape Frame (R) - Click tool then click canvas to place"
                 >
                   <Square size={15} />
+                  <span class="tool-tooltip">
+                    Shape Frame <span class="tool-tooltip-kbd">R</span>
+                  </span>
                 </button>
 
                 {/* Connector Tool */}
@@ -1170,9 +1055,11 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                     setActiveCanvasTool(activeCanvasTool() === 'connector' ? 'select' : 'connector');
                     setConnectingSourceId(null);
                   }}
-                  title="Connector Curve (L)"
                 >
                   <Share2 size={15} />
+                  <span class="tool-tooltip">
+                    Connect <span class="tool-tooltip-kbd">L</span>
+                  </span>
                 </button>
 
                 <div class="tool-divider"></div>
@@ -1183,32 +1070,41 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                     onClick={() => setZoom(z => Math.max(50, z - 10))} 
                     class="tool-btn" 
                     style={{ width: '26px', height: '26px' }}
-                    title="Zoom Out"
                   >
                     -
+                    <span class="tool-tooltip">
+                      Zoom Out <span class="tool-tooltip-kbd">-</span>
+                    </span>
                   </button>
                   <span 
+                    class="tool-zoom-badge"
                     onClick={() => { setZoom(100); setPan({ x: 0, y: 0 }); }}
-                    title="Click to reset zoom & pan"
                     style={{ padding: '0 6px', color: 'var(--text-muted)', cursor: 'pointer', "user-select": 'none' }}
                   >
                     {zoom()}%
+                    <span class="tool-tooltip">
+                      Reset View <span class="tool-tooltip-kbd">100%</span>
+                    </span>
                   </span>
                   <button 
                     onClick={() => setZoom(z => Math.min(150, z + 10))} 
                     class="tool-btn" 
                     style={{ width: '26px', height: '26px' }}
-                    title="Zoom In"
                   >
                     +
+                    <span class="tool-tooltip">
+                      Zoom In <span class="tool-tooltip-kbd">+</span>
+                    </span>
                   </button>
                   <button 
                     onClick={() => { setZoom(100); setPan({ x: 0, y: 0 }); }}
                     class="tool-btn" 
                     style={{ width: '26px', height: '26px' }}
-                    title="Reset to 100%"
                   >
                     <Maximize2 size={12} />
+                    <span class="tool-tooltip">
+                      Fit / Center
+                    </span>
                   </button>
                 </div>
               </div>
