@@ -52,6 +52,13 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const [pan, setPan] = createSignal({ x: 0, y: 0 });
   const [activeCanvasTool, setActiveCanvasTool] = createSignal<'select' | 'pan' | 'card' | 'sticky' | 'text' | 'shape' | 'connector'>('select');
   const [selectedBlockId, setSelectedBlockId] = createSignal<string | null>(null);
+  const [selectedBlockIds, setSelectedBlockIds] = createSignal<string[]>([]);
+  const [selectionBox, setSelectionBox] = createSignal<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
   const [connectingSourceId, setConnectingSourceId] = createSignal<string | null>(null);
   const [connections, setConnections] = createSignal<Connection[]>([]);
   const [isSpacePressed, setIsSpacePressed] = createSignal(false);
@@ -67,12 +74,14 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   let panStart = { x: 0, y: 0 };
   let initialPan = { x: 0, y: 0 };
 
+  let isSelectingArea = false;
+  let selectionStartWorld = { x: 0, y: 0 };
+
   let draggingBlockState: {
     blockId: string;
     startX: number;
     startY: number;
-    initialX: number;
-    initialY: number;
+    initialPositions: { id: string; x: number; y: number }[];
   } | null = null;
 
   // Load all projects and spaces
@@ -130,10 +139,18 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       setActiveCanvasTool('select');
       setConnectingSourceId(null);
       setSelectedBlockId(null);
+      setSelectedBlockIds([]);
+      setSelectionBox(null);
+      isSelectingArea = false;
     }
-    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBlockId()) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && (selectedBlockIds().length > 0 || selectedBlockId())) {
       e.preventDefault();
-      handleDeleteBlock(selectedBlockId()!);
+      const idsToDelete = selectedBlockIds().length > 0 ? [...selectedBlockIds()] : [selectedBlockId()!];
+      for (const id of idsToDelete) {
+        handleDeleteBlock(id);
+      }
+      setSelectedBlockIds([]);
+      setSelectedBlockId(null);
     }
   };
 
@@ -253,7 +270,10 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
 
     // Deselect active block if clicking on canvas
-    setSelectedBlockId(null);
+    if (!e.shiftKey) {
+      setSelectedBlockId(null);
+      setSelectedBlockIds([]);
+    }
     setConnectingSourceId(null);
 
     // If a creation tool is active, place a block at clicked position with default size
@@ -268,8 +288,26 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       return;
     }
 
-    // Default left click on canvas background starts pan tool
-    startCanvasPan(e.clientX, e.clientY);
+    // If pan tool is active OR space is pressed: pan canvas
+    if (activeCanvasTool() === 'pan' || isSpacePressed()) {
+      startCanvasPan(e.clientX, e.clientY);
+      return;
+    }
+
+    // Default left click in Select mode: Start Multi-Select Area Marquee!
+    const scale = zoom() / 100;
+    const containerRect = canvasContainerRef ? canvasContainerRef.getBoundingClientRect() : (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const worldX = Math.round((e.clientX - containerRect.left - pan().x) / scale);
+    const worldY = Math.round((e.clientY - containerRect.top - pan().y) / scale);
+
+    isSelectingArea = true;
+    selectionStartWorld = { x: worldX, y: worldY };
+    setSelectionBox({
+      x: worldX,
+      y: worldY,
+      width: 0,
+      height: 0
+    });
   };
 
   // Block mouse down (Start Dragging or Connection)
@@ -306,19 +344,37 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       return;
     }
 
-    setSelectedBlockId(block.id);
+    // Multi-selection handling on block click
+    let currentSelected = selectedBlockIds();
+    if (e.shiftKey) {
+      if (currentSelected.includes(block.id)) {
+        currentSelected = currentSelected.filter(id => id !== block.id);
+      } else {
+        currentSelected = [...currentSelected, block.id];
+      }
+    } else {
+      if (!currentSelected.includes(block.id)) {
+        currentSelected = [block.id];
+      }
+    }
+    setSelectedBlockIds(currentSelected);
+    setSelectedBlockId(currentSelected.length > 0 ? block.id : null);
 
-    // Dragging
+    // Prepare dragging for all currently selected blocks
+    const blocksToDrag = blocks().filter(b => currentSelected.includes(b.id));
     draggingBlockState = {
       blockId: block.id,
       startX: e.clientX,
       startY: e.clientY,
-      initialX: block.pos_x,
-      initialY: block.pos_y
+      initialPositions: blocksToDrag.map(b => ({
+        id: b.id,
+        x: b.pos_x,
+        y: b.pos_y
+      }))
     };
   };
 
-  // Global mouse move for Dragging & Panning
+  // Global mouse move for Dragging & Panning & Marquee
   const handleGlobalMouseMove = (e: MouseEvent) => {
     // 1. Panning canvas (Exact Pan Tool logic)
     if (isPanningCanvas) {
@@ -326,26 +382,68 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       return;
     }
 
-    // 2. Dragging block
+    // 2. Multi-Select Area Marquee
+    if (isSelectingArea && canvasContainerRef) {
+      const scale = zoom() / 100;
+      const rect = canvasContainerRef.getBoundingClientRect();
+      const currentWorldX = Math.round((e.clientX - rect.left - pan().x) / scale);
+      const currentWorldY = Math.round((e.clientY - rect.top - pan().y) / scale);
+
+      const boxX = Math.min(selectionStartWorld.x, currentWorldX);
+      const boxY = Math.min(selectionStartWorld.y, currentWorldY);
+      const boxW = Math.abs(currentWorldX - selectionStartWorld.x);
+      const boxH = Math.abs(currentWorldY - selectionStartWorld.y);
+
+      setSelectionBox({
+        x: boxX,
+        y: boxY,
+        width: boxW,
+        height: boxH
+      });
+
+      // Find all blocks that intersect with the marquee selection box
+      const hitIds = blocks().filter(b => {
+        const bx = b.pos_x;
+        const by = b.pos_y;
+        const bw = b.width || 310;
+        const bh = b.height || (b.type === 'shape' ? 280 : b.type === 'text' ? 65 : 170);
+
+        return (
+          boxX < bx + bw &&
+          boxX + boxW > bx &&
+          boxY < by + bh &&
+          boxY + boxH > by
+        );
+      }).map(b => b.id);
+
+      setSelectedBlockIds(hitIds);
+      setSelectedBlockId(hitIds.length > 0 ? hitIds[0] : null);
+      return;
+    }
+
+    // 3. Dragging selected block(s)
     if (draggingBlockState) {
       const scale = zoom() / 100;
-      const { blockId, startX, startY, initialX, initialY } = draggingBlockState;
-      const dx = (e.clientX - startX) / scale;
-      const dy = (e.clientY - startY) / scale;
+      const dx = (e.clientX - draggingBlockState.startX) / scale;
+      const dy = (e.clientY - draggingBlockState.startY) / scale;
+
+      const posMap = new Map(draggingBlockState.initialPositions.map(p => [p.id, { x: p.x + dx, y: p.y + dy }]));
 
       setBlocks(blocks().map(b => {
-        if (b.id === blockId) {
+        const newPos = posMap.get(b.id);
+        if (newPos) {
           return {
             ...b,
-            pos_x: Math.round(initialX + dx),
-            pos_y: Math.round(initialY + dy)
+            pos_x: Math.round(newPos.x),
+            pos_y: Math.round(newPos.y)
           };
         }
         return b;
       }));
+      return;
     }
 
-    // 3. Track cursor position for placement ghost preview
+    // 4. Track cursor position for placement ghost preview
     if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
       const containerRect = canvasContainerRef?.getBoundingClientRect();
       if (containerRect) {
@@ -363,19 +461,29 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const handleGlobalMouseUp = async () => {
     stopCanvasPan();
 
-    if (!draggingBlockState) return;
-    const blockId = draggingBlockState.blockId;
-    draggingBlockState = null;
+    if (isSelectingArea) {
+      isSelectingArea = false;
+      setSelectionBox(null);
+    }
 
-    const block = blocks().find(b => b.id === blockId);
-    if (block) {
-      try {
-        await api.updateNoteBlock(block.id, {
-          pos_x: block.pos_x,
-          pos_y: block.pos_y
-        });
-      } catch (err) {
-        console.error('Failed to persist block position:', err);
+    if (draggingBlockState) {
+      const movedPositions = draggingBlockState.initialPositions;
+      draggingBlockState = null;
+
+      // Persist updated positions for all moved blocks
+      const currentBlocks = blocks();
+      for (const initial of movedPositions) {
+        const b = currentBlocks.find(item => item.id === initial.id);
+        if (b && (b.pos_x !== initial.x || b.pos_y !== initial.y)) {
+          try {
+            await api.updateNoteBlock(b.id, {
+              pos_x: b.pos_x,
+              pos_y: b.pos_y
+            });
+          } catch (err) {
+            console.error('Failed to persist block position:', err);
+          }
+        }
       }
     }
   };
@@ -491,6 +599,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
       setBlocks([...blocks(), created]);
       setSelectedBlockId(created.id);
+      setSelectedBlockIds([created.id]);
     } catch (err) {
       console.error('Failed to create block:', err);
     }
@@ -517,6 +626,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     setBlocks(blocks().filter(b => b.id !== blockId));
     setConnections(connections().filter(c => c.fromId !== blockId && c.toId !== blockId));
     if (selectedBlockId() === blockId) setSelectedBlockId(null);
+    setSelectedBlockIds(selectedBlockIds().filter(id => id !== blockId));
 
     try {
       await api.deleteNoteBlock(blockId);
@@ -834,6 +944,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 "touch-action": 'none',
                 cursor: isActivelyPanning() 
                   ? 'grabbing' 
+                  : isSelectingArea
+                  ? 'crosshair'
                   : ['card', 'sticky', 'text', 'shape', 'connector'].includes(activeCanvasTool())
                   ? 'crosshair'
                   : (activeCanvasTool() === 'pan' || isSpacePressed() ? 'grab' : 'default')
@@ -872,6 +984,19 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 <svg style={{ position: 'absolute', inset: 0, width: '4000px', height: '4000px', "pointer-events": 'none', "z-index": 10 }}>
                   {renderConnectorCurves()}
                 </svg>
+
+                {/* Multi-Select Area Marquee Box */}
+                <Show when={selectionBox()}>
+                  <div
+                    class="canvas-selection-marquee"
+                    style={{
+                      left: `${selectionBox()!.x}px`,
+                      top: `${selectionBox()!.y}px`,
+                      width: `${selectionBox()!.width}px`,
+                      height: `${selectionBox()!.height}px`
+                    }}
+                  />
+                </Show>
 
                 {/* Ghost Preview Silhouette for active placement tool */}
                 <Show when={cursorCanvasPos() && ['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())}>
@@ -927,7 +1052,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                       ? block.content 
                       : { title: '', body: String(block.content || '') };
                     
-                    const isSelected = () => selectedBlockId() === block.id;
+                    const isSelected = () => selectedBlockIds().includes(block.id) || selectedBlockId() === block.id;
                     const isConnectingSource = () => connectingSourceId() === block.id;
 
                     const blockTypeClass = () => {

@@ -1079,3 +1079,17 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   }
 }
 
+/* Canvas Multi-Select Area Marquee */
+.canvas-selection-marquee {
+  position: absolute;
+  border: 1.5px solid var(--secondary);
+  background: rgba(68, 225, 222, 0.08);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 55;
+  box-shadow: 0 0 20px rgba(68, 225, 222, 0.18), inset 0 0 10px rgba(68, 225, 222, 0.05);
+}
+
+
