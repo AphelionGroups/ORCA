@@ -122,9 +122,15 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
     if (e.key.toLowerCase() === 'v') setActiveCanvasTool('select');
     if (e.key.toLowerCase() === 'h') setActiveCanvasTool('pan');
-    if (e.key.toLowerCase() === 'c') setActiveCanvasTool('card');
-    if (e.key.toLowerCase() === 's') setActiveCanvasTool('sticky');
-    if (e.key.toLowerCase() === 't') setActiveCanvasTool('text');
+    if (e.key.toLowerCase() === 'c') setActiveCanvasTool(activeCanvasTool() === 'card' ? 'select' : 'card');
+    if (e.key.toLowerCase() === 's') setActiveCanvasTool(activeCanvasTool() === 'sticky' ? 'select' : 'sticky');
+    if (e.key.toLowerCase() === 't') setActiveCanvasTool(activeCanvasTool() === 'text' ? 'select' : 'text');
+    if (e.key.toLowerCase() === 'r') setActiveCanvasTool(activeCanvasTool() === 'shape' ? 'select' : 'shape');
+    if (e.key.toLowerCase() === 'l') setActiveCanvasTool(activeCanvasTool() === 'connector' ? 'select' : 'connector');
+    if (e.key === 'Escape') {
+      setActiveCanvasTool('select');
+      setConnectingSourceId(null);
+    }
   };
 
   const handleGlobalKeyUp = (e: KeyboardEvent) => {
@@ -219,6 +225,12 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
   // Canvas background mouse down (Panning or Drop Block)
   const handleCanvasMouseDown = (e: MouseEvent) => {
+    // If clicking on toolbar or buttons or inputs, ignore
+    const target = e.target as HTMLElement;
+    if (target.closest('.canvas-toolbar') || target.closest('button') || target.closest('input') || target.closest('textarea')) {
+      return;
+    }
+
     // Right-click (2) or Middle-click (1) anywhere on canvas starts pan tool
     if (e.button === 1 || e.button === 2) {
       e.preventDefault();
@@ -226,22 +238,16 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       return;
     }
 
-    // If clicking on a block or button, ignore background handler
-    const target = e.target as HTMLElement;
-    if (target.closest('.canvas-block') || target.closest('.canvas-toolbar') || target.closest('button')) {
-      return;
-    }
-
     // Deselect active block if clicking on canvas
     setSelectedBlockId(null);
     setConnectingSourceId(null);
 
-    // If a creation tool is active, place a block at clicked position
+    // If a creation tool is active, place a block at clicked position with default size
     if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
       const scale = zoom() / 100;
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const clickX = Math.round((e.clientX - rect.left - pan().x) / scale);
-      const clickY = Math.round((e.clientY - rect.top - pan().y) / scale);
+      const containerRect = canvasContainerRef ? canvasContainerRef.getBoundingClientRect() : (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const clickX = Math.round((e.clientX - containerRect.left - pan().x) / scale);
+      const clickY = Math.round((e.clientY - containerRect.top - pan().y) / scale);
       handleCreateBlock(activeCanvasTool() as any, clickX, clickY);
       setActiveCanvasTool('select');
       return;
@@ -256,6 +262,19 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     e.stopPropagation();
     const target = e.target as HTMLElement;
     if (['button', 'input', 'textarea', 'select'].includes(target.tagName.toLowerCase())) {
+      return;
+    }
+
+    // If a creation tool is active, place the new object right where clicked
+    if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
+      const scale = zoom() / 100;
+      const containerRect = canvasContainerRef?.getBoundingClientRect();
+      if (containerRect) {
+        const clickX = Math.round((e.clientX - containerRect.left - pan().x) / scale);
+        const clickY = Math.round((e.clientY - containerRect.top - pan().y) / scale);
+        handleCreateBlock(activeCanvasTool() as any, clickX, clickY);
+        setActiveCanvasTool('select');
+      }
       return;
     }
 
@@ -793,7 +812,11 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 "background-color": '#111317',
                 overflow: 'hidden',
                 "touch-action": 'none',
-                cursor: isActivelyPanning() ? 'grabbing' : (activeCanvasTool() === 'pan' || isSpacePressed() ? 'grab' : 'default')
+                cursor: isActivelyPanning() 
+                  ? 'grabbing' 
+                  : ['card', 'sticky', 'text', 'shape', 'connector'].includes(activeCanvasTool())
+                  ? 'crosshair'
+                  : (activeCanvasTool() === 'pan' || isSpacePressed() ? 'grab' : 'default')
               }}
             >
               {/* Board Header Info */}
@@ -989,8 +1012,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 {/* Add Card */}
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'card' ? 'active' : ''}`}
-                  onClick={() => handleCreateBlock('card')}
-                  title="Add Strategy Card (C)"
+                  onClick={() => setActiveCanvasTool(activeCanvasTool() === 'card' ? 'select' : 'card')}
+                  title="Add Strategy Card (C) - Click tool then click canvas to place"
                 >
                   <LayoutGrid size={15} />
                 </button>
@@ -998,8 +1021,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 {/* Add Sticky Note */}
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'sticky' ? 'active' : ''}`}
-                  onClick={() => handleCreateBlock('sticky')}
-                  title="Add Sticky Note (S)"
+                  onClick={() => setActiveCanvasTool(activeCanvasTool() === 'sticky' ? 'select' : 'sticky')}
+                  title="Add Sticky Note (S) - Click tool then click canvas to place"
                 >
                   <StickyNote size={15} />
                 </button>
@@ -1007,8 +1030,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 {/* Add Text Block */}
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'text' ? 'active' : ''}`}
-                  onClick={() => handleCreateBlock('text')}
-                  title="Add Text Block (T)"
+                  onClick={() => setActiveCanvasTool(activeCanvasTool() === 'text' ? 'select' : 'text')}
+                  title="Add Text Block (T) - Click tool then click canvas to place"
                 >
                   <Type size={15} />
                 </button>
@@ -1016,8 +1039,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 {/* Add Shape Container */}
                 <button 
                   class={`tool-btn ${activeCanvasTool() === 'shape' ? 'active' : ''}`}
-                  onClick={() => handleCreateBlock('shape')}
-                  title="Add Shape / Group Frame (R)"
+                  onClick={() => setActiveCanvasTool(activeCanvasTool() === 'shape' ? 'select' : 'shape')}
+                  title="Add Shape Frame (R) - Click tool then click canvas to place"
                 >
                   <Square size={15} />
                 </button>
