@@ -290,10 +290,18 @@ func (h *Handler) UpdateBlock(w http.ResponseWriter, r *http.Request) {
 		existing.PosY = *req.PosY
 	}
 	if req.Width != nil {
-		existing.Width = req.Width
+		if *req.Width <= 0 {
+			existing.Width = nil
+		} else {
+			existing.Width = req.Width
+		}
 	}
 	if req.Height != nil {
-		existing.Height = req.Height
+		if *req.Height <= 0 {
+			existing.Height = nil
+		} else {
+			existing.Height = req.Height
+		}
 	}
 	if len(req.Content) > 0 {
 		existing.Content = req.Content
