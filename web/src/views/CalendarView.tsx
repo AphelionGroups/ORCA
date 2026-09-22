@@ -462,15 +462,16 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
             position: 'relative',
             width: '100%',
             "max-width": '420px',
-            "background-color": '#181a20',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
+            "background-color": 'var(--surface-card)',
+            border: '1px solid var(--border-default)',
+            "box-shadow": 'var(--shadow-elevation)',
             "border-radius": '8px',
             padding: '20px'
           }}>
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '16px' }}>
               <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
                 <Calendar size={16} color="var(--primary)" />
-                <h3 style={{ "font-size": '13px', "font-weight": 600, color: '#fff', margin: 0 }}>Schedule Event</h3>
+                <h3 style={{ "font-size": '13px', "font-weight": 600, color: 'var(--text-main)', margin: 0 }}>Schedule Event</h3>
               </div>
               <button 
                 onClick={() => setIsEventModalOpen(false)}
@@ -489,7 +490,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                   value={eventTitle()}
                   onInput={e => setEventTitle(e.currentTarget.value)}
                   placeholder="e.g. Design Strategy Sync..."
-                  style={{ width: '100%', padding: '6px 10px', "font-size": '12px', "background-color": '#111317', border: '1px solid var(--border-default)', "border-radius": '4px', color: '#fff', outline: 'none', "box-sizing": 'border-box' }}
+                  style={{ width: '100%', padding: '6px 10px', "font-size": '12px', "background-color": 'var(--surface-container)', border: '1px solid var(--border-default)', "border-radius": '4px', color: 'var(--text-main)', outline: 'none', "box-sizing": 'border-box' }}
                 />
               </div>
 
@@ -499,7 +500,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                   <select
                     value={eventSpaceId()}
                     onChange={e => setEventSpaceId(e.currentTarget.value)}
-                    style={{ width: '100%', padding: '6px 8px', "font-size": '12px', "background-color": '#111317', border: '1px solid var(--border-default)', "border-radius": '4px', color: '#fff', outline: 'none' }}
+                    style={{ width: '100%', padding: '6px 8px', "font-size": '12px', "background-color": 'var(--surface-container)', border: '1px solid var(--border-default)', "border-radius": '4px', color: 'var(--text-main)', outline: 'none' }}
                   >
                     <For each={spaces()}>
                       {(sp) => <option value={sp.id}>{sp.name}</option>}
@@ -512,7 +513,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                   <select
                     value={eventDayOffset()}
                     onChange={e => setEventDayOffset(Number(e.currentTarget.value))}
-                    style={{ width: '100%', padding: '6px 8px', "font-size": '12px', "background-color": '#111317', border: '1px solid var(--border-default)', "border-radius": '4px', color: '#fff', outline: 'none' }}
+                    style={{ width: '100%', padding: '6px 8px', "font-size": '12px', "background-color": 'var(--surface-container)', border: '1px solid var(--border-default)', "border-radius": '4px', color: 'var(--text-main)', outline: 'none' }}
                   >
                     <option value={-2}>Monday</option>
                     <option value={-1}>Tuesday</option>
@@ -530,7 +531,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                     type="time" 
                     value={eventStartHour()}
                     onInput={e => setEventStartHour(e.currentTarget.value)}
-                    style={{ width: '100%', padding: '6px 8px', "font-size": '12px', "background-color": '#111317', border: '1px solid var(--border-default)', "border-radius": '4px', color: '#fff', outline: 'none', "box-sizing": 'border-box' }}
+                    style={{ width: '100%', padding: '6px 8px', "font-size": '12px', "background-color": 'var(--surface-container)', border: '1px solid var(--border-default)', "border-radius": '4px', color: 'var(--text-main)', outline: 'none', "box-sizing": 'border-box' }}
                   />
                 </div>
                 <div>
@@ -539,7 +540,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                     type="time" 
                     value={eventEndHour()}
                     onInput={e => setEventEndHour(e.currentTarget.value)}
-                    style={{ width: '100%', padding: '6px 8px', "font-size": '12px', "background-color": '#111317', border: '1px solid var(--border-default)', "border-radius": '4px', color: '#fff', outline: 'none', "box-sizing": 'border-box' }}
+                    style={{ width: '100%', padding: '6px 8px', "font-size": '12px', "background-color": 'var(--surface-container)', border: '1px solid var(--border-default)', "border-radius": '4px', color: 'var(--text-main)', outline: 'none', "box-sizing": 'border-box' }}
                   />
                 </div>
               </div>

@@ -7,9 +7,13 @@ import {
   Calendar, 
   SlidersHorizontal, 
   Bolt,
-  PanelLeftClose
+  PanelLeftClose,
+  Sun,
+  Moon,
+  Monitor
 } from 'lucide-solid';
 import { api, type Space } from '../services/api';
+import { themeMode, setThemeMode } from '../services/theme';
 
 interface SidebarProps {
   currentRoute: string;
@@ -131,8 +135,40 @@ export const Sidebar: Component<SidebarProps> = (props) => {
         </div>
       </div>
 
-      {/* Quick Capture Bottom Button */}
-      <div style={{ "padding-top": '16px', "border-top": '1px solid var(--border-subtle)' }}>
+      {/* Footer Area: Theme Switcher & Quick Capture */}
+      <div style={{ "padding-top": '16px', "border-top": '1px solid var(--border-subtle)', display: 'flex', "flex-direction": 'column', gap: '10px' }}>
+        {/* Theme Switcher Widget */}
+        <div class="sidebar-theme-widget">
+          <button 
+            type="button"
+            class={`theme-toggle-btn ${themeMode() === 'light' ? 'active' : ''}`}
+            onClick={() => setThemeMode('light')}
+            title="Light Theme"
+          >
+            <Sun size={13} />
+            <span>Light</span>
+          </button>
+          <button 
+            type="button"
+            class={`theme-toggle-btn ${themeMode() === 'system' ? 'active' : ''}`}
+            onClick={() => setThemeMode('system')}
+            title="System Theme"
+          >
+            <Monitor size={13} />
+            <span>Auto</span>
+          </button>
+          <button 
+            type="button"
+            class={`theme-toggle-btn ${themeMode() === 'dark' ? 'active' : ''}`}
+            onClick={() => setThemeMode('dark')}
+            title="Dark Theme"
+          >
+            <Moon size={13} />
+            <span>Dark</span>
+          </button>
+        </div>
+
+        {/* Quick Capture Bottom Button */}
         <button 
           class="sidebar-quick-capture"
           onClick={() => props.onOpenQuickCapture()}

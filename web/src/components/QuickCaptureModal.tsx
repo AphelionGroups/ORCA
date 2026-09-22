@@ -95,18 +95,18 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
           position: 'relative',
           width: '100%',
           "max-width": '448px',
-          "background-color": '#181a20',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          "box-shadow": '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          "background-color": 'var(--surface-card)',
+          border: '1px solid var(--border-default)',
+          "box-shadow": 'var(--shadow-elevation)',
           "border-radius": '8px',
           padding: '20px'
         }}
       >
         {/* Modal Header */}
-        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "padding-bottom": '12px', "margin-bottom": '12px', "border-bottom": '1px solid rgba(255, 255, 255, 0.1)' }}>
+        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "padding-bottom": '12px', "margin-bottom": '12px', "border-bottom": '1px solid var(--border-default)' }}>
           <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
             <Bolt size={16} color="var(--secondary)" />
-            <h3 style={{ "font-size": '12px', "font-weight": 600, color: '#fff', "letter-spacing": '0.05em', "text-transform": 'uppercase', "font-family": 'var(--font-mono)', margin: 0 }}>
+            <h3 style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)', "letter-spacing": '0.05em', "text-transform": 'uppercase', "font-family": 'var(--font-mono)', margin: 0 }}>
               Quick Capture & Ingestion
             </h3>
           </div>
@@ -128,7 +128,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
           {/* Target Type switcher */}
           <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
             <span style={{ "font-size": '11px', color: 'var(--text-dim)', "text-transform": 'uppercase', "font-family": 'var(--font-mono)', "letter-spacing": '0.05em' }}>Target Type</span>
-            <div style={{ display: 'flex', gap: '4px', padding: '2px', "border-radius": '4px', "background-color": '#111317', border: '1px solid var(--border-default)', "font-size": '11px' }}>
+            <div style={{ display: 'flex', gap: '4px', padding: '2px', "border-radius": '4px', "background-color": 'var(--surface-container)', border: '1px solid var(--border-default)', "font-size": '11px' }}>
               <button 
                 type="button"
                 onClick={() => setType('Task')}
@@ -169,8 +169,8 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
               value={selectedSpaceId()}
               onChange={e => setSelectedSpaceId(e.currentTarget.value)}
               style={{
-                "background-color": '#111317',
-                color: '#fff',
+                "background-color": 'var(--surface-container)',
+                color: 'var(--text-main)',
                 border: '1px solid var(--border-default)',
                 "border-radius": '4px',
                 padding: '4px 8px',
@@ -196,12 +196,12 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
               placeholder={type() === 'Task' ? "e.g., Finalize CAD Export..." : "e.g., Packaging Visual Specs..."}
               style={{
                 width: '100%',
-                "background-color": '#111317',
+                "background-color": 'var(--surface-container)',
                 border: '1px solid var(--border-default)',
                 "border-radius": '4px',
                 padding: '6px 12px',
                 "font-size": '12px',
-                color: '#fff',
+                color: 'var(--text-main)',
                 outline: 'none',
                 "box-sizing": 'border-box'
               }}
@@ -219,12 +219,12 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
               placeholder="Key thoughts, architectural reference, or markdown bullet points..."
               style={{
                 width: '100%',
-                "background-color": '#111317',
+                "background-color": 'var(--surface-container)',
                 border: '1px solid var(--border-default)',
                 "border-radius": '4px',
                 padding: '6px 12px',
                 "font-size": '12px',
-                color: 'var(--text-muted)',
+                color: 'var(--text-main)',
                 outline: 'none',
                 resize: 'none',
                 "box-sizing": 'border-box'
@@ -232,7 +232,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
             />
           </div>
 
-          <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "padding-top": '8px', "border-top": '1px solid rgba(255,255,255,0.1)', "font-size": '12px' }}>
+          <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "padding-top": '8px', "border-top": '1px solid var(--border-default)', "font-size": '12px' }}>
             <div style={{ display: 'flex', "align-items": 'center', gap: '6px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)', "font-size": '11px' }}>
               <Folder size={13} />
               <span>{type() === 'Task' ? 'Inbox Triage' : 'Document Store'}</span>

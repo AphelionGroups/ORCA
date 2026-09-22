@@ -24,6 +24,8 @@ import {
 } from 'lucide-solid';
 import { api } from '../services/api';
 import type { Project, Space, Document as OrcaDoc, NoteBoard, NoteBlock, Task } from '../services/api';
+import { getTextColorForBackground } from '../services/theme';
+import { getCurrentUser } from '../services/user';
 
 interface ProjectsViewProps {
   onOpenQuickCapture: () => void;
@@ -84,6 +86,11 @@ type CanvasAction =
   | {
       type: 'delete_connection';
       connection: Connection;
+    }
+  | {
+      type: 'update_connection';
+      prevConnection: Connection;
+      newConnection: Connection;
     }
   | {
       type: 'resize_block';
@@ -191,6 +198,7 @@ function renderFullMarkdown(raw: string): string {
 interface UnifiedMarkdownBlockProps {
   block: NoteBlock;
   isEditing: boolean;
+  textColor?: string;
   onStartEdit: () => void;
   onFinishEdit: (finalText?: string) => void;
 }
@@ -226,7 +234,7 @@ const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props) => {
 
   const placeholderText = () => {
     switch (props.block.type) {
-      case 'shape': return 'Double-click to type...';
+      case 'shape': return '';
       case 'text': return 'Double-click to type text...';
       case 'sticky': return 'Double-click to write note...';
       default: return 'Double-click to write (# heading, - list)...';
@@ -236,6 +244,7 @@ const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props) => {
   return (
     <div 
       class="canvas-block-content"
+      style={{ color: props.textColor || 'inherit' }}
       onDblClick={(e) => {
         e.stopPropagation();
         if (!props.isEditing) {
@@ -249,13 +258,16 @@ const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props) => {
           <Show
             when={text().trim().length > 0}
             fallback={
-              <div class="canvas-block-placeholder">
-                {placeholderText()}
-              </div>
+              <Show when={placeholderText().length > 0}>
+                <div class="canvas-block-placeholder" style={{ color: props.textColor || 'inherit' }}>
+                  {placeholderText()}
+                </div>
+              </Show>
             }
           >
             <div 
               class="canvas-block-formatted"
+              style={{ color: props.textColor || 'inherit' }}
               innerHTML={renderFullMarkdown(text())}
             />
           </Show>
@@ -272,6 +284,7 @@ const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props) => {
             }
           }}
           class="canvas-block-unified-editor"
+          style={{ color: props.textColor || 'inherit', "caret-color": props.textColor || 'currentColor' }}
           value={text()}
           onMouseDown={(e) => e.stopPropagation()}
           onInput={(e) => {
@@ -286,7 +299,7 @@ const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props) => {
             }
           }}
           onBlur={(e) => props.onFinishEdit(e.currentTarget.value)}
-          placeholder={placeholderText()}
+          placeholder={props.block.type === 'shape' ? 'Type text...' : placeholderText()}
         />
       </Show>
     </div>
@@ -397,11 +410,31 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const [hoveredTargetBlockId, setHoveredTargetBlockId] = createSignal<string | null>(null);
   const [hoveredTargetSide, setHoveredTargetSide] = createSignal<'top' | 'right' | 'bottom' | 'left' | null>(null);
   const [selectedConnection, setSelectedConnection] = createSignal<Connection | null>(null);
+  const [hoveredConnection, setHoveredConnection] = createSignal<Connection | null>(null);
+
+  // Dragging connection endpoints (reconnecting arrows)
+  let draggingEndpointState: {
+    conn: Connection;
+    which: 'start' | 'end';
+    startClientX: number;
+    startClientY: number;
+    didDrag: boolean;
+  } | null = null;
+
+  const [activeEndpointDrag, setActiveEndpointDrag] = createSignal<{
+    conn: Connection;
+    which: 'start' | 'end';
+    worldPos: { x: number; y: number };
+    targetBlockId: string | null;
+    targetSide: 'top' | 'right' | 'bottom' | 'left' | null;
+  } | null>(null);
+
   const [blockDomHeights, setBlockDomHeights] = createSignal<Record<string, number>>({});
 
   const getBlockWidth = (b: NoteBlock): number => {
     if (b.width && b.width > 0) return b.width;
     if (b.type === 'text') return 240;
+    if (b.type === 'sticky') return 240;
     if (b.type === 'shape') {
       const kind = (b.content?.shape_kind as ShapeKind) || 'rectangle';
       switch (kind) {
@@ -429,7 +462,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         default: return 70;
       }
     }
-    return b.type === 'text' ? 36 : 70;
+    if (b.type === 'sticky') return 130;
+    return b.type === 'text' ? 36 : 74;
   };
 
   // Load all projects and spaces
@@ -859,6 +893,22 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     setDragArrowEnd(startCanvas);
   };
 
+  // Mouse down on a connection endpoint handle (to drag & reconnect arrow)
+  const handleEndpointMouseDown = (e: MouseEvent, conn: Connection, which: 'start' | 'end') => {
+    e.stopPropagation();
+    e.preventDefault();
+    draggingEndpointState = {
+      conn,
+      which,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      didDrag: false,
+    };
+    setSelectedConnection(conn);
+    setSelectedBlockId(null);
+    setSelectedBlockIds([]);
+  };
+
   // Mouse down on a block corner resize handle
   const handleResizeMouseDown = (e: MouseEvent, block: NoteBlock, corner: 'nw' | 'ne' | 'se' | 'sw') => {
     e.stopPropagation();
@@ -913,8 +963,25 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       const dy = (e.clientY - resizingBlockState.startClientY) / scale;
       const { initialX, initialY, initialWidth, initialHeight, corner, blockId } = resizingBlockState;
 
-      const minW = 60;
-      const minH = 36;
+      const targetBlock = blocks().find(b => b.id === blockId);
+      const bType = targetBlock?.type;
+
+      let minW = 60;
+      let minH = 36;
+      if (bType === 'card') {
+        minW = 180;
+        minH = 74;
+      } else if (bType === 'sticky') {
+        minW = 180;
+        minH = 120;
+      } else if (bType === 'text') {
+        minW = 60;
+        minH = 32;
+      } else if (bType === 'shape') {
+        minW = 60;
+        minH = 36;
+      }
+
       let newW = initialWidth;
       let newH = initialHeight;
       let newX = initialX;
@@ -950,6 +1017,60 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         width: Math.round(newW),
         height: Math.round(newH),
       } : b));
+      return;
+    }
+
+    // 0a. Reconnecting arrow endpoint drag
+    if (draggingEndpointState) {
+      const dx = e.clientX - draggingEndpointState.startClientX;
+      const dy = e.clientY - draggingEndpointState.startClientY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) draggingEndpointState.didDrag = true;
+
+      if (canvasContainerRef) {
+        const rect = canvasContainerRef.getBoundingClientRect();
+        const scale = zoom() / 100;
+        const worldX = (e.clientX - rect.left - pan().x) / scale;
+        const worldY = (e.clientY - rect.top - pan().y) / scale;
+
+        const draggingWhich = draggingEndpointState.which;
+        const currentConn = draggingEndpointState.conn;
+        const forbiddenBlockId = draggingWhich === 'start' ? currentConn.toId : currentConn.fromId;
+
+        // Detect hovered target block (with 15px padding for easy snapping)
+        const target = blocks().find(b => {
+          if (b.id === forbiddenBlockId) return false;
+          if (b.type === 'sticky') return false;
+          const w = getBlockWidth(b);
+          const h = getBlockHeight(b);
+          const pad = 15;
+          return worldX >= b.pos_x - pad && worldX <= b.pos_x + w + pad &&
+                 worldY >= b.pos_y - pad && worldY <= b.pos_y + h + pad;
+        });
+
+        if (target) {
+          setHoveredTargetBlockId(target.id);
+          const closestSide = getClosestSide(target, worldX, worldY);
+          setHoveredTargetSide(closestSide);
+          const snapPt = getSidePoint(target, closestSide);
+          setActiveEndpointDrag({
+            conn: currentConn,
+            which: draggingWhich,
+            worldPos: { x: snapPt.x, y: snapPt.y },
+            targetBlockId: target.id,
+            targetSide: closestSide,
+          });
+        } else {
+          setHoveredTargetBlockId(null);
+          setHoveredTargetSide(null);
+          setActiveEndpointDrag({
+            conn: currentConn,
+            which: draggingWhich,
+            worldPos: { x: worldX, y: worldY },
+            targetBlockId: null,
+            targetSide: null,
+          });
+        }
+      }
       return;
     }
 
@@ -1107,6 +1228,58 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           } catch (err) {
             console.error('Failed to persist resized block:', err);
           }
+        }
+      }
+      return;
+    }
+
+    // Finalize reconnecting arrow endpoint drag
+    if (draggingEndpointState) {
+      const epState = draggingEndpointState;
+      draggingEndpointState = null;
+      const activeDrag = activeEndpointDrag();
+      setActiveEndpointDrag(null);
+      setHoveredTargetBlockId(null);
+      setHoveredTargetSide(null);
+
+      if (epState.didDrag && activeDrag && activeDrag.targetBlockId && activeDrag.targetSide) {
+        const oldConn = epState.conn;
+        const targetId = activeDrag.targetBlockId;
+        const targetSide = activeDrag.targetSide;
+
+        let newConn: Connection;
+        if (epState.which === 'start') {
+          newConn = {
+            ...oldConn,
+            fromId: targetId,
+            fromSide: targetSide,
+          };
+        } else {
+          newConn = {
+            ...oldConn,
+            toId: targetId,
+            toSide: targetSide,
+          };
+        }
+
+        // Check if identical or reverse already exists (except oldConn itself)
+        const duplicate = connections().some(c => {
+          if (c.fromId === oldConn.fromId && c.toId === oldConn.toId) return false;
+          return (c.fromId === newConn.fromId && c.toId === newConn.toId) ||
+                 (c.fromId === newConn.toId && c.toId === newConn.fromId);
+        });
+
+        // Don't connect block to itself
+        if (newConn.fromId !== newConn.toId && !duplicate) {
+          setConnections(prev => prev.map(c => 
+            (c.fromId === oldConn.fromId && c.toId === oldConn.toId) ? newConn : c
+          ));
+          pushUndoAction({
+            type: 'update_connection',
+            prevConnection: oldConn,
+            newConnection: newConn,
+          });
+          setSelectedConnection(newConn);
         }
       }
       return;
@@ -1287,8 +1460,16 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     if (!board) return;
     const type = srcBlock.type;
     const width = srcBlock.width || getBlockWidth(srcBlock);
+    const user = getCurrentUser();
+    const authorData = {
+      id: user.id,
+      name: user.name,
+      avatar_url: user.avatar_url,
+    };
     const defaultContent = type === 'shape'
       ? { text: '', shape_kind: srcBlock.content?.shape_kind || 'rectangle' }
+      : type === 'sticky'
+      ? { text: '', color: '#44e1de', author: authorData }
       : { text: '' };
     try {
       const created = await api.createNoteBlock(board.id, {
@@ -1329,10 +1510,17 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     const x = posX !== undefined ? posX : Math.round((-pan().x + 360) / scale + (blocks().length * 20) % 100);
     const y = posY !== undefined ? posY : Math.round((-pan().y + 180) / scale + (blocks().length * 20) % 100);
 
+    const user = getCurrentUser();
+    const authorData = {
+      id: user.id,
+      name: user.name,
+      avatar_url: user.avatar_url,
+    };
+
     const defaultShapeKind = selectedShapeKind();
     const defaultContent = {
       card: { text: '' },
-      sticky: { text: '', color: '#44e1de' },
+      sticky: { text: '', color: '#44e1de', author: authorData },
       text: { text: '' },
       shape: { text: '', shape_kind: defaultShapeKind },
       image: { text: '' },
@@ -1341,6 +1529,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
     let width = 310;
     if (type === 'text') {
+      width = 240;
+    } else if (type === 'sticky') {
       width = 240;
     } else if (type === 'shape') {
       switch (defaultShapeKind) {
@@ -1612,6 +1802,15 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         setConnections(prev => [...prev, action.connection]);
         break;
       }
+      case 'update_connection': {
+        setConnections(prev => prev.map(c => 
+          (c.fromId === action.newConnection.fromId && c.toId === action.newConnection.toId)
+            ? action.prevConnection
+            : c
+        ));
+        setSelectedConnection(action.prevConnection);
+        break;
+      }
       case 'resize_block': {
         setBlocks(prev => prev.map(b => b.id === action.blockId ? {
           ...b,
@@ -1712,6 +1911,15 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         setConnections(prev => prev.filter(c => !(c.fromId === action.connection.fromId && c.toId === action.connection.toId)));
         break;
       }
+      case 'update_connection': {
+        setConnections(prev => prev.map(c => 
+          (c.fromId === action.prevConnection.fromId && c.toId === action.prevConnection.toId)
+            ? action.newConnection
+            : c
+        ));
+        setSelectedConnection(action.newConnection);
+        break;
+      }
       case 'resize_block': {
         setBlocks(prev => prev.map(b => b.id === action.blockId ? {
           ...b,
@@ -1773,22 +1981,33 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       if (!b1 || !b2) return null;
       if (b1.type === 'sticky' || b2.type === 'sticky') return null;
 
+      const activeDrag = activeEndpointDrag();
+      const isDraggingThisStart = activeDrag && activeDrag.conn.fromId === conn.fromId && activeDrag.conn.toId === conn.toId && activeDrag.which === 'start';
+      const isDraggingThisEnd = activeDrag && activeDrag.conn.fromId === conn.fromId && activeDrag.conn.toId === conn.toId && activeDrag.which === 'end';
+
       const cx2 = b2.pos_x + getBlockWidth(b2) / 2;
       const cy2 = b2.pos_y + getBlockHeight(b2) / 2;
 
       // Exit point on b1
-      const p1 = conn.fromSide
+      let p1 = conn.fromSide
         ? getSidePoint(b1, conn.fromSide)
         : getBestAttachPoint(b1, cx2, cy2);
 
       // Entry point on b2
-      const p2 = conn.toSide
+      let p2 = conn.toSide
         ? getSidePoint(b2, conn.toSide)
         : getBestAttachPoint(b2, p1.x, p1.y);
 
+      if (isDraggingThisStart && activeDrag) {
+        p1 = { x: activeDrag.worldPos.x, y: activeDrag.worldPos.y, side: (activeDrag.targetSide || p1.side) as any };
+      }
+      if (isDraggingThisEnd && activeDrag) {
+        p2 = { x: activeDrag.worldPos.x, y: activeDrag.worldPos.y, side: (activeDrag.targetSide || p2.side) as any };
+      }
+
       // Build bezier control points perpendicular to each side
       const ctrlDist = Math.max(50, Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2) * 0.35);
-      const sideOffset = (side: string): [number, number] => {
+      const sideOffset = (side: string | undefined): [number, number] => {
         switch (side) {
           case 'right':  return [ctrlDist, 0];
           case 'left':   return [-ctrlDist, 0];
@@ -1797,14 +2016,24 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           default: return [0, 0];
         }
       };
-      const [c1dx, c1dy] = sideOffset(p1.side);
-      const [c2dx, c2dy] = sideOffset(p2.side);
+      const [c1dx, c1dy] = (isDraggingThisStart && !activeDrag?.targetSide) ? [0, 0] : sideOffset(p1.side);
+      const [c2dx, c2dy] = (isDraggingThisEnd && !activeDrag?.targetSide) ? [0, 0] : sideOffset(p2.side);
       const pathData = `M ${p1.x} ${p1.y} C ${p1.x + c1dx} ${p1.y + c1dy}, ${p2.x + c2dx} ${p2.y + c2dy}, ${p2.x} ${p2.y}`;
 
       const isSelected = selectedConnection() && selectedConnection()?.fromId === conn.fromId && selectedConnection()?.toId === conn.toId;
+      const isHovered = () => hoveredConnection() && hoveredConnection()?.fromId === conn.fromId && hoveredConnection()?.toId === conn.toId;
+      const showHandles = () => isSelected || isHovered() || isDraggingThisStart || isDraggingThisEnd;
 
       return (
-        <g class="connector-curve-group">
+        <g 
+          class="connector-curve-group"
+          onMouseEnter={() => setHoveredConnection(conn)}
+          onMouseLeave={() => {
+            if (hoveredConnection()?.fromId === conn.fromId && hoveredConnection()?.toId === conn.toId) {
+              setHoveredConnection(null);
+            }
+          }}
+        >
           {/* Transparent hit path for easy clicking & selecting */}
           <path
             d={pathData}
@@ -1819,27 +2048,89 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
               setSelectedBlockIds([]);
             }}
           />
-          {/* Visible connector line */}
+          {/* Highlight halo when selected — illuminates without changing arrow color */}
+          <Show when={isSelected}>
+            <path
+              d={pathData}
+              fill="none"
+              stroke="#3b82f6"
+              stroke-width="10"
+              stroke-linecap="round"
+              opacity="0.25"
+              style={{ "pointer-events": 'none' }}
+            />
+            <path
+              d={pathData}
+              fill="none"
+              stroke="#60a5fa"
+              stroke-width="5"
+              stroke-linecap="round"
+              opacity="0.4"
+              style={{ "pointer-events": 'none' }}
+            />
+          </Show>
+          {/* Visible connector line: maintains base #3b82f6 color consistently */}
           <path
             d={pathData}
             fill="none"
-            stroke={isSelected ? '#ffffff' : '#3b82f6'}
+            stroke="#3b82f6"
             stroke-width={isSelected ? '2.4' : '1.8'}
-            opacity={isSelected ? '1' : '0.8'}
-            marker-end={isSelected ? 'url(#orca-arrowhead-selected)' : 'url(#orca-arrowhead)'}
+            opacity="1"
+            marker-end="url(#orca-arrowhead)"
             style={{ "pointer-events": 'none' }}
           />
+          {/* Endpoint Handles: draggable circles at start (p1) and end (p2) */}
+          <Show when={showHandles()}>
+            {/* Start handle (p1) */}
+            <g
+              style={{
+                cursor: isDraggingThisStart ? 'grabbing' : 'grab',
+                "pointer-events": 'all',
+              }}
+              onMouseDown={(e) => handleEndpointMouseDown(e, conn, 'start')}
+            >
+              <circle cx={p1.x} cy={p1.y} r="14" fill="transparent" />
+              <circle
+                cx={p1.x}
+                cy={p1.y}
+                r={isDraggingThisStart ? '6.5' : '5'}
+                fill={isDraggingThisStart ? '#3b82f6' : '#ffffff'}
+                stroke={isDraggingThisStart ? '#ffffff' : '#3b82f6'}
+                stroke-width="2.5"
+                style={{ filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.45))' }}
+              />
+            </g>
+            {/* End handle (p2) */}
+            <g
+              style={{
+                cursor: isDraggingThisEnd ? 'grabbing' : 'grab',
+                "pointer-events": 'all',
+              }}
+              onMouseDown={(e) => handleEndpointMouseDown(e, conn, 'end')}
+            >
+              <circle cx={p2.x} cy={p2.y} r="14" fill="transparent" />
+              <circle
+                cx={p2.x}
+                cy={p2.y}
+                r={isDraggingThisEnd ? '6.5' : '5'}
+                fill={isDraggingThisEnd ? '#3b82f6' : '#ffffff'}
+                stroke={isDraggingThisEnd ? '#ffffff' : '#3b82f6'}
+                stroke-width="2.5"
+                style={{ filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.45))' }}
+              />
+            </g>
+          </Show>
           {/* Delete pill button on selected connection */}
-          <Show when={isSelected}>
+          <Show when={isSelected && !isDraggingThisStart && !isDraggingThisEnd}>
             {(() => {
               const midX = (p1.x + p2.x) / 2;
               const midY = (p1.y + p2.y) / 2;
               return (
                 <foreignObject
-                  x={midX - 12}
-                  y={midY - 12}
-                  width="24"
-                  height="24"
+                  x={midX - 11}
+                  y={midY - 11}
+                  width="22"
+                  height="22"
                   style={{ overflow: 'visible', "pointer-events": 'all' }}
                 >
                   <button
@@ -1849,20 +2140,20 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                       handleDeleteConnection(conn);
                     }}
                     style={{
-                      width: '24px',
-                      height: '24px',
+                      width: '22px',
+                      height: '22px',
                       "border-radius": '50%',
                       background: '#ef4444',
-                      border: '2px solid #ffffff',
+                      border: '2px solid var(--surface)',
                       color: '#ffffff',
                       display: 'flex',
                       "align-items": 'center',
                       "justify-content": 'center',
                       cursor: 'pointer',
                       padding: 0,
-                      "font-size": '12px',
+                      "font-size": '11px',
                       "font-weight": 'bold',
-                      "box-shadow": '0 2px 8px rgba(0,0,0,0.5)'
+                      "box-shadow": '0 2px 6px rgba(0,0,0,0.35)'
                     }}
                   >
                     ✕
@@ -2453,7 +2744,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 </Show>
               </aside>
 
-              <main style={{ flex: 1, "overflow-y": 'auto', padding: '40px 64px', "background-color": '#111317' }}>
+              <main style={{ flex: 1, "overflow-y": 'auto', padding: '40px 64px', "background-color": 'var(--surface)' }}>
                 <Show when={currentDoc()} fallback={
                   <div style={{ color: 'var(--text-dim)', padding: '40px 0', "text-align": 'center' }}>
                     Select or create a document to view contents.
@@ -2464,7 +2755,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                       <span>DOC / {currentDoc()?.doc_type?.toUpperCase() || 'SPECIFICATION'}</span>
                     </div>
 
-                    <h1 style={{ "font-size": '32px', "font-weight": 700, color: '#fff', "letter-spacing": '-0.02em', margin: 0 }}>
+                    <h1 style={{ "font-size": '32px', "font-weight": 700, color: 'var(--text-main)', "letter-spacing": '-0.02em', margin: 0 }}>
                       {currentDoc()?.title}
                     </h1>
 
@@ -2518,7 +2809,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 position: 'relative',
                 width: '100%',
                 height: '100%',
-                "background-color": '#111317',
+                "background-color": 'var(--surface)',
                 overflow: 'hidden',
                 "touch-action": 'none',
                 cursor: isActivelyPanning() 
@@ -2531,9 +2822,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
               }}
             >
               {/* Board Header Info */}
-              <div style={{ position: 'absolute', top: '16px', left: '16px', "z-index": 15, display: 'flex', "align-items": 'center', gap: '8px', padding: '6px 12px', "border-radius": '6px', "background-color": '#181a20', border: '1px solid #2e323b', "font-size": '11px', color: 'var(--text-muted)' }}>
+              <div style={{ position: 'absolute', top: '16px', left: '16px', "z-index": 15, display: 'flex', "align-items": 'center', gap: '8px', padding: '6px 12px', "border-radius": '6px', "background-color": 'var(--surface-card)', border: '1px solid var(--border-default)', "font-size": '11px', color: 'var(--text-muted)' }}>
                 <span style={{ color: '#3b82f6', "font-family": 'var(--font-mono)' }}>CANVAS:</span>
-                <span style={{ color: '#fff' }}>{boards()[0]?.title || 'Spatial Ideation Board'}</span>
+                <span style={{ color: 'var(--text-main)' }}>{boards()[0]?.title || 'Spatial Ideation Board'}</span>
                 <span style={{ color: 'var(--text-dim)', "font-size": '10px' }}>({blocks().length} nodes)</span>
               </div>
 
@@ -2542,7 +2833,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  "background-image": 'radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px)',
+                  "background-image": 'radial-gradient(var(--canvas-dot) 1px, transparent 1px)',
                   "background-size": '24px 24px',
                   "background-position": `${pan().x}px ${pan().y}px`,
                   "pointer-events": 'none'
@@ -2569,7 +2860,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                     height: '100%',
                     overflow: 'visible',
                     "pointer-events": 'none',
-                    "z-index": 10
+                    "z-index": 25
                   }}
                 >
                   <defs>
@@ -2577,7 +2868,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                       <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6" />
                     </marker>
                     <marker id="orca-arrowhead-selected" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                      <path d="M0,0 L0,6 L8,3 z" fill="#ffffff" />
+                      <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6" />
                     </marker>
                   </defs>
                   {renderConnectorCurves()}
@@ -2649,10 +2940,13 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                     const shapeKind = selectedShapeKind();
 
                     let width = 310;
-                    let height = 210;
-                    if (isText) {
+                    let height = 74;
+                    if (isSticky) {
                       width = 240;
-                      height = 65;
+                      height = 130;
+                    } else if (isText) {
+                      width = 240;
+                      height = 36;
                     } else if (isShape) {
                       switch (shapeKind) {
                         case 'circle': width = 140; height = 100; break;
@@ -2712,12 +3006,12 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                             ? '1px dashed rgba(255,255,255,0.6)' 
                             : '2px dashed #3b82f6',
                           background: isSticky 
-                            ? '#1c1f27' 
+                            ? 'var(--surface-sticky)' 
                             : isShape 
-                            ? '#1a1d24' 
+                            ? 'var(--surface-card)' 
                             : isText 
                             ? 'transparent' 
-                            : '#181a20',
+                            : 'var(--surface-card)',
                           "border-radius": isShape ? (shapeKind === 'circle' ? '9999px' : '8px') : isSticky ? '4px' : '8px',
                           "clip-path": isSticky ? 'polygon(0px 0px, calc(100% - 16px) 0px, 100% 16px, 100% 100%, 0px 100%)' : undefined,
                           "box-shadow": '0 8px 24px rgba(0, 0, 0, 0.4)'
@@ -2747,6 +3041,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                     const blockColor = () => block.content?.color;
                     const borderStyle = () => block.content?.border_style || 'solid';
                     const fillStyle = () => block.content?.fill_style || 'solid';
+                    const computedTextColor = () => getTextColorForBackground(blockColor(), fillStyle(), block.type);
 
                     return (
                       <div
@@ -2778,21 +3073,22 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                           top: `${block.pos_y}px`,
                           width: `${getBlockWidth(block)}px`,
                           height: block.height && block.height > 0 ? `${block.height}px` : 'auto',
+                          "min-width": `${block.type === 'card' || block.type === 'sticky' ? 180 : 60}px`,
                           "min-height": block.height && block.height > 0
-                            ? '36px'
+                            ? `${block.type === 'sticky' ? 120 : block.type === 'card' ? 74 : 36}px`
                             : block.type === 'shape'
                             ? (block.content?.shape_kind === 'circle' ? '100px'
                               : block.content?.shape_kind === 'diamond' ? '110px'
                               : block.content?.shape_kind === 'triangle' ? '120px'
                               : block.content?.shape_kind === 'hexagon' ? '85px'
                               : '70px')
-                            : block.type === 'text' ? '36px' : '70px',
-                          "border-color": !isSvgShape() ? (blockColor() || 'rgba(255, 255, 255, 0.18)') : undefined,
+                            : block.type === 'text' ? '36px' : block.type === 'sticky' ? '120px' : '74px',
+                          "border-color": !isSvgShape() ? (blockColor() || 'var(--border-medium)') : undefined,
                           "border-style": !isSvgShape() && borderStyle() === 'dashed' ? 'dashed' : 'solid',
                           background: !isSvgShape()
-                            ? (fillStyle() === 'transparent' ? 'transparent' : (blockColor() || '#1a1d24'))
+                            ? (fillStyle() === 'transparent' ? 'transparent' : (blockColor() || (block.type === 'sticky' ? 'var(--surface-sticky)' : 'var(--surface-card)')))
                             : undefined,
-                          color: fillStyle() !== 'transparent' && blockColor() === '#ffffff' ? '#0f172a' : '#ffffff',
+                          color: computedTextColor(),
                           outline: isConnectingSource() && !isSvgShape() ? '2px dashed #3b82f6' : undefined
                         }}
                       >
@@ -2820,9 +3116,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                               fill={
                                 fillStyle() === 'transparent'
                                   ? 'transparent'
-                                  : (blockColor() || '#1a1d24')
+                                  : (blockColor() || 'var(--surface-card)')
                               }
-                              stroke={isSelected() || isConnectingSource() ? '#3b82f6' : (blockColor() || 'rgba(255, 255, 255, 0.18)')}
+                              stroke={isSelected() || isConnectingSource() ? '#3b82f6' : (blockColor() || 'var(--border-medium)')}
                               stroke-width={isSelected() || isConnectingSource() ? '2' : '1.5'}
                               stroke-dasharray={borderStyle() === 'dashed' ? '6,4' : undefined}
                               vector-effect="non-scaling-stroke"
@@ -2835,6 +3131,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                         <UnifiedMarkdownBlock
                           block={block}
                           isEditing={editingBlockId() === block.id}
+                          textColor={computedTextColor()}
                           onStartEdit={() => {
                             if (isLocked()) return;
                             setEditingBlockId(block.id);
@@ -2843,6 +3140,50 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                           }}
                           onFinishEdit={(finalText) => handleFinishBlockEdit(block, finalText)}
                         />
+
+                        {/* Author Footer (for sticky notes only) */}
+                        <Show when={block.type === 'sticky'}>
+                          {(() => {
+                            const author = () => block.content?.author || getCurrentUser();
+                            const initials = () => {
+                              const name = author()?.name || 'User';
+                              return name
+                                .split(' ')
+                                .map((p: string) => p[0])
+                                .filter(Boolean)
+                                .slice(0, 2)
+                                .join('')
+                                .toUpperCase() || 'U';
+                            };
+
+                            return (
+                              <div 
+                                class="note-block-author-footer"
+                                style={{
+                                  color: computedTextColor(),
+                                  "border-top-color": fillStyle() === 'transparent' ? 'var(--border-subtle)' : 'rgba(128, 128, 128, 0.18)'
+                                }}
+                              >
+                                <div class="note-author-avatar-wrapper">
+                                  <Show when={author()?.avatar_url}>
+                                    <img 
+                                      src={author()?.avatar_url} 
+                                      alt={author()?.name || 'User'}
+                                      class="note-author-avatar-img"
+                                      onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                                    />
+                                  </Show>
+                                  <div class="note-author-avatar-fallback">
+                                    {initials()}
+                                  </div>
+                                </div>
+                                <span class="note-author-name" title={author()?.name || 'User'}>
+                                  {author()?.name || 'User'}
+                                </span>
+                              </div>
+                            );
+                          })()}
+                        </Show>
                       </div>
                     );
                   }}
@@ -3069,7 +3410,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
              TAB 3: TASKS (PROJECT KANBAN)
              ========================================================= */}
           <Show when={activeTab() === 'tasks'}>
-            <div style={{ height: '100%', "overflow-y": 'auto', padding: '24px 32px', "background-color": '#111317' }}>
+            <div style={{ height: '100%', "overflow-y": 'auto', padding: '24px 32px', "background-color": 'var(--surface)' }}>
               <div style={{ display: 'grid', "grid-template-columns": 'repeat(4, minmax(260px, 1fr))', gap: '16px', "align-items": 'flex-start' }}>
                 {[
                   { key: 'todo' as const, title: 'Backlog', color: 'var(--outline-variant)' },
@@ -3080,14 +3421,14 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                   const colTasks = () => tasks().filter(t => t.status === col.key);
 
                   return (
-                    <div style={{ padding: '12px', "border-radius": '8px', "background-color": 'var(--surface-container-low)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', "flex-direction": 'column', gap: '10px' }}>
+                    <div style={{ padding: '12px', "border-radius": '8px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', gap: '10px' }}>
                       <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
                         <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
                           <span style={{ width: '8px', height: '8px', "border-radius": '50%', "background-color": col.color }}></span>
-                          <span style={{ "font-size": '12px', "font-weight": 600, color: '#fff' }}>{col.title}</span>
+                          <span style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)' }}>{col.title}</span>
                         </div>
                         <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-                          <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 5px', "border-radius": '3px', "background-color": 'rgba(255,255,255,0.05)' }}>
+                          <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 5px', "border-radius": '3px', "background-color": 'var(--surface-container-high)' }}>
                             {colTasks().length}
                           </span>
                           <button
@@ -3123,7 +3464,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                               "background-color": 'var(--surface-container-high)',
                               border: '1px solid var(--border-default)',
                               "border-radius": '4px',
-                              color: '#fff',
+                              color: 'var(--text-main)',
                               outline: 'none',
                               "box-sizing": 'border-box'
                             }}
@@ -3158,13 +3499,13 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                                   "font-family": 'var(--font-mono)',
                                   padding: '1px 5px',
                                   "border-radius": '3px',
-                                  background: t.priority === 'urgent' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.06)',
+                                  background: t.priority === 'urgent' ? 'rgba(239, 68, 68, 0.2)' : 'var(--surface-container-high)',
                                   color: t.priority === 'urgent' ? '#f87171' : 'var(--text-muted)'
                                 }}>
                                   {t.priority}
                                 </span>
                               </div>
-                              <h4 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>
+                              <h4 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>
                                 {t.title}
                               </h4>
                               <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '10px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
@@ -3189,11 +3530,11 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         {/* =========================================================
            PROJECT DIRECTORY VIEW (When no project is opened)
            ========================================================= */}
-        <main style={{ flex: 1, "overflow-y": 'auto', padding: '32px', "background-color": '#111317' }}>
+        <main style={{ flex: 1, "overflow-y": 'auto', padding: '32px', "background-color": 'var(--surface)' }}>
           <div style={{ "max-width": '1100px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '24px' }}>
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
               <div>
-                <h1 style={{ "font-size": '22px', "font-weight": 600, color: '#fff', margin: 0 }}>Projects</h1>
+                <h1 style={{ "font-size": '22px', "font-weight": 600, color: 'var(--text-main)', margin: 0 }}>Projects</h1>
                 <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
                   Wadah inisiatif terpadu: satukan Dokumen Strategi, Spatial Board Milanote, dan Tasks Kanban.
                 </p>
@@ -3230,7 +3571,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                           </span>
                         </div>
 
-                        <h3 style={{ "font-size": '15px', "font-weight": 600, color: '#fff', margin: 0 }}>
+                        <h3 style={{ "font-size": '15px', "font-weight": 600, color: 'var(--text-main)', margin: 0 }}>
                           {proj.name}
                         </h3>
 
@@ -3239,7 +3580,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                         </p>
                       </div>
 
-                      <div style={{ "margin-top": '16px', "padding-top": '12px', "border-top": '1px solid rgba(255,255,255,0.05)', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '11px', color: 'var(--text-dim)' }}>
+                      <div style={{ "margin-top": '16px', "padding-top": '12px', "border-top": '1px solid var(--border-default)', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '11px', color: 'var(--text-dim)' }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <span>Target: {proj.target_date ? new Date(proj.target_date).toLocaleDateString() : 'Ongoing'}</span>
                         </div>

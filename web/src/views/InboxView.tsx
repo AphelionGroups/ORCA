@@ -165,7 +165,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
       </header>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, "overflow-y": 'auto', padding: '32px', "background-color": '#111317' }}>
+      <main style={{ flex: 1, "overflow-y": 'auto', padding: '32px', "background-color": 'var(--surface)' }}>
         <div style={{ "max-width": '880px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '20px' }}>
           
           {/* Quick Input Bar */}

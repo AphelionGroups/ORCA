@@ -188,7 +188,7 @@ export const TasksView: Component<TasksViewProps> = (props) => {
       </header>
 
       {/* Main Task Area */}
-      <main style={{ flex: 1, "overflow-y": 'auto', padding: '24px 32px', "background-color": '#111317' }}>
+      <main style={{ flex: 1, "overflow-y": 'auto', padding: '24px 32px', "background-color": 'var(--surface)' }}>
         {/* Quick Add Bar */}
         <div style={{ "max-width": viewMode() === 'list' ? '1000px' : 'none', margin: '0 auto 20px auto' }}>
           <form onSubmit={handleQuickAdd}>
