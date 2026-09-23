@@ -30,6 +30,7 @@ import { getCurrentUser } from '../services/user';
 interface ProjectsViewProps {
   onOpenQuickCapture: () => void;
   activeSpaceId?: string | null;
+  activeProjectId?: string | null;
 }
 
 export type ShapeKind = 'rectangle' | 'circle' | 'diamond' | 'triangle' | 'hexagon';
@@ -477,8 +478,12 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       setProjects(fetchedProjects || []);
       setSpaces(fetchedSpaces || []);
 
-      if (!selectedProjectId() && fetchedProjects && fetchedProjects.length > 0) {
+      if (props.activeProjectId) {
+        setSelectedProjectId(props.activeProjectId);
+        setActiveTab('board');
+      } else if (!selectedProjectId() && fetchedProjects && fetchedProjects.length > 0) {
         setSelectedProjectId(fetchedProjects[0].id);
+        setActiveTab('board');
       }
     } catch (err) {
       console.error('Failed to load projects:', err);
@@ -612,13 +617,25 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
   };
 
+  // Sync selectedProjectId when props.activeProjectId changes
+  createEffect(() => {
+    if (props.activeProjectId) {
+      setSelectedProjectId(props.activeProjectId);
+      setActiveTab('board');
+    }
+  });
+
   // Re-fetch projects if activeSpaceId changes
   createEffect(() => {
     const spaceId = props.activeSpaceId;
     api.getProjects(spaceId || undefined).then(res => {
       setProjects(res || []);
-      if (res && res.length > 0 && (!selectedProjectId() || !res.some(p => p.id === selectedProjectId()))) {
+      if (props.activeProjectId && res.some(p => p.id === props.activeProjectId)) {
+        setSelectedProjectId(props.activeProjectId);
+        setActiveTab('board');
+      } else if (res && res.length > 0 && (!selectedProjectId() || !res.some(p => p.id === selectedProjectId()))) {
         setSelectedProjectId(res[0].id);
+        setActiveTab('board');
       }
     }).catch(console.error);
   });
@@ -627,6 +644,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   createEffect(async () => {
     const pId = selectedProjectId();
     if (!pId) return;
+
+    // Direct into project's board view
+    setActiveTab('board');
 
     setLoadingSubData(true);
     try {
@@ -639,9 +659,26 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       setDocs(fetchedDocs || []);
       setSelectedDocId(fetchedDocs && fetchedDocs.length > 0 ? fetchedDocs[0].id : null);
 
-      setBoards(fetchedBoards || []);
-      if (fetchedBoards && fetchedBoards.length > 0) {
-        const fetchedBlocks = await api.getBoardBlocks(fetchedBoards[0].id);
+      let currentBoards = fetchedBoards || [];
+      // Auto-provision initial board if project has no board yet
+      if (currentBoards.length === 0) {
+        const curProj = projects().find(p => p.id === pId);
+        const targetSpaceId = curProj?.space_id || props.activeSpaceId || '018f0000-0000-7000-8000-000000000010';
+        try {
+          const newBoard = await api.createBoard({
+            project_id: pId,
+            space_id: targetSpaceId,
+            title: 'Main Board',
+          });
+          currentBoards = [newBoard];
+        } catch (e) {
+          console.error('Failed to auto-create board:', e);
+        }
+      }
+
+      setBoards(currentBoards);
+      if (currentBoards.length > 0) {
+        const fetchedBlocks = await api.getBoardBlocks(currentBoards[0].id);
         setBlocks(fetchedBlocks || []);
         if (fetchedBlocks && fetchedBlocks.length >= 2) {
           const connectable = fetchedBlocks.filter(b => b.type !== 'sticky');
@@ -650,6 +687,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           } else {
             setConnections([]);
           }
+        } else {
+          setConnections([]);
         }
       } else {
         setBlocks([]);
@@ -3548,7 +3587,10 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 <For each={projects()}>
                   {(proj) => (
                     <div 
-                      onClick={() => setSelectedProjectId(proj.id)}
+                      onClick={() => {
+                        setSelectedProjectId(proj.id);
+                        setActiveTab('board');
+                      }}
                       style={{
                         padding: '20px',
                         "border-radius": '8px',

@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, onMount, For } from 'solid-js';
+import { createSignal, createEffect, Show, For } from 'solid-js';
 import { Bolt, X, Link, Folder } from 'lucide-solid';
 import { api } from '../services/api';
 import type { Space } from '../services/api';
@@ -19,17 +19,26 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal('');
 
-  onMount(async () => {
-    try {
-      const data = await api.getSpaces();
-      if (data && data.length > 0) {
-        setSpaces(data);
-        setSelectedSpaceId(data[0].id);
-      }
-    } catch (_) {}
+  // Re-fetch spaces and reset form whenever modal opens
+  createEffect(async () => {
+    if (props.isOpen) {
+      setError('');
+      setTitle('');
+      setNote('');
+      try {
+        const data = await api.getSpaces();
+        if (data && data.length > 0) {
+          setSpaces(data);
+          if (!selectedSpaceId() || !data.some(s => s.id === selectedSpaceId())) {
+            setSelectedSpaceId(data[0].id);
+          }
+        }
+      } catch (_) {}
+    }
   });
 
-  const handleSave = async () => {
+  const handleSave = async (e?: Event) => {
+    if (e) e.preventDefault();
     if (!title().trim()) {
       setError('Title is required');
       return;
@@ -73,203 +82,150 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
     }
   };
 
-  if (!props.isOpen) return null;
-
   return (
-    <div 
-      style={{
-        position: 'fixed',
-        inset: 0,
-        "z-index": 50,
-        display: 'flex',
-        "align-items": 'center',
-        "justify-content": 'center',
-        "background-color": 'rgba(0, 0, 0, 0.6)',
-        "backdrop-filter": 'blur(4px)',
-        padding: '16px'
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) props.onClose(); }}
-    >
+    <Show when={props.isOpen}>
       <div 
-        style={{
-          position: 'relative',
-          width: '100%',
-          "max-width": '448px',
-          "background-color": 'var(--surface-card)',
-          border: '1px solid var(--border-default)',
-          "box-shadow": 'var(--shadow-elevation)',
-          "border-radius": '8px',
-          padding: '20px'
-        }}
+        class="modal-backdrop"
+        onClick={(e) => { if (e.target === e.currentTarget) props.onClose(); }}
       >
-        {/* Modal Header */}
-        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "padding-bottom": '12px', "margin-bottom": '12px', "border-bottom": '1px solid var(--border-default)' }}>
-          <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-            <Bolt size={16} color="var(--secondary)" />
-            <h3 style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)', "letter-spacing": '0.05em', "text-transform": 'uppercase', "font-family": 'var(--font-mono)', margin: 0 }}>
-              Quick Capture & Ingestion
-            </h3>
-          </div>
-          <button 
-            onClick={props.onClose} 
-            style={{ color: 'var(--text-dim)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', "align-items": 'center' }}
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {error() && (
-          <div style={{ "margin-bottom": '12px', padding: '6px 10px', "background-color": 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', "border-radius": '4px', color: '#fca5a5', "font-size": '11px' }}>
-            {error()}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', "flex-direction": 'column', gap: '14px' }}>
-          {/* Target Type switcher */}
-          <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-            <span style={{ "font-size": '11px', color: 'var(--text-dim)', "text-transform": 'uppercase', "font-family": 'var(--font-mono)', "letter-spacing": '0.05em' }}>Target Type</span>
-            <div style={{ display: 'flex', gap: '4px', padding: '2px', "border-radius": '4px', "background-color": 'var(--surface-container)', border: '1px solid var(--border-default)', "font-size": '11px' }}>
-              <button 
-                type="button"
-                onClick={() => setType('Task')}
-                style={{
-                  padding: '4px 12px',
-                  "border-radius": '4px',
-                  border: 'none',
-                  "background-color": type() === 'Task' ? 'rgba(68, 225, 222, 0.2)' : 'transparent',
-                  color: type() === 'Task' ? 'var(--secondary)' : 'var(--text-muted)',
-                  "font-weight": type() === 'Task' ? 500 : 400,
-                  cursor: 'pointer'
-                }}
-              >
-                Task
-              </button>
-              <button 
-                type="button"
-                onClick={() => setType('Document')}
-                style={{
-                  padding: '4px 12px',
-                  "border-radius": '4px',
-                  border: 'none',
-                  "background-color": type() === 'Document' ? 'rgba(139, 141, 248, 0.2)' : 'transparent',
-                  color: type() === 'Document' ? 'var(--primary)' : 'var(--text-muted)',
-                  "font-weight": type() === 'Document' ? 500 : 400,
-                  cursor: 'pointer'
-                }}
-              >
-                Document
-              </button>
-            </div>
-          </div>
-
-          {/* Space Selector */}
-          <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-            <span style={{ "font-size": '11px', color: 'var(--text-dim)', "text-transform": 'uppercase', "font-family": 'var(--font-mono)' }}>Space</span>
-            <select
-              value={selectedSpaceId()}
-              onChange={e => setSelectedSpaceId(e.currentTarget.value)}
-              style={{
-                "background-color": 'var(--surface-container)',
-                color: 'var(--text-main)',
-                border: '1px solid var(--border-default)',
-                "border-radius": '4px',
-                padding: '4px 8px',
-                "font-size": '11px',
-                outline: 'none'
-              }}
-            >
-              <For each={spaces()}>
-                {(sp) => (
-                  <option value={sp.id}>{sp.name}</option>
-                )}
-              </For>
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase' }}>Title</label>
-            <input 
-              autofocus
-              type="text" 
-              value={title()} 
-              onInput={e => setTitle(e.currentTarget.value)}
-              placeholder={type() === 'Task' ? "e.g., Finalize CAD Export..." : "e.g., Packaging Visual Specs..."}
-              style={{
-                width: '100%',
-                "background-color": 'var(--surface-container)',
-                border: '1px solid var(--border-default)',
-                "border-radius": '4px',
-                padding: '6px 12px',
-                "font-size": '12px',
-                color: 'var(--text-main)',
-                outline: 'none',
-                "box-sizing": 'border-box'
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase' }}>
-              {type() === 'Task' ? 'Task Details / Context' : 'Document Markdown Content'}
-            </label>
-            <textarea 
-              rows={3} 
-              value={note()}
-              onInput={e => setNote(e.currentTarget.value)}
-              placeholder="Key thoughts, architectural reference, or markdown bullet points..."
-              style={{
-                width: '100%',
-                "background-color": 'var(--surface-container)',
-                border: '1px solid var(--border-default)',
-                "border-radius": '4px',
-                padding: '6px 12px',
-                "font-size": '12px',
-                color: 'var(--text-main)',
-                outline: 'none',
-                resize: 'none',
-                "box-sizing": 'border-box'
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "padding-top": '8px', "border-top": '1px solid var(--border-default)', "font-size": '12px' }}>
-            <div style={{ display: 'flex', "align-items": 'center', gap: '6px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)', "font-size": '11px' }}>
-              <Folder size={13} />
-              <span>{type() === 'Task' ? 'Inbox Triage' : 'Document Store'}</span>
-            </div>
+        <div class="modal-card">
+          {/* Modal Header */}
+          <div class="modal-header">
             <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-              <button 
-                type="button" 
-                onClick={props.onClose} 
-                style={{ padding: '4px 12px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', "font-size": '12px' }}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                onClick={handleSave}
-                disabled={loading()}
-                style={{
-                  padding: '5px 14px',
-                  "background-color": '#fff',
-                  color: '#000',
-                  "font-weight": 500,
-                  "border-radius": '4px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  "align-items": 'center',
-                  gap: '4px',
-                  "font-size": '12px'
-                }}
-              >
-                <Link size={13} />
-                <span>{loading() ? 'Saving...' : `Capture ${type()}`}</span>
-              </button>
+              <Bolt size={16} color="var(--brand-secondary, #44e1de)" />
+              <h3 class="modal-title">
+                Quick Capture & Ingestion
+              </h3>
             </div>
+            <button 
+              onClick={props.onClose} 
+              class="btn-ghost-icon"
+              aria-label="Close modal"
+            >
+              <X size={16} />
+            </button>
           </div>
+
+          <Show when={error()}>
+            <div class="modal-error-badge">
+              {error()}
+            </div>
+          </Show>
+
+          <form onSubmit={handleSave} style={{ display: 'flex', "flex-direction": 'column', gap: '14px' }}>
+            {/* Target Type switcher */}
+            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
+              <span class="modal-form-label" style={{ margin: 0 }}>Target Type</span>
+              <div style={{ display: 'flex', gap: '4px', padding: '2px', "border-radius": '6px', "background-color": 'var(--surface-container)', border: '1px solid var(--border-default)' }}>
+                <button 
+                  type="button"
+                  onClick={() => setType('Task')}
+                  style={{
+                    padding: '4px 12px',
+                    "border-radius": '4px',
+                    border: 'none',
+                    "background-color": type() === 'Task' ? 'rgba(68, 225, 222, 0.2)' : 'transparent',
+                    color: type() === 'Task' ? 'var(--brand-secondary, #44e1de)' : 'var(--text-muted)',
+                    "font-weight": type() === 'Task' ? 600 : 400,
+                    "font-size": '11px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Task
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setType('Document')}
+                  style={{
+                    padding: '4px 12px',
+                    "border-radius": '4px',
+                    border: 'none',
+                    "background-color": type() === 'Document' ? 'rgba(139, 141, 248, 0.2)' : 'transparent',
+                    color: type() === 'Document' ? 'var(--brand-primary, #8b8df8)' : 'var(--text-muted)',
+                    "font-weight": type() === 'Document' ? 600 : 400,
+                    "font-size": '11px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Document
+                </button>
+              </div>
+            </div>
+
+            {/* Space Selector */}
+            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
+              <span class="modal-form-label" style={{ margin: 0 }}>Space</span>
+              <select
+                value={selectedSpaceId()}
+                onChange={e => setSelectedSpaceId(e.currentTarget.value)}
+                class="modal-form-input"
+                style={{ width: 'auto', "min-width": '160px', padding: '4px 8px', "font-size": '12px' }}
+              >
+                <For each={spaces()}>
+                  {(sp) => (
+                    <option value={sp.id}>{sp.name}</option>
+                  )}
+                </For>
+              </select>
+            </div>
+
+            {/* Title */}
+            <div>
+              <label class="modal-form-label">Title</label>
+              <input 
+                autofocus
+                type="text" 
+                value={title()} 
+                onInput={e => setTitle(e.currentTarget.value)}
+                placeholder={type() === 'Task' ? "e.g., Finalize export..." : "e.g., Visual design guidelines..."}
+                class="modal-form-input"
+              />
+            </div>
+
+            {/* Description / Content */}
+            <div>
+              <label class="modal-form-label">
+                {type() === 'Task' ? 'Task Details / Context' : 'Document Markdown Content'}
+              </label>
+              <textarea 
+                rows={3} 
+                value={note()}
+                onInput={e => setNote(e.currentTarget.value)}
+                placeholder="Key thoughts, architectural notes, or markdown bullet points..."
+                class="modal-form-input"
+                style={{ resize: 'vertical' }}
+              />
+            </div>
+
+            {/* Footer Row */}
+            <div class="modal-footer-row" style={{ "margin-top": '8px', "padding-top": '12px' }}>
+              <div style={{ display: 'flex', "align-items": 'center', gap: '6px', color: 'var(--text-dim)', "font-size": '11px' }}>
+                <Folder size={13} />
+                <span>{type() === 'Task' ? 'Inbox Triage' : 'Document Store'}</span>
+              </div>
+              <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+                <button 
+                  type="button" 
+                  onClick={props.onClose} 
+                  class="btn-secondary"
+                  disabled={loading()}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  class="btn-primary"
+                  disabled={loading()}
+                  style={{ display: 'flex', "align-items": 'center', gap: '5px' }}
+                >
+                  <Link size={13} />
+                  <span>{loading() ? 'Saving...' : `Capture ${type()}`}</span>
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
       </div>
-    </div>
+    </Show>
   );
 };

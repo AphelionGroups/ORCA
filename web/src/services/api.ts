@@ -142,6 +142,18 @@ export const api = {
     });
     return res.data;
   },
+  updateSpace: async (id: string, data: Partial<Space>): Promise<Space> => {
+    const res = await request<{ data: Space }>(`/spaces/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+  deleteSpace: async (id: string): Promise<void> => {
+    await request(`/spaces/${id}`, {
+      method: 'DELETE',
+    });
+  },
 
   // Projects
   getProjects: async (spaceId?: string): Promise<Project[]> => {
@@ -155,6 +167,18 @@ export const api = {
       body: JSON.stringify(data),
     });
     return res.data;
+  },
+  updateProject: async (id: string, data: Partial<Project>): Promise<Project> => {
+    const res = await request<{ data: Project }>(`/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+  deleteProject: async (id: string): Promise<void> => {
+    await request(`/projects/${id}`, {
+      method: 'DELETE',
+    });
   },
 
   // Tasks
@@ -246,6 +270,11 @@ export const api = {
       body: JSON.stringify(data),
     });
     return res.data;
+  },
+  deleteBoard: async (id: string): Promise<void> => {
+    await request(`/boards/${id}`, {
+      method: 'DELETE',
+    });
   },
   getBoards: async (filters: { space_id?: string; project_id?: string } = {}): Promise<NoteBoard[]> => {
     const params = new URLSearchParams();

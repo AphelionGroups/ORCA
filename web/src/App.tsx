@@ -10,12 +10,18 @@ import { CalendarView } from './views/CalendarView';
 export const App: Component = () => {
   const [currentRoute, setCurrentRoute] = createSignal<string>('projects');
   const [activeSpaceId, setActiveSpaceId] = createSignal<string | null>(null);
+  const [activeProjectId, setActiveProjectId] = createSignal<string | null>(null);
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = createSignal<boolean>(false);
 
-  const handleNavigate = (route: string, spaceId?: string | null) => {
+  const handleNavigate = (route: string, spaceId?: string | null, projectId?: string | null) => {
     setCurrentRoute(route);
     if (spaceId !== undefined) {
       setActiveSpaceId(spaceId);
+    }
+    if (projectId !== undefined) {
+      setActiveProjectId(projectId);
+    } else if (spaceId !== undefined && spaceId !== activeSpaceId()) {
+      setActiveProjectId(null);
     }
   };
 
@@ -41,6 +47,7 @@ export const App: Component = () => {
       <Sidebar 
         currentRoute={currentRoute()} 
         activeSpaceId={activeSpaceId()} 
+        activeProjectId={activeProjectId()}
         onNavigate={handleNavigate}
         onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
       />
@@ -57,6 +64,7 @@ export const App: Component = () => {
           <Match when={currentRoute() === 'projects'}>
             <ProjectsView 
               activeSpaceId={activeSpaceId()} 
+              activeProjectId={activeProjectId()}
               onOpenQuickCapture={() => setIsQuickCaptureOpen(true)} 
             />
           </Match>

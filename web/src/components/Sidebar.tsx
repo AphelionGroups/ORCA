@@ -1,54 +1,105 @@
 import type { Component } from 'solid-js';
-import { createSignal, onMount, For } from 'solid-js';
+import { createSignal, onMount, For, Show } from 'solid-js';
 import { 
   Inbox, 
   FolderKanban, 
   CheckSquare, 
   Calendar, 
-  SlidersHorizontal, 
+  Plus,
+  MoreVertical,
+  ChevronDown,
+  ChevronRight,
   Bolt,
   PanelLeftClose,
   Sun,
   Moon,
   Monitor
 } from 'lucide-solid';
-import { api, type Space } from '../services/api';
+import { api, type Space, type Project } from '../services/api';
 import { themeMode, setThemeMode } from '../services/theme';
+import { SpaceModal } from './SpaceModal';
+import { ProjectModal } from './ProjectModal';
 
 interface SidebarProps {
   currentRoute: string;
   activeSpaceId: string | null;
-  onNavigate: (route: string, spaceId?: string | null) => void;
+  activeProjectId?: string | null;
+  onNavigate: (route: string, spaceId?: string | null, projectId?: string | null) => void;
   onOpenQuickCapture: () => void;
 }
 
 export const Sidebar: Component<SidebarProps> = (props) => {
-  const [spaces, setSpaces] = createSignal<{ id: string | null; name: string; slug: string }[]>([
-    { id: null, name: 'All Spaces', slug: 'all' },
-    { id: '018f0000-0000-7000-8000-000000000010', name: 'Kantor', slug: 'kantor' },
-    { id: '018f0000-0000-7000-8000-000000000020', name: 'Pribadi', slug: 'pribadi' },
-    { id: '018f0000-0000-7000-8000-000000000030', name: 'Bisnis A', slug: 'bisnis-a' },
-    { id: '018f0000-0000-7000-8000-000000000040', name: 'Bisnis B', slug: 'bisnis-b' }
-  ]);
+  const [spaces, setSpaces] = createSignal<Space[]>([]);
+  const [projects, setProjects] = createSignal<Project[]>([]);
+  const [collapsedSpaces, setCollapsedSpaces] = createSignal<Record<string, boolean>>({});
 
-  onMount(async () => {
+  // Modals state
+  const [isSpaceModalOpen, setIsSpaceModalOpen] = createSignal(false);
+  const [spaceToEdit, setSpaceToEdit] = createSignal<Space | null>(null);
+
+  const [isProjectModalOpen, setIsProjectModalOpen] = createSignal(false);
+  const [projectToEdit, setProjectToEdit] = createSignal<Project | null>(null);
+  const [projectModalDefaultSpaceId, setProjectModalDefaultSpaceId] = createSignal('');
+
+  const loadData = async () => {
     try {
-      const data = await api.getSpaces();
-      if (data && data.length > 0) {
-        setSpaces([
-          { id: null, name: 'All Spaces', slug: 'all' },
-          ...data.map((s: Space) => ({ id: s.id, name: s.name, slug: s.slug }))
-        ]);
-      }
-    } catch (_) {}
+      const [fetchedSpaces, fetchedProjects] = await Promise.all([
+        api.getSpaces(),
+        api.getProjects()
+      ]);
+      if (fetchedSpaces) setSpaces(fetchedSpaces);
+      if (fetchedProjects) setProjects(fetchedProjects);
+    } catch (err) {
+      console.error('Failed to load spaces and projects in sidebar:', err);
+    }
+  };
+
+  onMount(() => {
+    loadData();
   });
+
+  const toggleSpaceCollapse = (spaceId: string, e: MouseEvent) => {
+    e.stopPropagation();
+    setCollapsedSpaces(prev => ({
+      ...prev,
+      [spaceId]: !prev[spaceId]
+    }));
+  };
+
+  const handleOpenNewSpaceModal = () => {
+    setSpaceToEdit(null);
+    setIsSpaceModalOpen(true);
+  };
+
+  const handleOpenEditSpaceModal = (space: Space, e: MouseEvent) => {
+    e.stopPropagation();
+    setSpaceToEdit(space);
+    setIsSpaceModalOpen(true);
+  };
+
+  const handleOpenNewProjectModal = (spaceId?: string, e?: MouseEvent) => {
+    if (e) e.stopPropagation();
+    setProjectToEdit(null);
+    setProjectModalDefaultSpaceId(spaceId || (spaces()[0]?.id || ''));
+    setIsProjectModalOpen(true);
+  };
+
+  const handleOpenEditProjectModal = (project: Project, e: MouseEvent) => {
+    e.stopPropagation();
+    setProjectToEdit(project);
+    setIsProjectModalOpen(true);
+  };
+
+  const getProjectsForSpace = (spaceId: string) => {
+    return projects().filter(p => p.space_id === spaceId);
+  };
 
   return (
     <aside class="orca-sidebar">
-      <div style={{ display: 'flex', "flex-direction": 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', "flex-direction": 'column', gap: '22px' }}>
         {/* Wordmark Header */}
         <div class="sidebar-brand-row">
-          <div class="brand-logo" onClick={() => props.onNavigate('projects', null)}>
+          <div class="brand-logo" onClick={() => props.onNavigate('projects', null, null)}>
             <span class="brand-text">ORCA</span>
             <span class="brand-cyan-dot"></span>
           </div>
@@ -61,30 +112,137 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           </button>
         </div>
 
-        {/* Spaces Switcher */}
-        <div style={{ display: 'flex', "flex-direction": 'column', gap: '6px' }}>
-          <div class="sidebar-section-header">
+        {/* Spaces Section with Collapsible Projects Tree */}
+        <div style={{ display: 'flex', "flex-direction": 'column', gap: '4px' }}>
+          <div class="sidebar-section-header" style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
             <span>Spaces</span>
-            <button 
-              class="btn-ghost-icon" 
-              style={{ width: '20px', height: '20px' }} 
-              onClick={() => props.onNavigate('projects', null)}
-              title="Filter Spaces"
-            >
-              <SlidersHorizontal size={13} color="var(--text-dim)" />
-            </button>
+            <div style={{ display: 'flex', "align-items": 'center', gap: '4px' }}>
+              <button 
+                class="btn-ghost-icon" 
+                style={{ width: '20px', height: '20px' }} 
+                onClick={handleOpenNewSpaceModal}
+                title="Tambah Space Baru"
+              >
+                <Plus size={13} color="var(--text-dim)" />
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
+            {/* All Spaces Entry */}
+            <div
+              class={`sidebar-space-row ${props.activeSpaceId === null && !props.activeProjectId ? 'active' : ''}`}
+              onClick={() => props.onNavigate(props.currentRoute, null, null)}
+              style={{ "padding-left": '22px' }}
+            >
+              <span class="sidebar-space-title">All Spaces</span>
+            </div>
+
+            {/* List of Spaces */}
             <For each={spaces()}>
-              {(s) => {
-                const isActive = () => props.activeSpaceId === s.id;
+              {(space) => {
+                const isCollapsed = () => !!collapsedSpaces()[space.id];
+                const spaceProjects = () => getProjectsForSpace(space.id);
+                const isSpaceActive = () => props.activeSpaceId === space.id;
+
                 return (
-                  <div
-                    class={`sidebar-nav-item ${isActive() ? 'active' : ''}`}
-                    onClick={() => props.onNavigate(props.currentRoute, s.id)}
-                  >
-                    <span>{s.name}</span>
+                  <div class="sidebar-space-group">
+                    {/* Space Row */}
+                    <div 
+                      class={`sidebar-space-row ${isSpaceActive() ? 'active' : ''}`}
+                      onClick={() => props.onNavigate(props.currentRoute, space.id, null)}
+                    >
+                      <div class="sidebar-space-left">
+                        {/* Chevron Collapse Toggle */}
+                        <button
+                          type="button"
+                          class="sidebar-chevron-btn"
+                          onClick={(e) => toggleSpaceCollapse(space.id, e)}
+                          title={isCollapsed() ? 'Expand Space' : 'Collapse Space'}
+                        >
+                          <Show when={isCollapsed()} fallback={<ChevronDown size={13} />}>
+                            <ChevronRight size={13} />
+                          </Show>
+                        </button>
+
+                        {/* Space Color Dot */}
+                        <div 
+                          class="sidebar-space-dot"
+                          style={{ "background-color": space.color || 'var(--brand-primary)' }}
+                        />
+
+                        {/* Space Name */}
+                        <span class="sidebar-space-title" title={space.name}>
+                          {space.name}
+                        </span>
+                      </div>
+
+                      {/* Space Hover Actions */}
+                      <div class="sidebar-row-actions">
+                        <button
+                          type="button"
+                          class="sidebar-action-icon-btn"
+                          onClick={(e) => handleOpenNewProjectModal(space.id, e)}
+                          title={`Tambah Project ke ${space.name}`}
+                        >
+                          <Plus size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          class="sidebar-action-icon-btn"
+                          onClick={(e) => handleOpenEditSpaceModal(space, e)}
+                          title="Edit Space"
+                        >
+                          <MoreVertical size={12} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Collapsible Nested Projects Tree */}
+                    <Show when={!isCollapsed()}>
+                      <div class="sidebar-project-tree">
+                        <For each={spaceProjects()}>
+                          {(project) => {
+                            const isProjectActive = () => props.activeProjectId === project.id;
+                            return (
+                              <div
+                                class={`sidebar-project-item ${isProjectActive() ? 'active' : ''}`}
+                                onClick={() => props.onNavigate('projects', space.id, project.id)}
+                                title={project.name}
+                              >
+                                <div class="sidebar-project-item-left">
+                                  <FolderKanban size={13} style={{ "flex-shrink": 0, opacity: isProjectActive() ? 1 : 0.6 }} />
+                                  <span class="sidebar-project-title">
+                                    {project.name}
+                                  </span>
+                                </div>
+
+                                <div class="sidebar-row-actions">
+                                  <button
+                                    type="button"
+                                    class="sidebar-action-icon-btn"
+                                    onClick={(e) => handleOpenEditProjectModal(project, e)}
+                                    title="Edit Project"
+                                  >
+                                    <MoreVertical size={11} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }}
+                        </For>
+
+                        {/* Add Project Shortcut */}
+                        <button
+                          type="button"
+                          class="sidebar-add-project-link"
+                          onClick={(e) => handleOpenNewProjectModal(space.id, e)}
+                        >
+                          <Plus size={11} />
+                          <span>Add project</span>
+                        </button>
+                      </div>
+                    </Show>
                   </div>
                 );
               }}
@@ -93,42 +251,42 @@ export const Sidebar: Component<SidebarProps> = (props) => {
         </div>
 
         {/* Navigation Views Section */}
-        <div style={{ display: 'flex', "flex-direction": 'column', gap: '6px' }}>
+        <div style={{ display: 'flex', "flex-direction": 'column', gap: '4px' }}>
           <div class="sidebar-section-header">Views</div>
           <nav style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
             {/* 1. Inbox */}
             <div 
               class={`sidebar-nav-item ${props.currentRoute === 'inbox' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('inbox')}
+              onClick={() => props.onNavigate('inbox', props.activeSpaceId, null)}
             >
-              <Inbox size={16} color={props.currentRoute === 'inbox' ? 'var(--secondary)' : 'var(--text-dim)'} />
+              <Inbox size={15} color={props.currentRoute === 'inbox' ? 'var(--secondary)' : 'var(--text-dim)'} />
               <span>Inbox</span>
             </div>
 
             {/* 2. Projects */}
             <div 
               class={`sidebar-nav-item ${props.currentRoute === 'projects' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('projects')}
+              onClick={() => props.onNavigate('projects', props.activeSpaceId, null)}
             >
-              <FolderKanban size={16} color={props.currentRoute === 'projects' ? 'var(--primary)' : 'var(--text-dim)'} />
+              <FolderKanban size={15} color={props.currentRoute === 'projects' ? 'var(--primary)' : 'var(--text-dim)'} />
               <span>Projects</span>
             </div>
 
             {/* 3. Tasks */}
             <div 
               class={`sidebar-nav-item ${props.currentRoute === 'tasks' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('tasks')}
+              onClick={() => props.onNavigate('tasks', props.activeSpaceId, null)}
             >
-              <CheckSquare size={16} color={props.currentRoute === 'tasks' ? 'var(--secondary)' : 'var(--text-dim)'} />
+              <CheckSquare size={15} color={props.currentRoute === 'tasks' ? 'var(--secondary)' : 'var(--text-dim)'} />
               <span>Tasks</span>
             </div>
 
             {/* 4. Calendar */}
             <div 
               class={`sidebar-nav-item ${props.currentRoute === 'calendar' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('calendar')}
+              onClick={() => props.onNavigate('calendar', props.activeSpaceId, null)}
             >
-              <Calendar size={16} color={props.currentRoute === 'calendar' ? 'var(--tertiary)' : 'var(--text-dim)'} />
+              <Calendar size={15} color={props.currentRoute === 'calendar' ? 'var(--tertiary)' : 'var(--text-dim)'} />
               <span>Calendar</span>
             </div>
           </nav>
@@ -136,7 +294,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
       </div>
 
       {/* Footer Area: Theme Switcher & Quick Capture */}
-      <div style={{ "padding-top": '16px', "border-top": '1px solid var(--border-subtle)', display: 'flex', "flex-direction": 'column', gap: '10px' }}>
+      <div style={{ "padding-top": '14px', "border-top": '1px solid var(--border-subtle)', display: 'flex', "flex-direction": 'column', gap: '10px' }}>
         {/* Theme Switcher Widget */}
         <div class="sidebar-theme-widget">
           <button 
@@ -181,6 +339,45 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           <span class="kbd-badge">Ctrl+K</span>
         </button>
       </div>
+
+      {/* Space Modal (Create / Edit / Delete) */}
+      <SpaceModal
+        isOpen={isSpaceModalOpen()}
+        spaceToEdit={spaceToEdit()}
+        onClose={() => setIsSpaceModalOpen(false)}
+        onSaved={async (saved) => {
+          await loadData();
+          if (!spaceToEdit()) {
+            props.onNavigate(props.currentRoute, saved.id, null);
+          }
+        }}
+        onDeleted={async (deletedId) => {
+          await loadData();
+          if (props.activeSpaceId === deletedId) {
+            props.onNavigate(props.currentRoute, null, null);
+          }
+        }}
+      />
+
+      {/* Project Modal (Create / Edit / Delete) */}
+      <ProjectModal
+        isOpen={isProjectModalOpen()}
+        projectToEdit={projectToEdit()}
+        defaultSpaceId={projectModalDefaultSpaceId()}
+        spaces={spaces()}
+        onClose={() => setIsProjectModalOpen(false)}
+        onSaved={async (saved) => {
+          await loadData();
+          // Open project board directly!
+          props.onNavigate('projects', saved.space_id, saved.id);
+        }}
+        onDeleted={async (deletedId) => {
+          await loadData();
+          if (props.activeProjectId === deletedId) {
+            props.onNavigate('projects', props.activeSpaceId, null);
+          }
+        }}
+      />
     </aside>
   );
 };
