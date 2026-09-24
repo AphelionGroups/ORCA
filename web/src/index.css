@@ -24,6 +24,8 @@ html.dark {
   --secondary-container: #2563eb;
   --tertiary: #cebdff;
   --tertiary-container: #a286f5;
+  --brand-primary: #8b8df8;
+  --brand-secondary: #3b82f6;
 
   --text-main: #ffffff;
   --text-muted: #94a3b8;
@@ -64,6 +66,8 @@ html.light {
   --secondary-container: #3b82f6;
   --tertiary: #7c3aed;
   --tertiary-container: #8b5cf6;
+  --brand-primary: #6366f1;
+  --brand-secondary: #2563eb;
 
   --text-main: #0f172a;
   --text-muted: #475569;
@@ -437,20 +441,21 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   gap: 6px;
   padding: 6px 14px;
   font-size: 12px;
-  font-weight: 500;
-  color: #0c0e12;
-  background: #ffffff;
-  border-radius: 4px;
-  border: none;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: var(--primary);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   transition: all 150ms ease;
   font-family: var(--font-sans);
 }
 
 .btn-pill-white:hover {
-  background: rgba(255, 255, 255, 0.9);
+  opacity: 0.92;
   transform: translateY(-0.5px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
 }
 
 .btn-pill-ghost {
@@ -460,18 +465,18 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   padding: 5px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
+  color: var(--text-main);
+  background: var(--surface-container-high);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
   cursor: pointer;
   transition: all 150ms ease;
   font-family: var(--font-sans);
 }
 
 .btn-pill-ghost:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--surface-container-highest);
+  border-color: var(--border-medium);
 }
 
 .btn-ghost-icon {
@@ -2010,42 +2015,57 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
 }
 
 .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 7px 16px;
-  background-color: var(--brand-primary);
+  background-color: var(--primary);
   color: #ffffff;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   border-radius: 6px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   cursor: pointer;
-  transition: all 0.12s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: all 0.15s ease;
+  user-select: none;
 }
 
 .btn-primary:hover:not(:disabled) {
-  opacity: 0.9;
+  opacity: 0.92;
   transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 7px 14px;
-  background-color: var(--surface-container);
-  color: var(--text-muted);
+  background-color: var(--surface-container-high);
+  color: var(--text-main);
   border: 1px solid var(--border-default);
   font-size: 12px;
   font-weight: 500;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.12s ease;
+  user-select: none;
 }
 
 .btn-secondary:hover:not(:disabled) {
   color: var(--text-main);
-  background-color: var(--surface-container-high);
+  background-color: var(--surface-container-highest);
+  border-color: var(--border-medium);
 }
 
 .btn-danger {

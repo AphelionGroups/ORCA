@@ -179,14 +179,14 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
       <div style={{ padding: '24px 32px 16px 32px', display: 'flex', "flex-wrap": 'wrap', "align-items": 'center', "justify-content": 'space-between', gap: '16px' }}>
         <div style={{ display: 'flex', "align-items": 'center', gap: '24px' }}>
           <div style={{ display: 'flex', "align-items": 'baseline', gap: '8px' }}>
-            <span style={{ "font-size": '22px', color: '#fff', "font-weight": 600, "letter-spacing": '-0.02em' }}>Current Sprint</span>
+            <span style={{ "font-size": '22px', color: 'var(--text-main)', "font-weight": 600, "letter-spacing": '-0.02em' }}>Current Sprint</span>
             <span style={{ "font-size": '16px', color: 'var(--text-muted)', "font-weight": 300 }}>2026</span>
           </div>
           <div style={{ display: 'flex', "align-items": 'center', padding: '2px', "border-radius": '4px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)' }}>
             <button style={{ width: '28px', height: '28px', display: 'flex', "align-items": 'center', "justify-content": 'center', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
               <ChevronLeft size={16} />
             </button>
-            <button style={{ padding: '2px 10px', "font-size": '12px', color: '#fff', background: 'none', border: 'none', cursor: 'pointer' }}>Today</button>
+            <button style={{ padding: '2px 10px', "font-size": '12px', color: 'var(--text-main)', background: 'none', border: 'none', cursor: 'pointer' }}>Today</button>
             <button style={{ width: '28px', height: '28px', display: 'flex', "align-items": 'center', "justify-content": 'center', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
               <ChevronRight size={16} />
             </button>
@@ -201,8 +201,8 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                 "border-radius": '9999px',
                 "font-size": '12px',
                 border: 'none',
-                "background-color": spaceFilter() === 'all' ? 'rgba(255,255,255,0.1)' : 'transparent',
-                color: spaceFilter() === 'all' ? '#fff' : 'var(--text-muted)',
+                "background-color": spaceFilter() === 'all' ? 'var(--surface-container-high)' : 'transparent',
+                color: spaceFilter() === 'all' ? 'var(--text-main)' : 'var(--text-muted)',
                 "font-weight": spaceFilter() === 'all' ? 500 : 400,
                 cursor: 'pointer'
               }}
@@ -218,8 +218,8 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                     "border-radius": '9999px',
                     "font-size": '12px',
                     border: 'none',
-                    "background-color": spaceFilter() === sp.id ? 'rgba(255,255,255,0.1)' : 'transparent',
-                    color: spaceFilter() === sp.id ? '#fff' : 'var(--text-muted)',
+                    "background-color": spaceFilter() === sp.id ? 'var(--surface-container-high)' : 'transparent',
+                    color: spaceFilter() === sp.id ? 'var(--text-main)' : 'var(--text-muted)',
                     "font-weight": spaceFilter() === sp.id ? 500 : 400,
                     cursor: 'pointer'
                   }}
@@ -243,7 +243,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                     "border-radius": '4px',
                     border: 'none',
                     "background-color": scheduleView() === mode ? 'var(--surface-container-high)' : 'transparent',
-                    color: scheduleView() === mode ? '#fff' : 'var(--text-muted)',
+                    color: scheduleView() === mode ? 'var(--text-main)' : 'var(--text-muted)',
                     "font-weight": scheduleView() === mode ? 500 : 400,
                     cursor: 'pointer'
                   }}
@@ -263,7 +263,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
           <div style={{ padding: '16px', "border-radius": '8px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', gap: '4px' }}>
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
               <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', "letter-spacing": '0.1em', color: 'var(--text-dim)' }}>Unscheduled Nodes</span>
-              <span style={{ padding: '2px 6px', "border-radius": '4px', "background-color": 'rgba(255,255,255,0.1)', "font-size": '10px', color: '#fff' }}>
+              <span style={{ padding: '2px 6px', "border-radius": '4px', "background-color": 'var(--surface-container-high)', "font-size": '10px', color: 'var(--text-main)' }}>
                 {backlogTasks().length}
               </span>
             </div>
@@ -286,7 +286,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                       padding: '14px',
                       "border-radius": '8px',
                       "background-color": 'var(--surface-container-low)',
-                      border: '1px solid rgba(255,255,255,0.06)',
+                      border: '1px solid var(--border-default)',
                       cursor: 'grab'
                     }}
                   >
@@ -304,7 +304,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                       </span>
                       <GripVertical size={14} color="var(--text-dim)" />
                     </div>
-                    <h4 style={{ "font-size": '12px', "font-weight": 600, color: '#fff', margin: 0, "line-height": 1.4 }}>
+                    <h4 style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)', margin: 0, "line-height": 1.4 }}>
                       {task.title}
                     </h4>
                     <div style={{ "margin-top": '8px', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '11px', color: 'var(--text-dim)' }}>
@@ -349,29 +349,29 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
             </div>
 
             {/* Col Mon */}
-            <div style={{ position: 'relative', "border-right": '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ position: 'absolute', top: '16px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
+            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }}>
+              <div style={{ position: 'absolute', top: '16px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
                 <div>
                   <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0, overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>Brand Visual Alignment</h5>
+                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0, overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>Brand Visual Alignment</h5>
                 </div>
                 <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>08:30 - 10:15</span>
               </div>
             </div>
 
             {/* Col Tue */}
-            <div style={{ position: 'relative', "border-right": '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ position: 'absolute', top: '112px', left: '6px', right: '6px', height: '112px', "border-radius": '6px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
+            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }}>
+              <div style={{ position: 'absolute', top: '112px', left: '6px', right: '6px', height: '112px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
                 <div>
                   <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--primary)', "text-transform": 'uppercase' }}>Kantor</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>Sprint Architecture Sync</h5>
+                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>Sprint Architecture Sync</h5>
                 </div>
                 <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>10:00 - 12:30</span>
               </div>
             </div>
 
             {/* Col Wed (Today Active with Live events from PostgreSQL) */}
-            <div style={{ position: 'relative', "border-right": '1px solid rgba(255,255,255,0.05)', "background-color": 'rgba(68,225,222,0.02)' }}>
+            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)', "background-color": 'rgba(68,225,222,0.02)' }}>
               {/* Current line pulse */}
               <div style={{ position: 'absolute', top: '160px', left: 0, right: 0, "z-index": 30, display: 'flex', "align-items": 'center', "pointer-events": 'none' }}>
                 <div style={{ width: '8px', height: '8px', "border-radius": '50%', "background-color": 'var(--secondary)', "margin-left": '-4px' }}></div>
@@ -394,7 +394,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                       height: '112px',
                       "border-radius": '6px',
                       padding: '10px',
-                      "background-color": index() === 0 ? 'var(--surface-container-high)' : 'rgba(34,37,44,0.9)',
+                      "background-color": index() === 0 ? 'var(--surface-container-high)' : 'var(--surface-container-low)',
                       border: index() === 0 ? '1px solid rgba(68,225,222,0.4)' : '1px solid var(--border-default)',
                       display: 'flex',
                       "flex-direction": 'column',
@@ -404,7 +404,7 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
                         <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: sp.color, "text-transform": 'uppercase' }}>
                           {sp.name} {index() === 0 ? '• Live' : ''}
                         </span>
-                        <h5 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>
+                        <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>
                           {ev.title}
                         </h5>
                       </div>
@@ -418,11 +418,11 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
             </div>
 
             {/* Col Thu */}
-            <div style={{ position: 'relative', "border-right": '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ position: 'absolute', top: '80px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
+            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }}>
+              <div style={{ position: 'absolute', top: '80px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
                 <div>
                   <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--primary)', "text-transform": 'uppercase' }}>Kantor</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>Quarterly Budget Modeling</h5>
+                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>Quarterly Budget Modeling</h5>
                 </div>
                 <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>09:30 - 11:30</span>
               </div>
@@ -430,10 +430,10 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
 
             {/* Col Fri */}
             <div style={{ position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '144px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'rgba(34,37,44,0.9)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
+              <div style={{ position: 'absolute', top: '144px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
                 <div>
                   <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: '#fff', margin: 0 }}>Launch Campaign Review</h5>
+                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>Launch Campaign Review</h5>
                 </div>
                 <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>11:00 - 12:30</span>
               </div>
@@ -548,14 +548,16 @@ export const CalendarView: Component<CalendarViewProps> = (props) => {
               <div style={{ display: 'flex', "justify-content": 'flex-end', gap: '8px', "margin-top": '8px' }}>
                 <button 
                   type="button"
+                  class="btn-secondary"
                   onClick={() => setIsEventModalOpen(false)}
-                  style={{ padding: '6px 12px', "font-size": '12px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+                  style={{ padding: '6px 14px', "font-size": '12px' }}
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  style={{ padding: '6px 16px', "font-size": '12px', "background-color": '#fff', color: '#000', "font-weight": 500, "border-radius": '4px', border: 'none', cursor: 'pointer', display: 'flex', "align-items": 'center', gap: '4px' }}
+                  class="btn-primary"
+                  style={{ padding: '6px 16px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }}
                 >
                   <Clock size={13} />
                   <span>Book Event</span>

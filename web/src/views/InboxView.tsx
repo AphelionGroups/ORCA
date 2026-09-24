@@ -190,7 +190,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                   flex: 1,
                   background: 'none',
                   border: 'none',
-                  color: '#fff',
+                  color: 'var(--text-main)',
                   "font-size": '13px',
                   outline: 'none'
                 }}
@@ -278,7 +278,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                               </span>
                             </div>
 
-                            <h3 style={{ "font-size": '13px', "font-weight": 500, color: '#fff', margin: 0, "line-height": 1.4 }}>
+                            <h3 style={{ "font-size": '13px', "font-weight": 500, color: 'var(--text-main)', margin: 0, "line-height": 1.4 }}>
                               {task.title}
                             </h3>
 
@@ -304,16 +304,16 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                                 padding: '5px 10px',
                                 "border-radius": '4px',
                                 "background-color": isAssigning() ? 'var(--primary)' : 'var(--surface-container-high)',
-                                color: '#fff',
+                                color: isAssigning() ? '#ffffff' : 'var(--text-main)',
                                 "font-size": '11px',
-                                border: 'none',
+                                border: '1px solid var(--border-default)',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 "align-items": 'center',
                                 gap: '4px'
                               }}
                             >
-                              <FolderKanban size={12} color={isAssigning() ? '#fff' : "var(--primary)"} />
+                              <FolderKanban size={12} color={isAssigning() ? '#ffffff' : "var(--primary)"} />
                               <span>To Project</span>
                             </button>
 
@@ -373,8 +373,8 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                                       padding: '4px 10px',
                                       "border-radius": '4px',
                                       "font-size": '11px',
-                                      "background-color": 'rgba(255, 255, 255, 0.08)',
-                                      color: '#fff',
+                                      "background-color": 'var(--surface-container-high)',
+                                      color: 'var(--text-main)',
                                       border: '1px solid var(--border-default)',
                                       cursor: 'pointer'
                                     }}

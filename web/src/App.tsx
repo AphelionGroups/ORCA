@@ -4,7 +4,6 @@ import { Sidebar } from './components/Sidebar';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { InboxView } from './views/InboxView';
 import { ProjectsView } from './views/ProjectsView';
-import { TasksView } from './views/TasksView';
 import { CalendarView } from './views/CalendarView';
 
 export const App: Component = () => {
@@ -65,12 +64,6 @@ export const App: Component = () => {
             <ProjectsView 
               activeSpaceId={activeSpaceId()} 
               activeProjectId={activeProjectId()}
-              onOpenQuickCapture={() => setIsQuickCaptureOpen(true)} 
-            />
-          </Match>
-          <Match when={currentRoute() === 'tasks'}>
-            <TasksView 
-              activeSpaceId={activeSpaceId()} 
               onOpenQuickCapture={() => setIsQuickCaptureOpen(true)} 
             />
           </Match>

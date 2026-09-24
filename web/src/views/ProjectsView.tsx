@@ -20,12 +20,15 @@ import {
   StickyNote,
   Maximize2,
   Undo,
-  Redo
+  Redo,
+  Kanban,
+  List
 } from 'lucide-solid';
 import { api } from '../services/api';
 import type { Project, Space, Document as OrcaDoc, NoteBoard, NoteBlock, Task } from '../services/api';
 import { getTextColorForBackground } from '../services/theme';
 import { getCurrentUser } from '../services/user';
+import { ProjectModal } from '../components/ProjectModal';
 
 interface ProjectsViewProps {
   onOpenQuickCapture: () => void;
@@ -115,7 +118,7 @@ function formatInlineMarkdown(text: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
   // Bold **text**
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight:700;color:#fff;">$1</strong>');
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight:700;color:var(--text-main);">$1</strong>');
   // Italic *text*
   html = html.replace(/\*(.*?)\*/g, '<em style="font-style:italic;color:var(--secondary);">$1</em>');
   // Inline code `code`
@@ -316,6 +319,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   // Active Project & Tab state
   const [selectedProjectId, setSelectedProjectId] = createSignal<string | null>(null);
   const [activeTab, setActiveTab] = createSignal<'docs' | 'board' | 'tasks'>('board');
+  const [taskViewMode, setTaskViewMode] = createSignal<'kanban' | 'list'>('kanban');
+  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = createSignal(false);
 
   // Sub-entity states for active project
   const [docs, setDocs] = createSignal<OrcaDoc[]>([]);
@@ -2737,17 +2742,11 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                   <button
                     onClick={handleCreateNewDoc}
                     title="Add new document"
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--secondary)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      "align-items": 'center',
-                      padding: '2px'
-                    }}
+                    class="btn-primary"
+                    style={{ padding: '3px 8px', "font-size": '11px' }}
                   >
-                    <Plus size={14} />
+                    <Plus size={12} />
+                    <span>New Doc</span>
                   </button>
                 </div>
 
@@ -2765,8 +2764,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                             padding: '10px 12px',
                             "border-radius": '6px',
                             "background-color": selectedDocId() === doc.id ? 'var(--surface-container-high)' : 'transparent',
-                            border: selectedDocId() === doc.id ? '1px solid rgba(255,255,255,0.08)' : '1px solid transparent',
-                            color: selectedDocId() === doc.id ? '#fff' : 'var(--text-muted)',
+                            border: selectedDocId() === doc.id ? '1px solid var(--border-default)' : '1px solid transparent',
+                            color: selectedDocId() === doc.id ? 'var(--text-main)' : 'var(--text-muted)',
                             cursor: 'pointer',
                             "font-size": '12px',
                             display: 'flex',
@@ -3446,121 +3445,300 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           </Show>
 
           {/* =========================================================
-             TAB 3: TASKS (PROJECT KANBAN)
+             TAB 3: TASKS (PROJECT KANBAN & LIST VIEWS)
              ========================================================= */}
           <Show when={activeTab() === 'tasks'}>
             <div style={{ height: '100%', "overflow-y": 'auto', padding: '24px 32px', "background-color": 'var(--surface)' }}>
-              <div style={{ display: 'grid', "grid-template-columns": 'repeat(4, minmax(260px, 1fr))', gap: '16px', "align-items": 'flex-start' }}>
-                {[
-                  { key: 'todo' as const, title: 'Backlog', color: 'var(--outline-variant)' },
-                  { key: 'in_progress' as const, title: 'In Progress', color: 'var(--primary)' },
-                  { key: 'in_review' as const, title: 'In Review', color: 'var(--tertiary)' },
-                  { key: 'done' as const, title: 'Done', color: 'var(--secondary)' }
-                ].map(col => {
-                  const colTasks = () => tasks().filter(t => t.status === col.key);
+              {/* Task View Mode Switcher & Actions Header */}
+              <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '20px' }}>
+                <div class="segmented-control">
+                  <button 
+                    type="button"
+                    onClick={() => setTaskViewMode('kanban')}
+                    class={`seg-btn ${taskViewMode() === 'kanban' ? 'active' : ''}`}
+                  >
+                    <Kanban size={13} />
+                    <span>Kanban</span>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setTaskViewMode('list')}
+                    class={`seg-btn ${taskViewMode() === 'list' ? 'active' : ''}`}
+                  >
+                    <List size={13} />
+                    <span>List</span>
+                  </button>
+                </div>
 
-                  return (
-                    <div style={{ padding: '12px', "border-radius": '8px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', gap: '10px' }}>
-                      <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-                        <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-                          <span style={{ width: '8px', height: '8px', "border-radius": '50%', "background-color": col.color }}></span>
-                          <span style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)' }}>{col.title}</span>
-                        </div>
-                        <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-                          <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 5px', "border-radius": '3px', "background-color": 'var(--surface-container-high)' }}>
-                            {colTasks().length}
-                          </span>
-                          <button
-                            onClick={() => setActiveNewTaskCol(activeNewTaskCol() === col.key ? null : col.key)}
-                            title="Add task in this column"
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: 'var(--text-dim)',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              "align-items": 'center',
-                              padding: '2px'
-                            }}
-                          >
-                            <Plus size={13} />
-                          </button>
-                        </div>
-                      </div>
+                <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+                  <button 
+                    type="button"
+                    class="btn-primary"
+                    onClick={() => setActiveNewTaskCol('todo')}
+                    style={{ padding: '6px 14px', "font-size": '12px' }}
+                  >
+                    <Plus size={13} />
+                    <span>New Task</span>
+                  </button>
+                </div>
+              </div>
 
-                      <Show when={activeNewTaskCol() === col.key}>
-                        <form onSubmit={(e) => { e.preventDefault(); handleCreateTaskInCol(col.key); }}>
-                          <input 
-                            autofocus
-                            type="text"
-                            placeholder="Task name... Enter to add"
-                            value={newTaskTitle()}
-                            onInput={e => setNewTaskTitle(e.currentTarget.value)}
-                            style={{
-                              width: '100%',
-                              padding: '6px 8px',
-                              "font-size": '11px',
-                              "background-color": 'var(--surface-container-high)',
-                              border: '1px solid var(--border-default)',
-                              "border-radius": '4px',
-                              color: 'var(--text-main)',
-                              outline: 'none',
-                              "box-sizing": 'border-box'
-                            }}
-                          />
-                        </form>
-                      </Show>
+              {/* View 1: KANBAN BOARD */}
+              <Show when={taskViewMode() === 'kanban'}>
+                <div style={{ display: 'grid', "grid-template-columns": 'repeat(4, minmax(260px, 1fr))', gap: '16px', "align-items": 'flex-start' }}>
+                  {[
+                    { key: 'todo' as const, title: 'Backlog', color: 'var(--outline-variant)' },
+                    { key: 'in_progress' as const, title: 'In Progress', color: 'var(--primary)' },
+                    { key: 'in_review' as const, title: 'In Review', color: 'var(--tertiary)' },
+                    { key: 'done' as const, title: 'Done', color: 'var(--secondary)' }
+                  ].map(col => {
+                    const colTasks = () => tasks().filter(t => t.status === col.key);
 
-                      <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
-                        <For each={colTasks()}>
-                          {(t) => (
-                            <div 
-                              onClick={() => handleCycleTaskStatus(t)}
-                              title="Click to advance status"
+                    return (
+                      <div style={{ padding: '12px', "border-radius": '8px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
+                          <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
+                            <span style={{ width: '8px', height: '8px', "border-radius": '50%', "background-color": col.color }}></span>
+                            <span style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)' }}>{col.title}</span>
+                          </div>
+                          <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
+                            <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 5px', "border-radius": '3px', "background-color": 'var(--surface-container-high)' }}>
+                              {colTasks().length}
+                            </span>
+                            <button
+                              onClick={() => setActiveNewTaskCol(activeNewTaskCol() === col.key ? null : col.key)}
+                              title="Add task in this column"
                               style={{
-                                padding: '12px',
-                                "border-radius": '6px',
-                                "background-color": 'var(--surface-container)',
-                                border: '1px solid var(--border-default)',
-                                display: 'flex',
-                                "flex-direction": 'column',
-                                gap: '6px',
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-dim)',
                                 cursor: 'pointer',
-                                transition: 'transform 0.1s ease'
+                                display: 'flex',
+                                "align-items": 'center',
+                                padding: '2px'
                               }}
                             >
-                              <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-                                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
-                                  #{t.id.slice(-4)}
-                                </span>
+                              <Plus size={13} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <Show when={activeNewTaskCol() === col.key}>
+                          <form onSubmit={(e) => { e.preventDefault(); handleCreateTaskInCol(col.key); }}>
+                            <input 
+                              autofocus
+                              type="text"
+                              placeholder="Task name... Enter to add"
+                              value={newTaskTitle()}
+                              onInput={e => setNewTaskTitle(e.currentTarget.value)}
+                              style={{
+                                width: '100%',
+                                padding: '6px 8px',
+                                "font-size": '11px',
+                                "background-color": 'var(--surface-container-high)',
+                                border: '1px solid var(--border-default)',
+                                "border-radius": '4px',
+                                color: 'var(--text-main)',
+                                outline: 'none',
+                                "box-sizing": 'border-box'
+                              }}
+                            />
+                          </form>
+                        </Show>
+
+                        <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
+                          <For each={colTasks()}>
+                            {(t) => (
+                              <div 
+                                onClick={() => handleCycleTaskStatus(t)}
+                                title="Click to advance status"
+                                style={{
+                                  padding: '12px',
+                                  "border-radius": '6px',
+                                  "background-color": 'var(--surface-container)',
+                                  border: '1px solid var(--border-default)',
+                                  display: 'flex',
+                                  "flex-direction": 'column',
+                                  gap: '6px',
+                                  cursor: 'pointer',
+                                  transition: 'transform 0.1s ease'
+                                }}
+                              >
+                                <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
+                                  <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                                    #{t.id.slice(-4)}
+                                  </span>
+                                  <span style={{
+                                    "font-size": '9px',
+                                    "font-family": 'var(--font-mono)',
+                                    padding: '1px 5px',
+                                    "border-radius": '3px',
+                                    background: t.priority === 'urgent' ? 'rgba(239, 68, 68, 0.2)' : 'var(--surface-container-high)',
+                                    color: t.priority === 'urgent' ? '#f87171' : 'var(--text-muted)'
+                                  }}>
+                                    {t.priority}
+                                  </span>
+                                </div>
+                                <h4 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>
+                                  {t.title}
+                                </h4>
+                                <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '10px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
+                                  <span>{t.due_date ? new Date(t.due_date).toLocaleDateString() : 'No date'}</span>
+                                  <span style={{ color: col.color, display: 'flex', "align-items": 'center', gap: '2px' }}>
+                                    Advance <ChevronRight size={10} />
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </For>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Show>
+
+              {/* View 2: LIST VIEW */}
+              <Show when={taskViewMode() === 'list'}>
+                <div style={{ "max-width": '900px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '16px' }}>
+                  {/* Quick Add Bar */}
+                  <form onSubmit={(e) => { e.preventDefault(); handleCreateTaskInCol('todo'); }}>
+                    <div style={{
+                      display: 'flex',
+                      "align-items": 'center',
+                      gap: '10px',
+                      padding: '8px 14px',
+                      "background-color": 'var(--surface-container-low)',
+                      border: '1px solid var(--border-default)',
+                      "border-radius": '8px'
+                    }}>
+                      <Plus size={15} color="var(--text-dim)" />
+                      <input 
+                        type="text"
+                        value={newTaskTitle()}
+                        onInput={e => setNewTaskTitle(e.currentTarget.value)}
+                        placeholder="Quick add task to Backlog... press Enter"
+                        style={{
+                          flex: 1,
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-main)',
+                          "font-size": '12px',
+                          outline: 'none'
+                        }}
+                      />
+                      <span class="kbd-badge">Enter</span>
+                    </div>
+                  </form>
+
+                  {/* Task List Items */}
+                  <div style={{ display: 'flex', "flex-direction": 'column', gap: '6px' }}>
+                    <Show when={tasks().length > 0} fallback={
+                      <div style={{ padding: '36px', "text-align": 'center', color: 'var(--text-dim)', "font-size": '12px', "border-radius": '8px', border: '1px dashed var(--border-default)' }}>
+                        No tasks in this project yet. Use the input above to add a task.
+                      </div>
+                    }>
+                      <For each={tasks()}>
+                        {(t) => {
+                          const isDone = () => t.status === 'done';
+                          return (
+                            <div style={{
+                              display: 'flex',
+                              "align-items": 'center',
+                              "justify-content": 'space-between',
+                              padding: '10px 14px',
+                              "border-radius": '6px',
+                              "background-color": 'var(--surface-container)',
+                              border: '1px solid var(--border-default)',
+                              gap: '12px',
+                              transition: 'background-color 0.12s ease'
+                            }}>
+                              <div style={{ display: 'flex', "align-items": 'center', gap: '10px', flex: 1, "min-width": 0 }}>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const nextStatus = t.status === 'done' ? 'todo' : 'done';
+                                    try {
+                                      await api.updateTaskStatus(t.id, nextStatus);
+                                      setTasks(tasks().map(item => item.id === t.id ? { ...item, status: nextStatus } : item));
+                                    } catch (_) {}
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: isDone() ? 'var(--secondary)' : 'var(--text-dim)',
+                                    cursor: 'pointer',
+                                    padding: 0,
+                                    display: 'flex',
+                                    "align-items": 'center'
+                                  }}
+                                  title={isDone() ? 'Mark incomplete' : 'Mark done'}
+                                >
+                                  <Show when={isDone()} fallback={<Square size={16} />}>
+                                    <CheckSquare size={16} />
+                                  </Show>
+                                </button>
+
+                                <div style={{ display: 'flex', "flex-direction": 'column', gap: '2px', flex: 1, "min-width": 0 }}>
+                                  <span style={{
+                                    "font-size": '12.5px',
+                                    "font-weight": 500,
+                                    color: isDone() ? 'var(--text-dim)' : 'var(--text-main)',
+                                    "text-decoration": isDone() ? 'line-through' : 'none',
+                                    overflow: 'hidden',
+                                    "text-overflow": 'ellipsis',
+                                    "white-space": 'nowrap'
+                                  }}>
+                                    {t.title}
+                                  </span>
+                                  <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                                    #{t.id.slice(-4)} {t.due_date ? `• Due ${new Date(t.due_date).toLocaleDateString()}` : ''}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', "align-items": 'center', gap: '8px', "flex-shrink": 0 }}>
                                 <span style={{
-                                  "font-size": '9px',
+                                  "font-size": '9.5px',
                                   "font-family": 'var(--font-mono)',
-                                  padding: '1px 5px',
-                                  "border-radius": '3px',
-                                  background: t.priority === 'urgent' ? 'rgba(239, 68, 68, 0.2)' : 'var(--surface-container-high)',
-                                  color: t.priority === 'urgent' ? '#f87171' : 'var(--text-muted)'
+                                  "text-transform": 'uppercase',
+                                  padding: '2px 6px',
+                                  "border-radius": '4px',
+                                  background: t.priority === 'urgent' ? 'rgba(244, 63, 94, 0.15)' : 'var(--surface-container-high)',
+                                  color: t.priority === 'urgent' ? '#f43f5e' : 'var(--text-muted)'
                                 }}>
                                   {t.priority}
                                 </span>
-                              </div>
-                              <h4 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>
-                                {t.title}
-                              </h4>
-                              <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '10px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
-                                <span>{t.due_date ? new Date(t.due_date).toLocaleDateString() : 'No date'}</span>
-                                <span style={{ color: col.color, display: 'flex', "align-items": 'center', gap: '2px' }}>
-                                  Advance <ChevronRight size={10} />
-                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleCycleTaskStatus(t)}
+                                  style={{
+                                    padding: '3px 8px',
+                                    "font-size": '10.5px',
+                                    "border-radius": '4px',
+                                    border: '1px solid var(--border-default)',
+                                    background: 'var(--surface-container-high)',
+                                    color: 'var(--text-muted)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    "align-items": 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Advance Status"
+                                >
+                                  <span>{t.status.replace('_', ' ')}</span>
+                                  <ChevronRight size={10} />
+                                </button>
                               </div>
                             </div>
-                          )}
-                        </For>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                          );
+                        }}
+                      </For>
+                    </Show>
+                  </div>
+                </div>
+              </Show>
             </div>
           </Show>
 
@@ -3578,6 +3756,15 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                   Wadah inisiatif terpadu: satukan Dokumen Strategi, Spatial Board Milanote, dan Tasks Kanban.
                 </p>
               </div>
+              <button
+                type="button"
+                class="btn-primary"
+                onClick={() => setIsNewProjectModalOpen(true)}
+                style={{ display: 'flex', "align-items": 'center', gap: '6px', padding: '8px 16px', "font-size": '13px' }}
+              >
+                <Plus size={15} />
+                <span>New Project</span>
+              </button>
             </div>
 
             <div style={{ display: 'grid', "grid-template-columns": 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
@@ -3637,6 +3824,18 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         </main>
       </Show>
 
+      {/* Project Modal for Creating/Editing Projects */}
+      <ProjectModal
+        isOpen={isNewProjectModalOpen()}
+        projectToEdit={null}
+        spaces={spaces()}
+        defaultSpaceId={props.activeSpaceId || undefined}
+        onClose={() => setIsNewProjectModalOpen(false)}
+        onSaved={() => {
+          setIsNewProjectModalOpen(false);
+          loadProjects();
+        }}
+      />
     </div>
   );
 };

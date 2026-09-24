@@ -2,9 +2,8 @@ import type { Component } from 'solid-js';
 import { createSignal, onMount, For, Show } from 'solid-js';
 import { 
   Inbox, 
-  FolderKanban, 
-  CheckSquare, 
   Calendar, 
+  FolderKanban,
   Plus,
   MoreVertical,
   ChevronDown,
@@ -13,7 +12,14 @@ import {
   PanelLeftClose,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  Briefcase,
+  User,
+  Rocket,
+  Layers,
+  Folder,
+  Globe,
+  Sparkles
 } from 'lucide-solid';
 import { api, type Space, type Project } from '../services/api';
 import { themeMode, setThemeMode } from '../services/theme';
@@ -27,6 +33,19 @@ interface SidebarProps {
   onNavigate: (route: string, spaceId?: string | null, projectId?: string | null) => void;
   onOpenQuickCapture: () => void;
 }
+
+const getSpaceIconComponent = (iconId?: string) => {
+  switch (iconId) {
+    case 'briefcase': return Briefcase;
+    case 'user': return User;
+    case 'rocket': return Rocket;
+    case 'layers': return Layers;
+    case 'globe': return Globe;
+    case 'sparkles': return Sparkles;
+    case 'folder':
+    default: return Folder;
+  }
+};
 
 export const Sidebar: Component<SidebarProps> = (props) => {
   const [spaces, setSpaces] = createSignal<Space[]>([]);
@@ -96,7 +115,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
 
   return (
     <aside class="orca-sidebar">
-      <div style={{ display: 'flex', "flex-direction": 'column', gap: '22px' }}>
+      <div style={{ display: 'flex', "flex-direction": 'column', gap: '20px' }}>
         {/* Wordmark Header */}
         <div class="sidebar-brand-row">
           <div class="brand-logo" onClick={() => props.onNavigate('projects', null, null)}>
@@ -112,7 +131,31 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           </button>
         </div>
 
-        {/* Spaces Section with Collapsible Projects Tree */}
+        {/* 1. Navigation Views Section (Moved to TOP: Only Inbox & Calendar) */}
+        <div style={{ display: 'flex', "flex-direction": 'column', gap: '4px' }}>
+          <div class="sidebar-section-header">Views</div>
+          <nav style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
+            {/* 1. Inbox */}
+            <div 
+              class={`sidebar-nav-item ${props.currentRoute === 'inbox' ? 'active' : ''}`}
+              onClick={() => props.onNavigate('inbox', props.activeSpaceId, null)}
+            >
+              <Inbox size={15} color={props.currentRoute === 'inbox' ? 'var(--secondary)' : 'var(--text-dim)'} />
+              <span>Inbox</span>
+            </div>
+
+            {/* 2. Calendar */}
+            <div 
+              class={`sidebar-nav-item ${props.currentRoute === 'calendar' ? 'active' : ''}`}
+              onClick={() => props.onNavigate('calendar', props.activeSpaceId, null)}
+            >
+              <Calendar size={15} color={props.currentRoute === 'calendar' ? 'var(--tertiary)' : 'var(--text-dim)'} />
+              <span>Calendar</span>
+            </div>
+          </nav>
+        </div>
+
+        {/* 2. Spaces Section with Collapsible Projects Tree */}
         <div style={{ display: 'flex', "flex-direction": 'column', gap: '4px' }}>
           <div class="sidebar-section-header" style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
             <span>Spaces</span>
@@ -132,10 +175,13 @@ export const Sidebar: Component<SidebarProps> = (props) => {
             {/* All Spaces Entry */}
             <div
               class={`sidebar-space-row ${props.activeSpaceId === null && !props.activeProjectId ? 'active' : ''}`}
-              onClick={() => props.onNavigate(props.currentRoute, null, null)}
-              style={{ "padding-left": '22px' }}
+              onClick={() => props.onNavigate('projects', null, null)}
             >
-              <span class="sidebar-space-title">All Spaces</span>
+              <div class="sidebar-space-left">
+                <span style={{ width: '16px', display: 'inline-block' }} />
+                <Layers size={14} style={{ color: 'var(--text-muted)', "flex-shrink": 0 }} />
+                <span class="sidebar-space-title">All Spaces</span>
+              </div>
             </div>
 
             {/* List of Spaces */}
@@ -144,13 +190,23 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                 const isCollapsed = () => !!collapsedSpaces()[space.id];
                 const spaceProjects = () => getProjectsForSpace(space.id);
                 const isSpaceActive = () => props.activeSpaceId === space.id;
+                const SpaceIcon = getSpaceIconComponent(space.icon);
 
                 return (
                   <div class="sidebar-space-group">
-                    {/* Space Row */}
+                    {/* Space Row: Clicking toggles collapse and opens the space's project cards */}
                     <div 
                       class={`sidebar-space-row ${isSpaceActive() ? 'active' : ''}`}
-                      onClick={() => props.onNavigate(props.currentRoute, space.id, null)}
+                      onClick={() => {
+                        // 1. Toggle collapse status (terbalik dari status sebelumnya)
+                        setCollapsedSpaces(prev => ({
+                          ...prev,
+                          [space.id]: !prev[space.id]
+                        }));
+                        // 2. Tampilkan card project dari space ini
+                        props.onNavigate('projects', space.id, null);
+                      }}
+                      title={`Klik untuk buka/tutup dan tampilkan projects ${space.name}`}
                     >
                       <div class="sidebar-space-left">
                         {/* Chevron Collapse Toggle */}
@@ -165,10 +221,10 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                           </Show>
                         </button>
 
-                        {/* Space Color Dot */}
-                        <div 
-                          class="sidebar-space-dot"
-                          style={{ "background-color": space.color || 'var(--brand-primary)' }}
+                        {/* Space Icon (Colored with selected space color) */}
+                        <SpaceIcon 
+                          size={14} 
+                          style={{ color: space.color || 'var(--primary)', "flex-shrink": 0 }} 
                         />
 
                         {/* Space Name */}
@@ -248,48 +304,6 @@ export const Sidebar: Component<SidebarProps> = (props) => {
               }}
             </For>
           </div>
-        </div>
-
-        {/* Navigation Views Section */}
-        <div style={{ display: 'flex', "flex-direction": 'column', gap: '4px' }}>
-          <div class="sidebar-section-header">Views</div>
-          <nav style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
-            {/* 1. Inbox */}
-            <div 
-              class={`sidebar-nav-item ${props.currentRoute === 'inbox' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('inbox', props.activeSpaceId, null)}
-            >
-              <Inbox size={15} color={props.currentRoute === 'inbox' ? 'var(--secondary)' : 'var(--text-dim)'} />
-              <span>Inbox</span>
-            </div>
-
-            {/* 2. Projects */}
-            <div 
-              class={`sidebar-nav-item ${props.currentRoute === 'projects' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('projects', props.activeSpaceId, null)}
-            >
-              <FolderKanban size={15} color={props.currentRoute === 'projects' ? 'var(--primary)' : 'var(--text-dim)'} />
-              <span>Projects</span>
-            </div>
-
-            {/* 3. Tasks */}
-            <div 
-              class={`sidebar-nav-item ${props.currentRoute === 'tasks' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('tasks', props.activeSpaceId, null)}
-            >
-              <CheckSquare size={15} color={props.currentRoute === 'tasks' ? 'var(--secondary)' : 'var(--text-dim)'} />
-              <span>Tasks</span>
-            </div>
-
-            {/* 4. Calendar */}
-            <div 
-              class={`sidebar-nav-item ${props.currentRoute === 'calendar' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('calendar', props.activeSpaceId, null)}
-            >
-              <Calendar size={15} color={props.currentRoute === 'calendar' ? 'var(--tertiary)' : 'var(--text-dim)'} />
-              <span>Calendar</span>
-            </div>
-          </nav>
         </div>
       </div>
 
