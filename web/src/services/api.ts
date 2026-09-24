@@ -237,6 +237,18 @@ export const api = {
     });
     return res.data;
   },
+  updateDocument: async (id: string, data: Partial<Document>): Promise<Document> => {
+    const res = await request<{ data: Document }>(`/documents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+  deleteDocument: async (id: string): Promise<void> => {
+    await request(`/documents/${id}`, {
+      method: 'DELETE',
+    });
+  },
 
   // Events (Calendar)
   getEvents: async (filters: { start?: string; end?: string; space_id?: string } = {}): Promise<CalendarEvent[]> => {

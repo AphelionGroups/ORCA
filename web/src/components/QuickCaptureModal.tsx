@@ -1,8 +1,8 @@
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, Show, For } from 'solid-js';
-import { Bolt, X, Link, Folder } from 'lucide-solid';
+import { Bolt, X, CheckSquare, FileText } from 'lucide-solid';
 import { api } from '../services/api';
-import type { Space } from '../services/api';
+import type { Space, Project } from '../services/api';
 
 interface QuickCaptureModalProps {
   isOpen: boolean;
@@ -11,35 +11,52 @@ interface QuickCaptureModalProps {
 }
 
 export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
-  const [type, setType] = createSignal<'Document' | 'Task'>('Task');
+  const [type, setType] = createSignal<'Task' | 'Document'>('Task');
   const [title, setTitle] = createSignal('');
   const [note, setNote] = createSignal('');
   const [spaces, setSpaces] = createSignal<Space[]>([]);
   const [selectedSpaceId, setSelectedSpaceId] = createSignal('');
+  const [projects, setProjects] = createSignal<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = createSignal('');
+  const [priority, setPriority] = createSignal<'low' | 'medium' | 'high' | 'urgent'>('medium');
+  const [dueDate, setDueDate] = createSignal('');
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal('');
 
-  // Re-fetch spaces and reset form whenever modal opens
+  // Re-fetch spaces whenever modal opens
   createEffect(async () => {
     if (props.isOpen) {
       setError('');
       setTitle('');
       setNote('');
+      setDueDate('');
+      setPriority('medium');
       try {
-        const data = await api.getSpaces();
-        if (data && data.length > 0) {
-          setSpaces(data);
-          if (!selectedSpaceId() || !data.some(s => s.id === selectedSpaceId())) {
-            setSelectedSpaceId(data[0].id);
+        const [spaceData, projData] = await Promise.all([
+          api.getSpaces(),
+          api.getProjects()
+        ]);
+        if (spaceData && spaceData.length > 0) {
+          setSpaces(spaceData);
+          if (!selectedSpaceId() || !spaceData.some(s => s.id === selectedSpaceId())) {
+            setSelectedSpaceId(spaceData[0].id);
           }
         }
+        setProjects(projData || []);
       } catch (_) {}
     }
   });
 
+  const availableProjects = () => {
+    const spId = selectedSpaceId();
+    if (!spId) return projects();
+    return projects().filter(p => p.space_id === spId);
+  };
+
   const handleSave = async (e?: Event) => {
     if (e) e.preventDefault();
-    if (!title().trim()) {
+    const trimmedTitle = title().trim();
+    if (!trimmedTitle) {
       setError('Title is required');
       return;
     }
@@ -50,22 +67,25 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
     try {
       const spaceId = selectedSpaceId() || (spaces()[0]?.id || '');
       if (!spaceId) {
-        throw new Error('No active space found to associate item with.');
+        throw new Error('Please select a space for this item.');
       }
 
       if (type() === 'Task') {
         await api.createTask({
-          title: title().trim(),
+          title: trimmedTitle,
           description: note().trim() || undefined,
           space_id: spaceId,
+          project_id: selectedProjectId() || undefined,
           status: 'todo',
-          priority: 'medium',
+          priority: priority(),
+          due_date: dueDate() || undefined,
         });
       } else {
         await api.createDocument({
-          title: title().trim(),
+          title: trimmedTitle,
           content: note().trim() || 'Quick captured document draft...',
           space_id: spaceId,
+          project_id: selectedProjectId() || undefined,
           doc_type: 'notes',
           is_pinned: false,
         });
@@ -74,11 +94,20 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
       setTitle('');
       setNote('');
       props.onClose();
-      if (props.onItemCreated) props.onItemCreated();
+      if (props.onItemCreated) {
+        props.onItemCreated();
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to capture item');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
     }
   };
 
@@ -88,16 +117,32 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
         class="modal-backdrop"
         onClick={(e) => { if (e.target === e.currentTarget) props.onClose(); }}
       >
-        <div class="modal-card">
+        <div class="modal-card" style={{ "max-width": '540px' }} onKeyDown={handleKeyDown}>
           {/* Modal Header */}
           <div class="modal-header">
-            <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-              <Bolt size={16} color="var(--brand-secondary, #44e1de)" />
-              <h3 class="modal-title">
-                Quick Capture & Ingestion
-              </h3>
+            <div style={{ display: 'flex', "align-items": 'center', gap: '10px' }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                "border-radius": '8px',
+                "background-color": 'rgba(68, 225, 222, 0.12)',
+                display: 'flex',
+                "align-items": 'center',
+                "justify-content": 'center'
+              }}>
+                <Bolt size={18} color="var(--secondary)" />
+              </div>
+              <div>
+                <h3 class="modal-title" style={{ "font-size": '16px', "font-weight": 600 }}>
+                  Quick Capture
+                </h3>
+                <p style={{ margin: 0, "font-size": '12px', color: 'var(--text-muted)' }}>
+                  Rapidly capture a task or document from anywhere (Ctrl+K)
+                </p>
+              </div>
             </div>
             <button 
+              type="button"
               onClick={props.onClose} 
               class="btn-ghost-icon"
               aria-label="Close modal"
@@ -112,97 +157,139 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
             </div>
           </Show>
 
-          <form onSubmit={handleSave} style={{ display: 'flex', "flex-direction": 'column', gap: '14px' }}>
-            {/* Target Type switcher */}
+          <form onSubmit={handleSave} style={{ display: 'flex', "flex-direction": 'column', gap: '16px' }}>
+            {/* Target Type Selector */}
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-              <span class="modal-form-label" style={{ margin: 0 }}>Target Type</span>
-              <div style={{ display: 'flex', gap: '4px', padding: '2px', "border-radius": '6px', "background-color": 'var(--surface-container)', border: '1px solid var(--border-default)' }}>
+              <span class="modal-form-label" style={{ margin: 0 }}>Item Type</span>
+              <div class="segmented-control">
                 <button 
                   type="button"
                   onClick={() => setType('Task')}
-                  style={{
-                    padding: '4px 12px',
-                    "border-radius": '4px',
-                    border: 'none',
-                    "background-color": type() === 'Task' ? 'rgba(68, 225, 222, 0.2)' : 'transparent',
-                    color: type() === 'Task' ? 'var(--brand-secondary, #44e1de)' : 'var(--text-muted)',
-                    "font-weight": type() === 'Task' ? 600 : 400,
-                    "font-size": '11px',
-                    cursor: 'pointer'
-                  }}
+                  class={`seg-btn ${type() === 'Task' ? 'active' : ''}`}
+                  style={{ display: 'flex', "align-items": 'center', gap: '6px', padding: '6px 14px' }}
                 >
-                  Task
+                  <CheckSquare size={13} />
+                  <span>Task</span>
                 </button>
                 <button 
                   type="button"
                   onClick={() => setType('Document')}
-                  style={{
-                    padding: '4px 12px',
-                    "border-radius": '4px',
-                    border: 'none',
-                    "background-color": type() === 'Document' ? 'rgba(139, 141, 248, 0.2)' : 'transparent',
-                    color: type() === 'Document' ? 'var(--brand-primary, #8b8df8)' : 'var(--text-muted)',
-                    "font-weight": type() === 'Document' ? 600 : 400,
-                    "font-size": '11px',
-                    cursor: 'pointer'
-                  }}
+                  class={`seg-btn ${type() === 'Document' ? 'active' : ''}`}
+                  style={{ display: 'flex', "align-items": 'center', gap: '6px', padding: '6px 14px' }}
                 >
-                  Document
+                  <FileText size={13} />
+                  <span>Document</span>
                 </button>
               </div>
             </div>
 
-            {/* Space Selector */}
-            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-              <span class="modal-form-label" style={{ margin: 0 }}>Space</span>
-              <select
-                value={selectedSpaceId()}
-                onChange={e => setSelectedSpaceId(e.currentTarget.value)}
-                class="modal-form-input"
-                style={{ width: 'auto', "min-width": '160px', padding: '4px 8px', "font-size": '12px' }}
-              >
-                <For each={spaces()}>
-                  {(sp) => (
-                    <option value={sp.id}>{sp.name}</option>
-                  )}
-                </For>
-              </select>
+            {/* Space & Project Selectors */}
+            <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label class="modal-form-label">Space</label>
+                <select
+                  value={selectedSpaceId()}
+                  onChange={e => {
+                    setSelectedSpaceId(e.currentTarget.value);
+                    setSelectedProjectId('');
+                  }}
+                  class="modal-form-input"
+                  style={{ padding: '8px 10px', "font-size": '13px' }}
+                >
+                  <For each={spaces()}>
+                    {(sp) => (
+                      <option value={sp.id}>{sp.name}</option>
+                    )}
+                  </For>
+                </select>
+              </div>
+
+              <div>
+                <label class="modal-form-label">Project (Optional)</label>
+                <select
+                  value={selectedProjectId()}
+                  onChange={e => setSelectedProjectId(e.currentTarget.value)}
+                  class="modal-form-input"
+                  style={{ padding: '8px 10px', "font-size": '13px' }}
+                >
+                  <option value="">No Project (Inbox / General)</option>
+                  <For each={availableProjects()}>
+                    {(proj) => (
+                      <option value={proj.id}>{proj.name}</option>
+                    )}
+                  </For>
+                </select>
+              </div>
             </div>
 
             {/* Title */}
             <div>
-              <label class="modal-form-label">Title</label>
+              <label class="modal-form-label">
+                {type() === 'Task' ? 'Task Title' : 'Document Title'}
+              </label>
               <input 
                 autofocus
                 type="text" 
                 value={title()} 
                 onInput={e => setTitle(e.currentTarget.value)}
-                placeholder={type() === 'Task' ? "e.g., Finalize export..." : "e.g., Visual design guidelines..."}
+                placeholder={type() === 'Task' ? "e.g., Finalize API specification" : "e.g., Q4 Roadmap & Strategic Initiatives"}
                 class="modal-form-input"
+                style={{ "font-size": '14px', padding: '10px 12px' }}
               />
             </div>
+
+            {/* If Task: Priority and Due Date */}
+            <Show when={type() === 'Task'}>
+              <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label class="modal-form-label">Priority</label>
+                  <select
+                    value={priority()}
+                    onChange={e => setPriority(e.currentTarget.value as any)}
+                    class="modal-form-input"
+                    style={{ padding: '8px 10px', "font-size": '13px' }}
+                  >
+                    <option value="low">Low Priority</option>
+                    <option value="medium">Medium Priority</option>
+                    <option value="high">High Priority</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="modal-form-label">Due Date (Optional)</label>
+                  <input 
+                    type="date" 
+                    value={dueDate()} 
+                    onInput={e => setDueDate(e.currentTarget.value)}
+                    class="modal-form-input"
+                    style={{ padding: '8px 10px', "font-size": '13px' }}
+                  />
+                </div>
+              </div>
+            </Show>
 
             {/* Description / Content */}
             <div>
               <label class="modal-form-label">
-                {type() === 'Task' ? 'Task Details / Context' : 'Document Markdown Content'}
+                {type() === 'Task' ? 'Notes / Context (Optional)' : 'Document Content (Markdown)'}
               </label>
               <textarea 
-                rows={3} 
+                rows={4} 
                 value={note()}
                 onInput={e => setNote(e.currentTarget.value)}
-                placeholder="Key thoughts, architectural notes, or markdown bullet points..."
+                placeholder={type() === 'Task' ? "Add details or background info..." : "Type document thoughts, draft notes, or markdown..."}
                 class="modal-form-input"
-                style={{ resize: 'vertical' }}
+                style={{ resize: 'vertical', "font-size": '13px', "line-height": 1.5 }}
               />
             </div>
 
             {/* Footer Row */}
-            <div class="modal-footer-row" style={{ "margin-top": '8px', "padding-top": '12px' }}>
-              <div style={{ display: 'flex', "align-items": 'center', gap: '6px', color: 'var(--text-dim)', "font-size": '11px' }}>
-                <Folder size={13} />
-                <span>{type() === 'Task' ? 'Inbox Triage' : 'Document Store'}</span>
-              </div>
+            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-top": '6px', "padding-top": '14px', "border-top": '1px solid var(--border-default)' }}>
+              <span style={{ "font-size": '11px', color: 'var(--text-dim)' }}>
+                Tip: Press <kbd style={{ padding: '2px 5px', "border-radius": '3px', background: 'var(--surface-container-high)', border: '1px solid var(--border-default)' }}>Ctrl+Enter</kbd> to save
+              </span>
+
               <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
                 <button 
                   type="button" 
@@ -216,9 +303,8 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                   type="submit" 
                   class="btn-primary"
                   disabled={loading()}
-                  style={{ display: 'flex', "align-items": 'center', gap: '5px' }}
+                  style={{ display: 'flex', "align-items": 'center', gap: '6px' }}
                 >
-                  <Link size={13} />
                   <span>{loading() ? 'Saving...' : `Capture ${type()}`}</span>
                 </button>
               </div>

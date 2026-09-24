@@ -15,20 +15,26 @@ import {
   Hexagon,
   Share2, 
   Type,
-  ChevronRight,
   RotateCcw,
   StickyNote,
   Maximize2,
   Undo,
   Redo,
   Kanban,
-  List
+  List,
+  Upload,
+  Download,
+  Trash2,
+  Edit3,
+  Eye,
+  Save
 } from 'lucide-solid';
 import { api } from '../services/api';
 import type { Project, Space, Document as OrcaDoc, NoteBoard, NoteBlock, Task } from '../services/api';
 import { getTextColorForBackground } from '../services/theme';
 import { getCurrentUser } from '../services/user';
 import { ProjectModal } from '../components/ProjectModal';
+import { TaskModal } from '../components/TaskModal';
 
 interface ProjectsViewProps {
   onOpenQuickCapture: () => void;
@@ -330,6 +336,19 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const [tasks, setTasks] = createSignal<Task[]>([]);
   const [loadingSubData, setLoadingSubData] = createSignal(false);
 
+  // Task Modal & Drag state
+  const [isTaskModalOpen, setIsTaskModalOpen] = createSignal(false);
+  const [taskToEdit, setTaskToEdit] = createSignal<Task | null>(null);
+  const [defaultTaskCol, setDefaultTaskCol] = createSignal<Task['status']>('todo');
+  const [draggedTaskId, setDraggedTaskId] = createSignal<string | null>(null);
+  const [dragOverCol, setDragOverCol] = createSignal<Task['status'] | null>(null);
+
+  // Document Editor & Import/Export state
+  const [editingDocTitle, setEditingDocTitle] = createSignal('');
+  const [editingDocContent, setEditingDocContent] = createSignal('');
+  const [docViewMode, setDocViewMode] = createSignal<'edit' | 'preview'>('edit');
+  const [isSavingDoc, setIsSavingDoc] = createSignal(false);
+
   // Canvas Viewport & Tool state
   const [zoom, setZoom] = createSignal(100);
   const [pan, setPan] = createSignal({ x: 0, y: 0 });
@@ -370,10 +389,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     setUndoStack(prev => [...prev.slice(-49), action]);
     setRedoStack([]);
   };
-
-  // Quick task input in tasks tab
-  const [newTaskTitle, setNewTaskTitle] = createSignal('');
-  const [activeNewTaskCol, setActiveNewTaskCol] = createSignal<string | null>(null);
 
   // Mouse interaction states
   let isPanningCanvas = false;
@@ -486,9 +501,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       if (props.activeProjectId) {
         setSelectedProjectId(props.activeProjectId);
         setActiveTab('board');
-      } else if (!selectedProjectId() && fetchedProjects && fetchedProjects.length > 0) {
-        setSelectedProjectId(fetchedProjects[0].id);
-        setActiveTab('board');
+      } else {
+        setSelectedProjectId(null);
       }
     } catch (err) {
       console.error('Failed to load projects:', err);
@@ -638,9 +652,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       if (props.activeProjectId && res.some(p => p.id === props.activeProjectId)) {
         setSelectedProjectId(props.activeProjectId);
         setActiveTab('board');
-      } else if (res && res.length > 0 && (!selectedProjectId() || !res.some(p => p.id === selectedProjectId()))) {
-        setSelectedProjectId(res[0].id);
-        setActiveTab('board');
+      } else if (!props.activeProjectId) {
+        setSelectedProjectId(null);
       }
     }).catch(console.error);
   });
@@ -714,6 +727,17 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     if (!spaceId) return 'Workspace';
     return spaces().find(s => s.id === spaceId)?.name || 'Space';
   };
+
+  createEffect(() => {
+    const doc = currentDoc();
+    if (doc) {
+      setEditingDocTitle(doc.title || '');
+      setEditingDocContent(doc.content || '');
+    } else {
+      setEditingDocTitle('');
+      setEditingDocContent('');
+    }
+  });
 
   // -------------------------------------------------------------
   // SPATIAL CANVAS INTERACTIONS (PAN, DRAG, ADD, EDIT, DELETE)
@@ -2581,41 +2605,74 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   // TASKS & DOCS TAB HANDLERS
   // -------------------------------------------------------------
 
-  const handleCycleTaskStatus = async (task: Task) => {
-    const statusCycle: Record<string, Task['status']> = {
-      'todo': 'in_progress',
-      'in_progress': 'in_review',
-      'in_review': 'done',
-      'done': 'todo'
-    };
-    const nextStatus = statusCycle[task.status] || 'in_progress';
-    try {
-      await api.updateTaskStatus(task.id, nextStatus);
-      setTasks(tasks().map(t => t.id === task.id ? { ...t, status: nextStatus } : t));
-    } catch (err) {
-      console.error('Failed to update task status:', err);
+  const handleOpenNewTaskModal = (status?: Task['status']) => {
+    setTaskToEdit(null);
+    setDefaultTaskCol(status || 'todo');
+    setIsTaskModalOpen(true);
+  };
+
+  const handleOpenEditTaskModal = (task: Task) => {
+    setTaskToEdit(task);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleTaskSaved = (saved: Task) => {
+    const existing = tasks().find(t => t.id === saved.id);
+    if (existing) {
+      setTasks(tasks().map(t => t.id === saved.id ? saved : t));
+    } else {
+      setTasks([...tasks(), saved]);
     }
   };
 
-  const handleCreateTaskInCol = async (status: Task['status']) => {
-    const title = newTaskTitle().trim();
-    if (!title) return;
-    const proj = currentProject();
-    if (!proj) return;
+  const handleTaskDeleted = (deletedId: string) => {
+    setTasks(tasks().filter(t => t.id !== deletedId));
+  };
 
+  const handleTaskDragStart = (e: DragEvent, taskId: string) => {
+    setDraggedTaskId(taskId);
+    if (e.dataTransfer) {
+      e.dataTransfer.setData('text/plain', taskId);
+      e.dataTransfer.effectAllowed = 'move';
+    }
+  };
+
+  const handleTaskDragEnd = () => {
+    setDraggedTaskId(null);
+    setDragOverCol(null);
+  };
+
+  const handleColDragOver = (e: DragEvent, colKey: Task['status']) => {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+    setDragOverCol(colKey);
+  };
+
+  const handleColDragLeave = (colKey: Task['status']) => {
+    if (dragOverCol() === colKey) {
+      setDragOverCol(null);
+    }
+  };
+
+  const handleColDrop = async (e: DragEvent, colKey: Task['status']) => {
+    e.preventDefault();
+    const taskId = e.dataTransfer?.getData('text/plain') || draggedTaskId();
+    setDragOverCol(null);
+    setDraggedTaskId(null);
+    if (!taskId) return;
+    const currentTask = tasks().find(t => t.id === taskId);
+    if (!currentTask || currentTask.status === colKey) return;
+
+    // Optimistic update
+    setTasks(tasks().map(t => t.id === taskId ? { ...t, status: colKey } : t));
     try {
-      const created = await api.createTask({
-        title,
-        project_id: proj.id,
-        space_id: proj.space_id,
-        status,
-        priority: 'medium'
-      });
-      setTasks([...tasks(), created]);
-      setNewTaskTitle('');
-      setActiveNewTaskCol(null);
+      await api.updateTaskStatus(taskId, colKey);
     } catch (err) {
-      console.error('Failed to create task:', err);
+      console.error('Failed to update task status:', err);
+      // Revert on error
+      setTasks(tasks().map(t => t.id === taskId ? currentTask : t));
     }
   };
 
@@ -2629,14 +2686,93 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         space_id: proj.space_id,
         title: `Document ${docs().length + 1}`,
         doc_type: 'notes',
-        content: 'Write editorial markdown notes and strategic architecture guidelines here...',
+        content: '',
         is_pinned: false
       });
       setDocs([newDoc, ...docs()]);
       setSelectedDocId(newDoc.id);
+      setEditingDocTitle(newDoc.title);
+      setEditingDocContent('');
+      setDocViewMode('edit');
     } catch (err) {
       console.error('Failed to create document:', err);
     }
+  };
+
+  const handleSaveDoc = async () => {
+    const doc = currentDoc();
+    if (!doc) return;
+    const title = editingDocTitle().trim() || 'Untitled Document';
+    const content = editingDocContent();
+    setIsSavingDoc(true);
+    try {
+      const updated = await api.updateDocument(doc.id, { title, content });
+      setDocs(docs().map(d => d.id === doc.id ? updated : d));
+    } catch (err) {
+      console.error('Failed to save document:', err);
+    } finally {
+      setIsSavingDoc(false);
+    }
+  };
+
+  const handleDeleteDoc = async (docId?: string) => {
+    const idToDelete = docId || selectedDocId();
+    if (!idToDelete) return;
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    try {
+      await api.deleteDocument(idToDelete);
+      const remaining = docs().filter(d => d.id !== idToDelete);
+      setDocs(remaining);
+      setSelectedDocId(remaining.length > 0 ? remaining[0].id : null);
+    } catch (err) {
+      console.error('Failed to delete document:', err);
+    }
+  };
+
+  const handleDownloadDoc = () => {
+    const doc = currentDoc();
+    if (!doc) return;
+    const filename = `${(editingDocTitle() || 'document').replace(/[^a-zA-Z0-9_\-]/g, '_')}.md`;
+    const blob = new Blob([editingDocContent()], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportDoc = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = (event.target?.result as string) || '';
+      const rawName = file.name.replace(/\.[^/.]+$/, "");
+      const proj = currentProject();
+      if (!proj) return;
+      try {
+        const created = await api.createDocument({
+          project_id: proj.id,
+          space_id: proj.space_id,
+          title: rawName,
+          doc_type: 'notes',
+          content: text,
+          is_pinned: false
+        });
+        setDocs([created, ...docs()]);
+        setSelectedDocId(created.id);
+        setEditingDocTitle(created.title);
+        setEditingDocContent(created.content);
+      } catch (err) {
+        console.error('Failed to import document:', err);
+      }
+    };
+    reader.readAsText(file);
+    input.value = '';
   };
 
   return (
@@ -2736,83 +2872,210 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
               <aside style={{ width: '280px', "background-color": 'var(--surface-container-low)', "border-right": '1px solid var(--border-default)', padding: '16px', display: 'flex', "flex-direction": 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '6px' }}>
-                  <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--text-dim)' }}>
-                    Documentation
+                  <span style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)' }}>
+                    Documents ({docs().length})
                   </span>
-                  <button
-                    onClick={handleCreateNewDoc}
-                    title="Add new document"
-                    class="btn-primary"
-                    style={{ padding: '3px 8px', "font-size": '11px' }}
-                  >
-                    <Plus size={12} />
-                    <span>New Doc</span>
-                  </button>
+                  <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
+                    <label 
+                      class="btn-secondary"
+                      style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center', gap: '4px', cursor: 'pointer' }}
+                      title="Import markdown/text file"
+                    >
+                      <Upload size={12} />
+                      <span>Import</span>
+                      <input type="file" accept=".md,.txt,.markdown" style={{ display: 'none' }} onChange={handleImportDoc} />
+                    </label>
+
+                    <button
+                      onClick={handleCreateNewDoc}
+                      title="Add new document"
+                      class="btn-primary"
+                      style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center', gap: '4px' }}
+                    >
+                      <Plus size={12} />
+                      <span>New</span>
+                    </button>
+                  </div>
                 </div>
 
                 <Show when={!loadingSubData()} fallback={
-                  <div style={{ "font-size": '11px', color: 'var(--text-dim)', padding: '12px 0' }}>Loading documents...</div>
+                  <div style={{ "font-size": '12px', color: 'var(--text-dim)', padding: '12px 0' }}>Loading documents...</div>
                 }>
                   <Show when={docs().length > 0} fallback={
-                    <div style={{ "font-size": '11px', color: 'var(--text-dim)', padding: '12px 0' }}>No documents created yet.</div>
+                    <div style={{ "font-size": '12px', color: 'var(--text-dim)', padding: '16px 0', "text-align": 'center' }}>
+                      No documents created yet. Click New or Import to start.
+                    </div>
                   }>
-                    <For each={docs()}>
-                      {(doc) => (
-                        <div 
-                          onClick={() => setSelectedDocId(doc.id)}
-                          style={{
-                            padding: '10px 12px',
-                            "border-radius": '6px',
-                            "background-color": selectedDocId() === doc.id ? 'var(--surface-container-high)' : 'transparent',
-                            border: selectedDocId() === doc.id ? '1px solid var(--border-default)' : '1px solid transparent',
-                            color: selectedDocId() === doc.id ? 'var(--text-main)' : 'var(--text-muted)',
-                            cursor: 'pointer',
-                            "font-size": '12px',
-                            display: 'flex',
-                            "align-items": 'center',
-                            gap: '8px'
-                          }}
-                        >
-                          <FileText size={14} color={selectedDocId() === doc.id ? 'var(--tertiary)' : 'var(--text-dim)'} />
-                          <span style={{ overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>{doc.title}</span>
-                        </div>
-                      )}
-                    </For>
+                    <div style={{ display: 'flex', "flex-direction": 'column', gap: '3px', "overflow-y": 'auto' }}>
+                      <For each={docs()}>
+                        {(doc) => (
+                          <div 
+                            onClick={() => setSelectedDocId(doc.id)}
+                            style={{
+                              padding: '8px 10px',
+                              "border-radius": '6px',
+                              "background-color": selectedDocId() === doc.id ? 'var(--surface-container-high)' : 'transparent',
+                              border: selectedDocId() === doc.id ? '1px solid var(--border-default)' : '1px solid transparent',
+                              color: selectedDocId() === doc.id ? 'var(--text-main)' : 'var(--text-muted)',
+                              cursor: 'pointer',
+                              "font-size": '13px',
+                              display: 'flex',
+                              "align-items": 'center',
+                              "justify-content": 'space-between',
+                              gap: '8px',
+                              transition: 'background-color 0.12s ease'
+                            }}
+                          >
+                            <div style={{ display: 'flex', "align-items": 'center', gap: '8px', overflow: 'hidden' }}>
+                              <FileText size={14} color={selectedDocId() === doc.id ? 'var(--primary)' : 'var(--text-dim)'} />
+                              <span style={{ overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>{doc.title || 'Untitled'}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteDoc(doc.id);
+                              }}
+                              title="Delete document"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-dim)',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                display: 'flex',
+                                "align-items": 'center'
+                              }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </For>
+                    </div>
                   </Show>
                 </Show>
               </aside>
 
-              <main style={{ flex: 1, "overflow-y": 'auto', padding: '40px 64px', "background-color": 'var(--surface)' }}>
+              <main style={{ flex: 1, "overflow-y": 'auto', padding: '32px 48px', "background-color": 'var(--surface)' }}>
                 <Show when={currentDoc()} fallback={
-                  <div style={{ color: 'var(--text-dim)', padding: '40px 0', "text-align": 'center' }}>
+                  <div style={{ color: 'var(--text-dim)', padding: '60px 0', "text-align": 'center' }}>
                     Select or create a document to view contents.
                   </div>
                 }>
-                  <div style={{ "max-width": '760px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '24px' }}>
-                    <div style={{ display: 'flex', "align-items": 'center', gap: '8px', "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--secondary)' }}>
-                      <span>DOC / {currentDoc()?.doc_type?.toUpperCase() || 'SPECIFICATION'}</span>
+                  <div style={{ "max-width": '840px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '20px' }}>
+                    {/* Document Header & Action Bar */}
+                    <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', gap: '16px', "padding-bottom": '12px', "border-bottom": '1px solid var(--border-default)' }}>
+                      <input 
+                        type="text"
+                        value={editingDocTitle()}
+                        onInput={e => setEditingDocTitle(e.currentTarget.value)}
+                        onBlur={handleSaveDoc}
+                        placeholder="Document Title..."
+                        style={{
+                          flex: 1,
+                          "font-size": '24px',
+                          "font-weight": 700,
+                          color: 'var(--text-main)',
+                          border: 'none',
+                          background: 'transparent',
+                          outline: 'none',
+                          "letter-spacing": '-0.02em',
+                          padding: '4px 0'
+                        }}
+                      />
+
+                      <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+                        {/* Edit / Preview switch */}
+                        <div class="segmented-control">
+                          <button
+                            type="button"
+                            onClick={() => setDocViewMode('edit')}
+                            class={`seg-btn ${docViewMode() === 'edit' ? 'active' : ''}`}
+                            style={{ display: 'flex', "align-items": 'center', gap: '4px', padding: '5px 10px', "font-size": '11px' }}
+                          >
+                            <Edit3 size={12} />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDocViewMode('preview')}
+                            class={`seg-btn ${docViewMode() === 'preview' ? 'active' : ''}`}
+                            style={{ display: 'flex', "align-items": 'center', gap: '4px', padding: '5px 10px', "font-size": '11px' }}
+                          >
+                            <Eye size={12} />
+                            <span>Preview</span>
+                          </button>
+                        </div>
+
+                        {/* Export / Download */}
+                        <button
+                          type="button"
+                          class="btn-secondary"
+                          onClick={handleDownloadDoc}
+                          style={{ display: 'flex', "align-items": 'center', gap: '5px', padding: '6px 12px', "font-size": '12px' }}
+                          title="Download document as Markdown (.md)"
+                        >
+                          <Download size={13} />
+                          <span>Export .md</span>
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          type="button"
+                          class="btn-ghost-danger"
+                          onClick={() => handleDeleteDoc()}
+                          style={{ padding: '6px 10px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }}
+                          title="Delete current document"
+                        >
+                          <Trash2 size={13} />
+                          <span>Delete</span>
+                        </button>
+
+                        {/* Save */}
+                        <button
+                          type="button"
+                          class="btn-primary"
+                          onClick={handleSaveDoc}
+                          disabled={isSavingDoc()}
+                          style={{ display: 'flex', "align-items": 'center', gap: '5px', padding: '6px 16px', "font-size": '12px' }}
+                        >
+                          <Save size={13} />
+                          <span>{isSavingDoc() ? 'Saving...' : 'Save'}</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <h1 style={{ "font-size": '32px', "font-weight": 700, color: 'var(--text-main)', "letter-spacing": '-0.02em', margin: 0 }}>
-                      {currentDoc()?.title}
-                    </h1>
-
-                    <blockquote style={{
-                      "border-left": '2px solid var(--secondary)',
-                      padding: '8px 16px',
-                      margin: 0,
-                      "font-style": 'italic',
-                      color: 'var(--text-muted)',
-                      "font-size": '14px',
-                      "background-color": 'rgba(68, 225, 222, 0.04)',
-                      "border-radius": '0 4px 4px 0'
-                    }}>
-                      "Simplicity is not the absence of clutter, that's a consequence of simplicity. Simplicity essentially describes the purpose and place of an object and product."
-                    </blockquote>
-
-                    <div style={{ "font-size": '14px', "line-height": 1.7, color: 'var(--text-muted)', "white-space": 'pre-wrap' }}>
-                      {currentDoc()?.content}
-                    </div>
+                    {/* Document Content View / Editor */}
+                    <Show when={docViewMode() === 'edit'} fallback={
+                      <div 
+                        style={{ "font-size": '15px', "line-height": 1.75, color: 'var(--text-main)', "white-space": 'pre-wrap', padding: '8px 0' }}
+                        innerHTML={formatInlineMarkdown(editingDocContent() || '(Empty document)')}
+                      />
+                    }>
+                      <textarea
+                        rows={20}
+                        value={editingDocContent()}
+                        onInput={e => setEditingDocContent(e.currentTarget.value)}
+                        onBlur={handleSaveDoc}
+                        placeholder="Write strategic architecture guidelines, specifications, or notes in Markdown..."
+                        style={{
+                          width: '100%',
+                          "min-height": '520px',
+                          border: '1px solid var(--border-default)',
+                          "border-radius": '8px',
+                          "background-color": 'var(--surface-container-low)',
+                          padding: '20px',
+                          color: 'var(--text-main)',
+                          "font-size": '14px',
+                          "line-height": 1.7,
+                          "font-family": 'inherit',
+                          resize: 'vertical',
+                          outline: 'none',
+                          "box-sizing": 'border-box'
+                        }}
+                      />
+                    </Show>
                   </div>
                 </Show>
               </main>
@@ -3447,6 +3710,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           {/* =========================================================
              TAB 3: TASKS (PROJECT KANBAN & LIST VIEWS)
              ========================================================= */}
+          {/* =========================================================
+             TAB 3: TASKS (PROJECT KANBAN & LIST VIEWS)
+             ========================================================= */}
           <Show when={activeTab() === 'tasks'}>
             <div style={{ height: '100%', "overflow-y": 'auto', padding: '24px 32px', "background-color": 'var(--surface)' }}>
               {/* Task View Mode Switcher & Actions Header */}
@@ -3474,10 +3740,10 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                   <button 
                     type="button"
                     class="btn-primary"
-                    onClick={() => setActiveNewTaskCol('todo')}
-                    style={{ padding: '6px 14px', "font-size": '12px' }}
+                    onClick={() => handleOpenNewTaskModal('todo')}
+                    style={{ padding: '7px 16px', "font-size": '13px', display: 'flex', "align-items": 'center', gap: '6px' }}
                   >
-                    <Plus size={13} />
+                    <Plus size={14} />
                     <span>New Task</span>
                   </button>
                 </div>
@@ -3493,21 +3759,38 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                     { key: 'done' as const, title: 'Done', color: 'var(--secondary)' }
                   ].map(col => {
                     const colTasks = () => tasks().filter(t => t.status === col.key);
+                    const isDragOver = () => dragOverCol() === col.key;
 
                     return (
-                      <div style={{ padding: '12px', "border-radius": '8px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', gap: '10px' }}>
+                      <div 
+                        onDragOver={(e) => handleColDragOver(e, col.key)}
+                        onDragLeave={() => handleColDragLeave(col.key)}
+                        onDrop={(e) => handleColDrop(e, col.key)}
+                        style={{ 
+                          padding: '14px', 
+                          "border-radius": '8px', 
+                          "background-color": isDragOver() ? 'var(--surface-container-high)' : 'var(--surface-container-low)', 
+                          border: isDragOver() ? '1.5px dashed var(--primary)' : '1px solid var(--border-default)', 
+                          display: 'flex', 
+                          "flex-direction": 'column', 
+                          gap: '12px',
+                          "min-height": '400px',
+                          transition: 'background-color 0.15s ease, border-color 0.15s ease'
+                        }}
+                      >
+                        {/* Column Header */}
                         <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-                          <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-                            <span style={{ width: '8px', height: '8px', "border-radius": '50%', "background-color": col.color }}></span>
-                            <span style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)' }}>{col.title}</span>
+                          <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+                            <span style={{ width: '9px', height: '9px', "border-radius": '50%', "background-color": col.color }}></span>
+                            <span style={{ "font-size": '13px', "font-weight": 600, color: 'var(--text-main)' }}>{col.title}</span>
                           </div>
                           <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-                            <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 5px', "border-radius": '3px', "background-color": 'var(--surface-container-high)' }}>
+                            <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 6px', "border-radius": '4px', "background-color": 'var(--surface-container-high)' }}>
                               {colTasks().length}
                             </span>
                             <button
-                              onClick={() => setActiveNewTaskCol(activeNewTaskCol() === col.key ? null : col.key)}
-                              title="Add task in this column"
+                              onClick={() => handleOpenNewTaskModal(col.key)}
+                              title={`Add task in ${col.title}`}
                               style={{
                                 background: 'none',
                                 border: 'none',
@@ -3515,79 +3798,62 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                                 cursor: 'pointer',
                                 display: 'flex',
                                 "align-items": 'center',
-                                padding: '2px'
+                                padding: '3px',
+                                "border-radius": '4px'
                               }}
                             >
-                              <Plus size={13} />
+                              <Plus size={14} />
                             </button>
                           </div>
                         </div>
 
-                        <Show when={activeNewTaskCol() === col.key}>
-                          <form onSubmit={(e) => { e.preventDefault(); handleCreateTaskInCol(col.key); }}>
-                            <input 
-                              autofocus
-                              type="text"
-                              placeholder="Task name... Enter to add"
-                              value={newTaskTitle()}
-                              onInput={e => setNewTaskTitle(e.currentTarget.value)}
-                              style={{
-                                width: '100%',
-                                padding: '6px 8px',
-                                "font-size": '11px',
-                                "background-color": 'var(--surface-container-high)',
-                                border: '1px solid var(--border-default)',
-                                "border-radius": '4px',
-                                color: 'var(--text-main)',
-                                outline: 'none',
-                                "box-sizing": 'border-box'
-                              }}
-                            />
-                          </form>
-                        </Show>
-
-                        <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
+                        {/* Task Cards in Column */}
+                        <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px', flex: 1 }}>
                           <For each={colTasks()}>
                             {(t) => (
                               <div 
-                                onClick={() => handleCycleTaskStatus(t)}
-                                title="Click to advance status"
+                                draggable={true}
+                                onDragStart={(e) => handleTaskDragStart(e, t.id)}
+                                onDragEnd={handleTaskDragEnd}
+                                onClick={() => handleOpenEditTaskModal(t)}
+                                title="Drag to move column, or click to edit"
                                 style={{
-                                  padding: '12px',
-                                  "border-radius": '6px',
+                                  padding: '12px 14px',
+                                  "border-radius": '7px',
                                   "background-color": 'var(--surface-container)',
                                   border: '1px solid var(--border-default)',
                                   display: 'flex',
                                   "flex-direction": 'column',
-                                  gap: '6px',
-                                  cursor: 'pointer',
-                                  transition: 'transform 0.1s ease'
+                                  gap: '8px',
+                                  cursor: 'grab',
+                                  opacity: draggedTaskId() === t.id ? 0.45 : 1,
+                                  transition: 'box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease'
                                 }}
                               >
-                                <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-                                  <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                                <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', gap: '8px' }}>
+                                  <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
                                     #{t.id.slice(-4)}
                                   </span>
                                   <span style={{
-                                    "font-size": '9px',
+                                    "font-size": '10px',
                                     "font-family": 'var(--font-mono)',
-                                    padding: '1px 5px',
+                                    "text-transform": 'uppercase',
+                                    padding: '2px 6px',
                                     "border-radius": '3px',
-                                    background: t.priority === 'urgent' ? 'rgba(239, 68, 68, 0.2)' : 'var(--surface-container-high)',
+                                    background: t.priority === 'urgent' ? 'rgba(239, 68, 68, 0.18)' : 'var(--surface-container-high)',
                                     color: t.priority === 'urgent' ? '#f87171' : 'var(--text-muted)'
                                   }}>
                                     {t.priority}
                                   </span>
                                 </div>
-                                <h4 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>
+                                <h4 style={{ "font-size": '13px', "font-weight": 500, color: 'var(--text-main)', margin: 0, "line-height": 1.4 }}>
                                   {t.title}
                                 </h4>
-                                <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '10px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
-                                  <span>{t.due_date ? new Date(t.due_date).toLocaleDateString() : 'No date'}</span>
-                                  <span style={{ color: col.color, display: 'flex', "align-items": 'center', gap: '2px' }}>
-                                    Advance <ChevronRight size={10} />
-                                  </span>
-                                </div>
+                                <Show when={t.due_date}>
+                                  <div style={{ display: 'flex', "align-items": 'center', "font-size": '11px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
+                                    <span>Due {new Date(t.due_date!).toLocaleDateString()}</span>
+                                  </div>
+                                </Show>
                               </div>
                             )}
                           </For>
@@ -3600,42 +3866,33 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
               {/* View 2: LIST VIEW */}
               <Show when={taskViewMode() === 'list'}>
-                <div style={{ "max-width": '900px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '16px' }}>
-                  {/* Quick Add Bar */}
-                  <form onSubmit={(e) => { e.preventDefault(); handleCreateTaskInCol('todo'); }}>
-                    <div style={{
-                      display: 'flex',
-                      "align-items": 'center',
-                      gap: '10px',
-                      padding: '8px 14px',
-                      "background-color": 'var(--surface-container-low)',
-                      border: '1px solid var(--border-default)',
-                      "border-radius": '8px'
-                    }}>
-                      <Plus size={15} color="var(--text-dim)" />
-                      <input 
-                        type="text"
-                        value={newTaskTitle()}
-                        onInput={e => setNewTaskTitle(e.currentTarget.value)}
-                        placeholder="Quick add task to Backlog... press Enter"
-                        style={{
-                          flex: 1,
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-main)',
-                          "font-size": '12px',
-                          outline: 'none'
-                        }}
-                      />
-                      <span class="kbd-badge">Enter</span>
-                    </div>
-                  </form>
+                <div style={{ "max-width": '900px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '14px' }}>
+                  {/* Add Task Button */}
+                  <button 
+                    type="button" 
+                    class="btn-secondary" 
+                    onClick={() => handleOpenNewTaskModal('todo')}
+                    style={{ 
+                      display: 'flex', 
+                      "align-items": 'center', 
+                      gap: '8px', 
+                      padding: '10px 16px', 
+                      "font-size": '13px', 
+                      "border-radius": '8px', 
+                      width: '100%', 
+                      "justify-content": 'center',
+                      "border-style": 'dashed'
+                    }}
+                  >
+                    <Plus size={15} />
+                    <span>Add New Task</span>
+                  </button>
 
                   {/* Task List Items */}
                   <div style={{ display: 'flex', "flex-direction": 'column', gap: '6px' }}>
                     <Show when={tasks().length > 0} fallback={
-                      <div style={{ padding: '36px', "text-align": 'center', color: 'var(--text-dim)', "font-size": '12px', "border-radius": '8px', border: '1px dashed var(--border-default)' }}>
-                        No tasks in this project yet. Use the input above to add a task.
+                      <div style={{ padding: '36px', "text-align": 'center', color: 'var(--text-dim)', "font-size": '13px', "border-radius": '8px', border: '1px dashed var(--border-default)' }}>
+                        No tasks in this project yet. Click Add New Task to create one.
                       </div>
                     }>
                       <For each={tasks()}>
@@ -3646,17 +3903,18 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                               display: 'flex',
                               "align-items": 'center',
                               "justify-content": 'space-between',
-                              padding: '10px 14px',
-                              "border-radius": '6px',
+                              padding: '12px 16px',
+                              "border-radius": '8px',
                               "background-color": 'var(--surface-container)',
                               border: '1px solid var(--border-default)',
                               gap: '12px',
                               transition: 'background-color 0.12s ease'
                             }}>
-                              <div style={{ display: 'flex', "align-items": 'center', gap: '10px', flex: 1, "min-width": 0 }}>
+                              <div style={{ display: 'flex', "align-items": 'center', gap: '12px', flex: 1, "min-width": 0 }}>
                                 <button
                                   type="button"
-                                  onClick={async () => {
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
                                     const nextStatus = t.status === 'done' ? 'todo' : 'done';
                                     try {
                                       await api.updateTaskStatus(t.id, nextStatus);
@@ -3674,14 +3932,17 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                                   }}
                                   title={isDone() ? 'Mark incomplete' : 'Mark done'}
                                 >
-                                  <Show when={isDone()} fallback={<Square size={16} />}>
-                                    <CheckSquare size={16} />
+                                  <Show when={isDone()} fallback={<Square size={17} />}>
+                                    <CheckSquare size={17} />
                                   </Show>
                                 </button>
 
-                                <div style={{ display: 'flex', "flex-direction": 'column', gap: '2px', flex: 1, "min-width": 0 }}>
+                                <div 
+                                  onClick={() => handleOpenEditTaskModal(t)}
+                                  style={{ display: 'flex', "flex-direction": 'column', gap: '2px', flex: 1, "min-width": 0, cursor: 'pointer' }}
+                                >
                                   <span style={{
-                                    "font-size": '12.5px',
+                                    "font-size": '13px',
                                     "font-weight": 500,
                                     color: isDone() ? 'var(--text-dim)' : 'var(--text-main)',
                                     "text-decoration": isDone() ? 'line-through' : 'none',
@@ -3691,18 +3952,18 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                                   }}>
                                     {t.title}
                                   </span>
-                                  <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                                  <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
                                     #{t.id.slice(-4)} {t.due_date ? `• Due ${new Date(t.due_date).toLocaleDateString()}` : ''}
                                   </span>
                                 </div>
                               </div>
 
-                              <div style={{ display: 'flex', "align-items": 'center', gap: '8px', "flex-shrink": 0 }}>
+                              <div style={{ display: 'flex', "align-items": 'center', gap: '10px', "flex-shrink": 0 }}>
                                 <span style={{
-                                  "font-size": '9.5px',
+                                  "font-size": '10px',
                                   "font-family": 'var(--font-mono)',
                                   "text-transform": 'uppercase',
-                                  padding: '2px 6px',
+                                  padding: '2px 7px',
                                   "border-radius": '4px',
                                   background: t.priority === 'urgent' ? 'rgba(244, 63, 94, 0.15)' : 'var(--surface-container-high)',
                                   color: t.priority === 'urgent' ? '#f43f5e' : 'var(--text-muted)'
@@ -3710,25 +3971,46 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                                   {t.priority}
                                 </span>
 
+                                <span style={{
+                                  padding: '3px 8px',
+                                  "font-size": '11px',
+                                  "border-radius": '4px',
+                                  background: 'var(--surface-container-high)',
+                                  color: 'var(--text-muted)',
+                                  "text-transform": 'capitalize'
+                                }}>
+                                  {t.status.replace('_', ' ')}
+                                </span>
+
                                 <button
                                   type="button"
-                                  onClick={() => handleCycleTaskStatus(t)}
-                                  style={{
-                                    padding: '3px 8px',
-                                    "font-size": '10.5px',
-                                    "border-radius": '4px',
-                                    border: '1px solid var(--border-default)',
-                                    background: 'var(--surface-container-high)',
-                                    color: 'var(--text-muted)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    "align-items": 'center',
-                                    gap: '4px'
-                                  }}
-                                  title="Advance Status"
+                                  onClick={() => handleOpenEditTaskModal(t)}
+                                  class="btn-secondary"
+                                  style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center', gap: '4px' }}
+                                  title="Edit Task"
                                 >
-                                  <span>{t.status.replace('_', ' ')}</span>
-                                  <ChevronRight size={10} />
+                                  <Edit3 size={12} />
+                                  <span>Edit</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Are you sure you want to delete this task?')) {
+                                      try {
+                                        await api.deleteTask(t.id);
+                                        handleTaskDeleted(t.id);
+                                      } catch (err) {
+                                        console.error('Failed to delete task:', err);
+                                      }
+                                    }
+                                  }}
+                                  class="btn-ghost-danger"
+                                  style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center' }}
+                                  title="Delete Task"
+                                >
+                                  <Trash2 size={13} />
                                 </button>
                               </div>
                             </div>
@@ -3835,6 +4117,18 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           setIsNewProjectModalOpen(false);
           loadProjects();
         }}
+      />
+
+      {/* Task Modal for Creating/Editing/Deleting Tasks */}
+      <TaskModal
+        isOpen={isTaskModalOpen()}
+        taskToEdit={taskToEdit()}
+        defaultStatus={defaultTaskCol()}
+        defaultProjectId={selectedProjectId() || undefined}
+        defaultSpaceId={currentProject()?.space_id || props.activeSpaceId || undefined}
+        onClose={() => setIsTaskModalOpen(false)}
+        onSaved={handleTaskSaved}
+        onDeleted={handleTaskDeleted}
       />
     </div>
   );

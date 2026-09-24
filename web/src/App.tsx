@@ -1,5 +1,6 @@
 import type { Component } from 'solid-js';
-import { createSignal, onMount, onCleanup, Switch, Match } from 'solid-js';
+import { createSignal, onMount, onCleanup, Switch, Match, Show } from 'solid-js';
+import { PanelLeftOpen } from 'lucide-solid';
 import { Sidebar } from './components/Sidebar';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { InboxView } from './views/InboxView';
@@ -11,6 +12,7 @@ export const App: Component = () => {
   const [activeSpaceId, setActiveSpaceId] = createSignal<string | null>(null);
   const [activeProjectId, setActiveProjectId] = createSignal<string | null>(null);
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = createSignal<boolean>(false);
+  const [isSidebarOpen, setIsSidebarOpen] = createSignal<boolean>(true);
 
   const handleNavigate = (route: string, spaceId?: string | null, projectId?: string | null) => {
     setCurrentRoute(route);
@@ -42,8 +44,22 @@ export const App: Component = () => {
 
   return (
     <div class="orca-app">
+      {/* Floating Sidebar Reopen Button when Sidebar is Collapsed */}
+      <Show when={!isSidebarOpen()}>
+        <button 
+          type="button"
+          class="sidebar-toggle-floating-btn" 
+          onClick={() => setIsSidebarOpen(true)}
+          title="Buka Sidebar"
+        >
+          <PanelLeftOpen size={16} />
+        </button>
+      </Show>
+
       {/* Sidebar Navigation */}
       <Sidebar 
+        isOpen={isSidebarOpen()}
+        onToggle={() => setIsSidebarOpen(prev => !prev)}
         currentRoute={currentRoute()} 
         activeSpaceId={activeSpaceId()} 
         activeProjectId={activeProjectId()}
@@ -52,7 +68,7 @@ export const App: Component = () => {
       />
 
       {/* Main View Area */}
-      <div class="orca-main-viewport">
+      <div class={`orca-main-viewport ${isSidebarOpen() ? '' : 'sidebar-collapsed'}`}>
         <Switch>
           <Match when={currentRoute() === 'inbox'}>
             <InboxView 
@@ -80,6 +96,11 @@ export const App: Component = () => {
       <QuickCaptureModal 
         isOpen={isQuickCaptureOpen()} 
         onClose={() => setIsQuickCaptureOpen(false)}
+        onItemCreated={() => {
+          // Re-trigger current route to reload
+          const curRoute = currentRoute();
+          handleNavigate(curRoute, activeSpaceId(), activeProjectId());
+        }}
       />
     </div>
   );

@@ -27,6 +27,8 @@ import { SpaceModal } from './SpaceModal';
 import { ProjectModal } from './ProjectModal';
 
 interface SidebarProps {
+  isOpen: boolean;
+  onToggle: () => void;
   currentRoute: string;
   activeSpaceId: string | null;
   activeProjectId?: string | null;
@@ -114,23 +116,26 @@ export const Sidebar: Component<SidebarProps> = (props) => {
   };
 
   return (
-    <aside class="orca-sidebar">
-      <div style={{ display: 'flex', "flex-direction": 'column', gap: '20px' }}>
-        {/* Wordmark Header */}
-        <div class="sidebar-brand-row">
-          <div class="brand-logo" onClick={() => props.onNavigate('projects', null, null)}>
-            <span class="brand-text">ORCA</span>
-            <span class="brand-cyan-dot"></span>
-          </div>
-          <button 
-            aria-label="Collapse sidebar" 
-            class="btn-ghost-icon"
-            style={{ width: '28px', height: '28px' }}
-          >
-            <PanelLeftClose size={16} color="var(--text-dim)" />
-          </button>
+    <aside class={`orca-sidebar ${props.isOpen ? '' : 'collapsed'}`}>
+      {/* 1. Fixed Header */}
+      <div class="sidebar-brand-row">
+        <div class="brand-logo" onClick={() => props.onNavigate('projects', null, null)}>
+          <span class="brand-text">ORCA</span>
         </div>
+        <button 
+          type="button"
+          aria-label="Collapse sidebar" 
+          class="btn-ghost-icon"
+          style={{ width: '28px', height: '28px' }}
+          onClick={props.onToggle}
+          title="Tutup Sidebar"
+        >
+          <PanelLeftClose size={16} color="var(--text-dim)" />
+        </button>
+      </div>
 
+      {/* 2. Scrollable Middle Section (Views & Spaces) */}
+      <div class="sidebar-scroll-area">
         {/* 1. Navigation Views Section (Moved to TOP: Only Inbox & Calendar) */}
         <div style={{ display: 'flex', "flex-direction": 'column', gap: '4px' }}>
           <div class="sidebar-section-header">Views</div>
@@ -307,8 +312,8 @@ export const Sidebar: Component<SidebarProps> = (props) => {
         </div>
       </div>
 
-      {/* Footer Area: Theme Switcher & Quick Capture */}
-      <div style={{ "padding-top": '14px', "border-top": '1px solid var(--border-subtle)', display: 'flex', "flex-direction": 'column', gap: '10px' }}>
+      {/* 3. Footer Area (Fixed) */}
+      <div class="sidebar-footer-fixed">
         {/* Theme Switcher Widget */}
         <div class="sidebar-theme-widget">
           <button 
