@@ -172,47 +172,22 @@ docker compose ps
 
 ---
 
-## 🔒 HTTPS & SSL Configuration
+## 🔒 HTTPS & Reverse Proxy Options
 
-ORCA provides **built-in HTTPS support directly in the frontend Nginx container without hardcoding any domain name**:
+By default, the ORCA web frontend container serves pure HTTP on port `3000` (or `80`), keeping container images lightweight and free of certificate bloat. SSL/TLS termination is typically handled at the infrastructure/network layer:
 
-### 1. Built-in Automatic SSL (Zero Configuration)
+### Option A: Cloudflare Tunnel (Zero-Trust - Recommended for Homelab / CGNAT)
 
-Upon container startup, ORCA automatically detects and enables SSL:
-- **No Hardcoded Domain:** Nginx is configured with `server_name _;`, matching any domain name, local hostname (e.g. `nh-labs.local`), or raw IP address (e.g. `192.168.1.50`, `localhost`).
-- **Auto-Generated Self-Signed Certificate:** If no certificate is found, ORCA automatically generates a 2048-bit RSA self-signed SSL certificate with multi-SAN support (`DNS:localhost`, `DNS:*.local`, `IP:127.0.0.1`, `IP:0.0.0.0`).
-- **Immediate Access:**
-  - **HTTP:** `http://<your-host>:3000`
-  - **HTTPS:** `https://<your-host>:3443`
-  - In production, set `WEB_PORT=80` and `WEB_SSL_PORT=443` in `.env` to bind standard web ports.
-
-### 2. Supplying Custom / Valid SSL Certificates (Let's Encrypt, Cloudflare, Custom CA)
-
-To use trusted certificates with no browser security warnings:
-1. Place your certificate files into the `./certs` directory:
-   - **Let's Encrypt / Certbot:** `fullchain.pem` and `privkey.pem`
-   - **Standard / Kubernetes:** `tls.crt` and `tls.key`
-   - **Alternative:** `orca.crt` and `orca.key`
-2. Restart the containers:
-   ```bash
-   docker compose restart web
-   ```
-   The container will automatically detect your files and apply them to Nginx.
-
-### 3. Optional HTTPS Redirection (`FORCE_SSL`)
-
-If you want all plain HTTP (port 80) traffic to automatically redirect to HTTPS (port 443), set in `.env`:
-```ini
-FORCE_SSL=true
-```
+If your server runs behind home internet, CGNAT, or you do not want to expose open ports to the internet:
+1. In Cloudflare Zero Trust (**Networks** $\rightarrow$ **Tunnels**), create or use an existing tunnel.
+2. In **Public Hostname**, configure your domain to point to your local service:
+   - **Service Type:** `HTTP`
+   - **URL:** `localhost:3000` (or your container IP/port)
+3. Cloudflare automatically handles edge SSL, DDoS protection, and routing without needing open ports or SSL certificates on your host.
 
 ---
 
-## 🌐 External Reverse Proxy Options (Optional)
-
-If you prefer to terminate SSL at an external host layer:
-
-### Option A: Caddy (Automatic HTTPS)
+### Option B: Caddy (Automatic HTTPS)
 
 Create a `Caddyfile`:
 

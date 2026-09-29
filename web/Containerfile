@@ -1,6 +1,6 @@
 # =========================================================
 # ORCA Frontend SolidJS SPA - Production Containerfile
-# Multi-stage build with Nginx reverse proxy & automatic SSL
+# Multi-stage lightweight build with Nginx reverse proxy
 # =========================================================
 
 # --- Stage 1: Build Static Assets ---
@@ -18,10 +18,8 @@ ENV VITE_API_URL=/api/v1
 
 RUN npm run build
 
-# --- Stage 2: Production Nginx Server with SSL ---
+# --- Stage 2: Production Nginx Server ---
 FROM docker.io/library/nginx:alpine
-
-RUN apk add --no-cache openssl wget
 
 # Remove default nginx html
 RUN rm -rf /usr/share/nginx/html/*
@@ -32,13 +30,9 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy custom Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy entrypoint script for auto-SSL handling
-COPY entrypoint.sh /entrypoint.sh
-RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
-
-EXPOSE 80 443
+EXPOSE 80
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
     CMD wget -qO- http://localhost/healthz || exit 1
 
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]
