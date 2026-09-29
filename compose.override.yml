@@ -31,7 +31,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Containerfile
     container_name: orca-api
     restart: unless-stopped
     ports:
@@ -54,8 +54,8 @@ services:
   web:
     build:
       context: ./web
-      dockerfile: Dockerfile
-    container_name: orca-web
+      dockerfile: Containerfile
+      container_name: orca-web
     restart: unless-stopped
     ports:
       - "3000:80"
