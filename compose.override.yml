@@ -9,7 +9,7 @@
 
 services:
   db:
-    image: postgres:16-alpine
+    image: docker.io/library/postgres:16-alpine
     container_name: orca-db
     restart: unless-stopped
     environment:
@@ -31,7 +31,7 @@ services:
       - orca-net
 
   redis:
-    image: redis:7-alpine
+    image: docker.io/library/redis:7-alpine
     container_name: orca-redis
     restart: unless-stopped
     ports:

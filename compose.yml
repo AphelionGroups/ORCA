@@ -9,6 +9,7 @@
 
 services:
   api:
+    image: localhost/orca-api:latest
     build:
       context: .
       dockerfile: Containerfile
@@ -36,6 +37,7 @@ services:
       - orca-net
 
   web:
+    image: localhost/orca-web:latest
     build:
       context: ./web
       dockerfile: Containerfile

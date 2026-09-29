@@ -4,7 +4,7 @@
 # =========================================================
 
 # --- Stage 1: Build binary ---
-FROM golang:alpine AS builder
+FROM docker.io/library/golang:alpine AS builder
 
 ENV GOTOOLCHAIN=auto
 
@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o /build/bin/server ./cmd/server/main.go
 
 # --- Stage 2: Minimal Runtime ---
-FROM alpine:3.20
+FROM docker.io/library/alpine:3.20
 
 RUN apk add --no-cache ca-certificates tzdata wget \
     && addgroup -S orca && adduser -S orca -G orca
