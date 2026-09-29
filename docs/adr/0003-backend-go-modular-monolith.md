@@ -1,29 +1,29 @@
-# ADR 0003: Pemilihan Backend Go dengan Pola Modular Monolith
+# ADR 0003: Selection of Go Backend with Modular Monolith Pattern
 
 ## Status
-Diterima (Accepted)
+Accepted
 
-## Tanggal
+## Date
 2026-09-16
 
-## Konteks
-Backend ORCA harus mampu melayani operasi CRUD cepat, mengelola koneksi database relasional, dan menjalankan background worker untuk sinkronisasi kalender pihak ketiga (Google Calendar).
-Dua opsi utama yang dipertimbangkan adalah:
-1. **Node.js (NestJS / Hono):** Keuntungan utama adalah kesamaan bahasa (TypeScript) antara frontend dan backend (*shared types*). Namun, NestJS cenderung berat, dan runtime Node.js memiliki konsumsi memori idle yang relatif besar (150–300 MB) serta ekosistem dependency `node_modules` yang rentan terhadap *bitrot*.
-2. **Go (Golang):** Dikenal dengan performa tinggi, efisiensi memori luar biasa (<30 MB RAM idle), single binary static build, dan model konkurensi native (goroutine) yang sangat andal untuk background worker.
+## Context
+ORCA's backend must handle fast CRUD requests, maintain relational database connections, and run lightweight background workers for external calendar synchronization (Google Calendar).
+Two primary backend ecosystems were evaluated:
+1. **Node.js (NestJS / Hono):** Offers unified language ergonomics (TypeScript) between frontend and backend. However, NestJS runtime memory consumption is relatively high ($150\text{--}300\text{ MB}$ idle), and large `node_modules` dependency graphs create long-term maintenance overhead.
+2. **Go (Golang):** Offers outstanding performance, minimal memory footprint ($<30\text{ MB}$ RAM idle), single static binary compilation, and native goroutine concurrency ideal for background workers.
 
-Setelah dianalisis, keunggulan *end-to-end type safety* di TypeScript tidak cukup signifikan untuk menutupi keunggulan efisiensi resource dan stabilitas jangka panjang dari Go, terutama untuk aplikasi yang didesain agar mudah di-self-host.
+For a software platform designed specifically for self-hosters and home labs, low resource usage and long-term deployment stability outweigh the convenience of shared TypeScript types.
 
-## Keputusan
-Kami memilih **Go** sebagai bahasa utama backend dengan arsitektur **Modular Monolith**:
-1. Seluruh modul (Auth, Task, Calendar, Board, Link, Sync Worker) dikemas dalam satu codebase Go dengan pemisahan domain internal yang rapi.
-2. Dideploy sebagai single binary image (Docker Alpine/Distroless < 25 MB).
-3. Menggunakan router HTTP ringan (seperti Chi atau Echo) dan query builder/generator `sqlc` yang type-safe terhadap PostgreSQL.
+## Decision
+We select **Go** as the backend language structured as a **Modular Monolith**:
+1. All domain modules (Auth, Spaces, Tasks, Calendar, Board, Links, Sync Worker) reside in a single Go repository with clean domain package boundaries.
+2. Deployed as a single static binary container ($<25\text{ MB}$ image size).
+3. Built on lightweight standard HTTP routing (Chi) and robust PostgreSQL connection pooling via `pgx`.
 
-## Konsekuensi
-- **Positif:**
-  - Resource footprint sangat ramah untuk homelab, VPS murah ($4/bulan), dan cluster Kubernetes / RKE.
-  - Kompilasi instan dan minim maintenance dependency jangka panjang.
-  - Penjadwalan sinkronisasi Google Calendar dapat berjalan secara native menggunakan goroutine tanpa perlu worker framework terpisah.
-- **Negatif:**
-  - Tipe data DTO di frontend (TypeScript) harus didefinisikan secara manual atau di-generate via tool tambahan seperti OpenAPI/oapi-codegen.
+## Consequences
+- **Positive:**
+  - Extremely resource-efficient for low-cost VPS setups, home labs, and Kubernetes/RKE clusters.
+  - Near-instant container boot times and minimal dependency surface.
+  - Native goroutine concurrency eliminates the need for separate worker daemons.
+- **Negative:**
+  - Frontend TypeScript DTO interfaces must be maintained independently or synced via API specs.

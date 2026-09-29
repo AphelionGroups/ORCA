@@ -1,104 +1,105 @@
-# Panduan Pengembangan & Kontribusi
+# Development & Contribution Guide
 
-Dokumen ini berisi standar kode, struktur direktori proyek, alur kerja git, dan petunjuk pengaturan lingkungan pengembangan untuk **ORCA**.
-
----
-
-## 1. Prasyarat Lingkungan (Prerequisites)
-
-Untuk menjalankan dan mengembangkan ORCA secara lokal, pastikan perangkat Anda terpasang:
-- **Go:** Versi 1.22 atau lebih baru.
-- **Node.js:** Versi 20 LTS atau lebih baru.
-- **Package Manager:** `pnpm` (direkomendasikan) atau `npm`.
-- **Docker & Docker Compose:** Untuk menjalankan PostgreSQL dan Redis lokal secara terisolasi.
-- **Git:** Untuk version control.
+This document establishes the engineering standards, directory organization, Git workflows, and local environment setup for **ORCA**.
 
 ---
 
-## 2. Rencana Struktur Direktori Proyek
+## 1. Prerequisites
 
-Proyek ini menggunakan struktur monorepo terpadu yang memisahkan backend Go dan frontend SolidJS secara tegas:
+To run and develop ORCA locally, ensure the following tooling is installed:
+- **Go:** Version 1.22 or newer.
+- **Node.js:** Version 20 LTS or newer.
+- **Package Manager:** `npm` or `pnpm`.
+- **Docker & Docker Compose:** For running isolated PostgreSQL and Redis instances.
+- **Git:** For version control.
+
+---
+
+## 2. Repository Structure
+
+The project employs a structured monorepo separating the Go backend and SolidJS frontend:
 
 ```
 ORCA/
 ├── cmd/
-│   └── server/             # Entrypoint utama binary Go
-├── internal/               # Kode Go internal (modular monolith)
-│   ├── auth/               # Logika autentikasi dan session
-│   ├── board/              # Logika spatial board & note blocks
-│   ├── calendar/           # Logika kalender & Google Sync worker
-│   ├── doc/                # Logika dokumen bisnis & rich notes (Markdown)
-│   ├── link/               # Relasi polimorfik antar entitas
-│   ├── platform/           # Konfigurasi, DB pool, logging, middleware
-│   ├── project/            # Logika Project Hub (koordinasi doc, board, task)
-│   ├── space/              # Logika Spaces / domain konteks multi-peran
-│   ├── task/               # Logika task management & kanban
-│   └── workspace/          # Logika workspace & scoping tenant
-├── migrations/             # SQL migration files untuk PostgreSQL
-├── web/                    # Frontend SPA (SolidJS + TypeScript + Vite)
+│   ├── migrate/            # Database schema migration CLI
+│   └── server/             # Primary Go HTTP API entrypoint
+├── internal/               # Internal Go modules (Modular Monolith)
+│   ├── board/              # Spatial canvas & note blocks domain
+│   ├── calendar/           # Events & calendar sync domain
+│   ├── doc/                # Long-form documents & markdown domain
+│   ├── link/               # Universal polymorphic cross-link engine
+│   ├── platform/           # Config, database pools, logging, middleware
+│   ├── project/            # Project Hub orchestration
+│   ├── space/              # Multi-domain space context engine
+│   └── task/               # Task management & Kanban execution
+├── migrations/             # PostgreSQL SQL schema migrations
+├── scripts/                # E2E verification & seed scripts
+├── web/                    # SolidJS SPA Frontend (TypeScript + Vite)
 │   ├── src/
-│   │   ├── assets/         # Asset statis
-│   │   ├── components/     # UI components (Kobalte primitives)
-│   │   │   ├── board/      # Canvas spatial & SVG lines
-│   │   │   ├── calendar/   # Kalender views & daily planning drawer
-│   │   │   ├── docs/       # Editor dokumen panjang & text-to-task
-│   │   │   ├── inbox/      # Quick capture modal (Ctrl+K) & triage
-│   │   │   ├── spaces/     # Context switcher & space manager
-│   │   │   ├── tasks/      # Kanban & list components
-│   │   │   └── ui/         # Tombol, dialog, input
-│   │   ├── lib/            # Utility & API client fetcher
-│   │   ├── pages/          # Halaman aplikasi
-│   │   └── stores/         # Global reactive state (Solid signals/stores)
-│   ├── package.json
-│   └── vite.config.ts
-├── docs/                   # Dokumentasi proyek & ADR
-│   └── adr/
-├── docker-compose.yml      # Orkestrasi lokal (Postgres, Redis, dsb.)
-├── Makefile                # Shortcut perintah otomasi pengembangan
+│   │   ├── components/     # UI components (Modals, Sidebar)
+│   │   ├── services/       # Typed REST API client
+│   │   └── views/          # Core views (ProjectsView, CalendarView, InboxView)
+│   ├── Containerfile       # OCI frontend build containerfile
+│   ├── nginx.conf          # Production SPA reverse proxy configuration
+│   └── package.json
+├── Containerfile           # Root OCI backend build containerfile
+├── compose.yml             # Production compose specification (API + Web)
+├── compose.override.yml    # Development compose override (Local Postgres + Redis)
+├── docs/                   # Architectural documentation & ADRs
+│   ├── adr/
+│   └── self-hosting-guide.md
 └── README.md
 ```
 
 ---
 
-## 3. Aturan & Standar Penulisan Kode
+## 3. Engineering Guidelines & Coding Standards
 
-### A. Aturan Backend (Go)
-1. **Pemisahan Domain (Package Isolation):** Jangan melakukan *circular dependency*. Paket domain seperti `task` dan `calendar` berkomunikasi melalui interface atau data transfer object (DTO), bukan import silang tanpa batas.
-2. **Kueri Database Bersih:** Selalu sertakan klausa `workspace_id` dan `deleted_at IS NULL` pada setiap kueri `SELECT`, `UPDATE`, atau `DELETE` untuk menjamin isolasi data multi-tenant dan soft-delete.
-3. **Penanganan Error Eksplisit:** Selalu periksa dan bungkus (*wrap*) error (`fmt.Errorf("task.Create: %w", err)`). Jangan abaikan error menggunakan blank identifier (`_`).
-4. **Konteks (`context.Context`):** Teruskan `ctx` dari HTTP handler hingga ke kueri database untuk memastikan pembatalan request (*cancellation*) berjalan semestinya.
+### A. Backend Guidelines (Go)
+1. **Domain Package Isolation:** Strictly prevent circular dependencies. Packages communicate via defined interfaces or Data Transfer Objects (DTOs) rather than unconstrained cross-imports.
+2. **Tenant Scoping & Clean Queries:** Always enforce `workspace_id` tenant scoping and `deleted_at IS NULL` soft-delete checks on all database operations.
+3. **Explicit Error Wrapping:** Always inspect and contextually wrap errors:
+   ```go
+   if err != nil {
+       return fmt.Errorf("task.Create: %w", err)
+   }
+   ```
+   Never suppress errors with blank identifiers (`_`).
+4. **Context Propagation:** Pass `context.Context` from HTTP handlers down to database queries to ensure request cancellations and timeouts are honored.
 
-### B. Aturan Frontend (SolidJS)
-1. **Hindari Destrukturisasi Props:**
-   - Di SolidJS, melakukan `const { title, status } = props;` akan **merusak reaktivitas** (*loss of reactivity*).
-   - Selalu akses via `props.title` atau gunakan helper `splitProps(props, [...])`.
+### B. Frontend Guidelines (SolidJS)
+1. **Never Destructure Props:**
+   - In SolidJS, destructuring props (`const { title, status } = props;`) **breaks reactivity**.
+   - Always access attributes directly via `props.title` or use `splitProps(props, [...])`.
 2. **Fine-Grained Signals:**
-   - Buat sinyal sekecil dan sedekat mungkin dengan elemen yang membutuhkan.
-   - Hindari membuat sinyal global tunggal yang menyimpan seluruh state canvas; simpan koordinat `(x, y)` per kartu agar pembaruan drag hanya memengaruhi kartu yang bersangkutan.
-3. **No Virtual DOM Assumptions:**
-   - Ingat bahwa fungsi komponen SolidJS hanya dijalankan satu kali saat inisialisasi. Jangan meletakkan side-effect tanpa `createEffect` atau `onMount`.
+   - Keep reactive signals tightly scoped to elements that consume them.
+   - Avoid monolithic global stores for canvas state; isolate card coordinates `(x, y)` so that dragging one card only triggers DOM updates for that specific card.
+3. **Component Lifecycle Awareness:**
+   - SolidJS component functions execute only **once** upon mounting. Side-effects must be encapsulated within `createEffect` or `onMount`.
 
 ---
 
-## 4. Alur Kerja Git & Kontribusi
+## 4. Git & Contribution Workflow
 
-### A. Konvensi Pesan Commit (Conventional Commits)
-Gunakan format standar berikut:
+### A. Commit Message Conventions
+Follow the Conventional Commits specification:
 ```
-<type>(<scope>): <pesan ringkas dalam bahasa indonesia atau inggris>
+<type>(<scope>): <concise description>
 ```
-Contoh:
-- `feat(task): tambah filter prioritas pada list view`
-- `fix(board): perbaiki snapping koordinat saat zoom < 50%`
-- `docs(adr): tambah adr 0006 arsitektur pen tablet`
-- `refactor(auth): pisahkan middleware verifikasi workspace`
+Examples:
+- `feat(task): add priority filtering to list view`
+- `fix(board): correct coordinate snapping on zoom < 50%`
+- `docs(self-host): add automated backup instructions`
+- `refactor(auth): isolate workspace context middleware`
 
 ### B. Branching Strategy
-- `main`: Branch stabil yang selalu siap dideploy atau di-build.
-- `feat/<nama-fitur>`: Branch untuk pengembangan fitur baru.
-- `fix/<nama-bug>`: Branch untuk perbaikan bug.
+- `main`: Production-ready, stable branch.
+- `feat/<feature-name>`: Dedicated feature development branches.
+- `fix/<bug-name>`: Targeted bug fix branches.
 
-### C. Panduan Pull Request (PR)
-1. Pastikan kode lulus formatting (`gofmt` untuk Go dan `prettier` / `eslint` untuk web).
-2. Pastikan tidak ada kredensial, API key, atau rahasia sensitif yang terunggah (*git leak check*).
-3. Buat deskripsi PR yang menjelaskan apa yang diubah dan bagaimana cara memverifikasinya.
+### C. Pull Request Checklist
+1. Ensure code passes formatting checks (`gofmt` for Go, `npm run build` / typechecks for web).
+2. Validate that no secrets, database credentials, or API tokens are checked in.
+3. Run automated E2E smoke tests (`verify_e2e.ps1` or `verify_e2e.sh`).
+4. Provide a clear summary of changes and validation steps.

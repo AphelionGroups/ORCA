@@ -1,102 +1,102 @@
-# Konteks & Filosofi Desain
+# Context & Design Philosophy
 
-Dokumen ini menjelaskan latar belakang, permasalahan yang ingin diselesaikan, prinsip arsitektur, dan visi jangka panjang proyek **ORCA**.
-
----
-
-## 1. Latar Belakang & Masalah
-
-Setiap hari, seorang *founder*, *maker*, engineer, atau profesional berhadapan dengan dua tantangan besar:
-
-### A. Fragmentasi Alat Kerja (Tools Fragmentation)
-Pekerjaan dan pemikiran terpecah di berbagai aplikasi yang tidak saling terhubung:
-- **Task & Issue Tracker:** Linear atau Todoist untuk mengelola apa yang harus dikerjakan.
-- **Kalender:** Google Calendar untuk mengalokasikan waktu dan menghadiri pertemuan.
-- **Brainstorming & Visual Thinking:** Milanote, Miro, atau Apple Freeform untuk menyusun ide, meletakkan referensi visual, dan menghubungkan konsep.
-- **Notes & Dokumentasi:** Notion atau Obsidian untuk mencatat dokumen panjang, strategi bisnis, dan SOP.
-
-### B. Beban Mengelola Banyak Peran Sekaligus (Multi-Domain Life)
-Seseorang sering kali harus menjalankan banyak domain kehidupan sekaligus:
-- **🏢 Pekerjaan Kantor (Day Job)**
-- **👤 Kehidupan Pribadi (Kesehatan, Finansial, Hobi, Keluarga)**
-- **🚀 Bisnis A (Produk Digital / Agensi)**
-- **📈 Bisnis B (F&B / E-Commerce / Kreator)**
-
-Kondisi ini menimbulkan dilema:
-1. **Butuh Pemisahan Fokus (Context Isolation):** Saat jam kantor, pikiran tidak boleh terganggu operasional bisnis sampingan. Saat akhir pekan, tidak ingin melihat tumpukan isu kantor.
-2. **Waktu Hidup Hanya Satu (Unified Time):** Meskipun urusannya berbeda-beda, alokasi waktu fisik hanya ada satu (24 jam). Jadwal meeting kantor di Google Calendar secara fisik mengunci slot waktu yang tidak bisa dipakai untuk urusan bisnis lain.
-3. **Konteks Terputus (Context Loss):** Ide strategi atau brand guideline yang lahir di kanvas brainstorming harus disalin manual menjadi dokumen rencana (activity plan), lalu disalin lagi menjadi task di to-do list, lalu dijadwalkan manual di kalender. Banyak ide menguap di tengah jalan.
-4. **Ketergantungan SaaS & Privasi Data:** Data strategis bisnis dan catatan hidup tersebar di berbagai cloud vendor tertutup yang mahal dan tidak bisa di-self-host.
+This document outlines the background, core problems addressed, architectural principles, and long-term vision of the **ORCA** project.
 
 ---
 
-## 2. Visi ORCA: Personal & Business Operating System
+## 1. Background & Problem Statement
 
-> **"Ruang kerja terpadu (All-in-One Workspace) yang menyatukan Brainstorming Visual, Dokumentasi Bisnis, Manajemen Proyek, dan Penjadwalan Waktu — terisolasi per domain, terpadu dalam waktu, self-hostable, dan siap AI."**
+Founders, makers, engineers, and modern multi-disciplinary professionals confront two overarching challenges every day:
 
-ORCA menjembatani **3 Lapisan Alur Kerja Manusia**:
+### A. Tool Fragmentation
+Work and cognition are scattered across disconnected single-purpose applications:
+- **Task & Issue Trackers:** Linear or Todoist for managing execution items.
+- **Calendar:** Google Calendar for meetings and time allocation.
+- **Brainstorming & Visual Thinking:** Milanote, Miro, or Apple Freeform for arranging visual references, moodboards, and idea graphs.
+- **Notes & Documentation:** Notion or Obsidian for long-form documentation, brand guidelines, and SOPs.
+
+### B. The Cognitive Load of Multi-Domain Life
+Professionals frequently operate across multiple distinct life roles simultaneously:
+- **🏢 Day Job (Employment / Corporate Role)**
+- **👤 Personal Life (Health, Finances, Family, Hobbies)**
+- **🚀 Venture A (Digital Products / Agency)**
+- **📈 Venture B (E-Commerce / Creator Business)**
+
+This creates fundamental friction:
+1. **Need for Context Isolation:** During working hours, focus must not be derailed by side-business notifications. On weekends, work backlogs should remain hidden.
+2. **Unified Real-World Time:** While contexts are distinct, physical time is singular (24 hours a day). A corporate meeting on Google Calendar physically blocks a time slot that cannot be double-booked by other ventures.
+3. **Context Loss Across Mediums:** An idea generated on a visual canvas must be manually transcribed into a strategy document, then re-entered as actionable tasks in a todo list, and finally scheduled into a calendar. Inevitably, critical context evaporates along the way.
+4. **SaaS Vendor Lock-in & Privacy Risks:** Strategic business playbooks, internal trade secrets, and personal reflections are fragmented across proprietary cloud vendors without self-hosting guarantees.
+
+---
+
+## 2. ORCA Vision: Personal & Business Operating System
+
+> **"A unified workspace operating system uniting Visual Brainstorming, Business Documentation, Project Management, and Real-Time Scheduling — isolated by domain, unified in time, self-hostable, and AI-ready."**
+
+ORCA bridges the **Three Layers of Human Cognition and Workflow**:
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ 1. THINKING LAYER  (Brainstorming & Visual Thinking)        │
-│    Spatial Board (Milanote): Ide liar, moodboard, mindmap   │
+│    Spatial Board (Milanote): Raw ideas, moodboards, graphs  │
 └──────────────────────────────┬──────────────────────────────┘
-                               │ (ide matang)
+                               │ (ideas mature)
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ 2. PLANNING LAYER  (Documentation & Strategy)               │
-│    Docs & Wikis: Brand doc, Feature spec, Activity plan     │
+│    Docs & Wikis: Brand specs, PRDs, Activity playbooks      │
 └──────────────────────────────┬──────────────────────────────┘
-                               │ (dipecah jadi eksekusi)
+                               │ (broken into actionables)
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ 3. DOING LAYER     (Execution & Time Management)            │
-│    Tasks + Calendar: Kanban, Todo, Time-blocking jam nyata  │
+│    Tasks + Calendar: Kanban, Lists, Real-time Time-blocking │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Prinsip Desain Inti
+## 3. Core Design Principles
 
-### A. Model "Spaces" (Multi-Domain Isolation dengan Single Timeline)
-- Pengguna dapat membagi aktivitas ke dalam **Spaces** (`Kantor`, `Pribadi`, `Bisnis A`, `Bisnis B`).
-- Setiap Space memiliki dokumen, board, project, dan task yang terisolasi agar fokus tetap terjaga.
-- Namun, seluruh jadwal dan alokasi waktu diintegrasikan ke dalam satu **Unified Timeline Kalender**, sehingga tidak ada bentrok waktu antar domain.
+### A. Spaces Model (Multi-Domain Isolation with Unified Timeline)
+- Users partition activities into distinct **Spaces** (`Day Job`, `Personal`, `Venture A`, `Venture B`).
+- Each Space maintains isolated documents, spatial boards, projects, and tasks to preserve focus.
+- However, all deadlines and time allocations converge into a single **Unified Calendar Timeline**, preventing scheduling conflicts across life domains.
 
-### B. Konsep "Project Hub" (Bukan Sekadar Todo List)
-Sebuah proyek di ORCA adalah wadah kerja lengkap (*Work Hub*) yang memiliki 3 pilar:
-1. **Docs & Plans:** Dokumen terstruktur (Brand guidelines, Product Requirement Document, Activity plan).
-2. **Spatial Board:** Kanvas visual bebas (Moodboard, brainstorming, arsitektur ide).
-3. **Tasks & Roadmap:** Kanban dan checklist tugas yang terhubung langsung dengan teks dokumen dan kartu board.
+### B. Project Hub Concept (Beyond Simple Todo Lists)
+A project in ORCA is a complete initiative container (**Project Hub**) centered around three integrated pillars:
+1. **Docs & Plans:** Structured markdown documents (Brand Guidelines, PRDs, Activity playbooks).
+2. **Spatial Board:** Freeform visual canvas (Moodboards, architecture schematics, brainstorming cards).
+3. **Tasks & Execution:** Kanban boards and checklist items directly linked to document passages and canvas cards.
 
-### C. Alur Cepat: Quick Capture & Daily Rituals
-- **Quick Capture (`Ctrl+K`):** Menangkap ide atau tugas mendadak dalam hitungan detik ke dalam Inbox tanpa merusak alur konsentrasi.
-- **Daily Planning Ritual:** Ritual 5 menit di pagi hari untuk memilih prioritas lintas-domain dan langsung menarik (*drag-and-drop*) task ke slot kosong kalender.
+### C. Rapid Ingestion: Quick Capture & Daily Rituals
+- **Quick Capture (`Ctrl+K`):** Instantly captures spontaneous thoughts or tasks into the Inbox within seconds without breaking flow state.
+- **Daily Planning Ritual:** A focused 5-minute morning ritual to select cross-domain priority tasks and drag-and-drop them into calendar time-blocks.
 
 ### D. Single-Tenant by Default, Multi-Tenant-Ready by Design
-- Saat ini ORCA ditujukan untuk penggunaan personal (*single-user/single-tenant*).
-- Namun, skema data dan otentikasi didesain sudah memiliki `workspace_id` dan `owner_id` di setiap entitas utama. Hal ini mencegah *architectural debt* jika di masa depan ORCA dibuka untuk kolaborasi tim atau SaaS komersial.
+- While ORCA is primarily optimized for single-user self-hosting, all database schemas and API middlewares enforce `workspace_id` tenant scoping from day one. This eliminates architectural debt should team collaboration or multi-user hosting be enabled.
 
 ### E. Self-Host First-Class Citizen
-- Tidak ada ketergantungan pada vendor cloud berbayar tertutup.
-- Seluruh infrastruktur berjalan di atas komponen open source standar: **Go binary + PostgreSQL + Redis**.
-- Tersedia template `docker-compose.yml` untuk instalasi 1-perintah bagi pengguna homelab/VPS murah, serta **Helm Chart** untuk Kubernetes (RKE).
+- Zero reliance on closed proprietary cloud ecosystems.
+- Entire stack runs on standard, proven open-source primitives: **Go binary + PostgreSQL + Redis**.
+- Packaged with lightweight Docker Compose setups for low-cost VPS and home labs, as well as production **Helm Charts** for Kubernetes (RKE).
 
 ### F. Modular Monolith & API-First
-- Seluruh domain bisnis berada dalam satu monolit modular di Go.
-- Semua antarmuka (Web SolidJS, Tablet, calon Mobile App) berkomunikasi melalui REST API yang konsisten.
+- Domain logic is structured cleanly within a modular Go monolith.
+- Clients (SolidJS Web, tablets, and future mobile companions) communicate via clean, standard REST APIs.
 
 ---
 
-## 4. Evolusi Proyek
+## 4. Product Evolution Roadmap
 
-1. **Fase 1: Dogfooding Personal & Bisnis (MVP v0.1)**  
-   Digunakan setiap hari untuk mengelola kantor, pribadi, dan bisnis: Spaces, Project Hub (Docs + Board + Tasks), Google Calendar Sync, dan Quick Capture.
-2. **Fase 2: Tablet & Freehand Inking (v0.2)**  
-   Dukungan stylus/pen ditenagai `perfect-freehand` untuk mencoret di tablet saat brainstorming atau meeting.
-3. **Fase 3: Local-First & Synchronization (v0.3)**  
-   Mendukung mode offline penuh (IndexedDB) dan sinkronisasi otomatis multi-perangkat.
-4. **Fase 4: AI Intelligence Layer (v0.4)**  
-   Integrasi AI Assistant (Letta / Agent Core) untuk daily briefing, perangkum dokumen bisnis, dan pengingat proaktif.
-5. **Fase 5: Open Source Release & Helm Chart (v1.0)**  
-   Membuka repositori ke komunitas global dengan panduan self-host lengkap dan Helm chart teruji.
+1. **Phase 1: Personal & Business Dogfooding (MVP v0.1)**  
+   Daily-driver readiness: Spaces, Project Hub (Docs + Board + Tasks), Calendar Time-Blocking, and Quick Capture.
+2. **Phase 2: Tablet & Freehand Inking (v0.2)**  
+   Native stylus and pen support powered by `perfect-freehand` for natural sketching during meetings and brainstorming.
+3. **Phase 3: Local-First & Synchronization (v0.3)**  
+   Client-side IndexedDB caching and automated CRDT/delta background synchronization for offline resilience.
+4. **Phase 4: AI Intelligence Layer (v0.4)**  
+   External AI agent worker integration (Letta / Agent Core) for automated daily briefings, document synthesis, and proactive scheduling.
+5. **Phase 5: Open Source Release & Helm Chart (v1.0)**  
+   Global open-source distribution with comprehensive self-hosting guides, automated backups, and battle-tested Kubernetes Helm Charts.

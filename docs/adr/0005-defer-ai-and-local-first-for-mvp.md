@@ -1,31 +1,31 @@
-# ADR 0005: Penundaan Fitur AI Layer dan Local-First untuk MVP v0.1
+# ADR 0005: Deferring AI Intelligence Layer & Local-First Engine for Core MVP v0.1
 
 ## Status
-Diterima (Accepted)
+Accepted
 
-## Tanggal
+## Date
 2026-09-16
 
-## Konteks
-Ide awal ORCA mencakup fitur-fitur ambisius:
-1. **AI Layer (Letta AI / Agent Core):** AI yang membaca seluruh catatan, task, dan jadwal kalender untuk memberikan rekomendasi prioritas harian.
-2. **Local-First & CRDT (Yjs / Automerge):** Kemampuan mengedit canvas dan catatan secara offline dengan sinkronisasi real-time instan.
+## Context
+ORCA's foundational concept envisions ambitious capabilities:
+1. **AI Intelligence Layer (Letta AI / Agent Core):** An agent that ingests notes, tasks, and calendar events to deliver context-aware daily briefings and automated time-blocking.
+2. **Local-First & CRDT (Yjs / Automerge):** Full offline-first spatial canvas editing with deterministic multi-device conflict resolution.
 
-Membangun engine CRDT dan mengintegrasikan agen AI sejak sprint pertama membawa risiko *over-engineering* yang sangat tinggi bagi seorang solo developer. Risiko terbesarnya adalah proyek mangkrak sebelum fungsionalitas dasar (Task, Calendar, dan Notes) selesai dan dapat digunakan sehari-hari (*dogfooding*).
+Attempting to build CRDT synchronization engines and an AI agent runtime in initial sprints introduces extreme risk of over-engineering and architectural fatigue. The greatest danger is failing to reach a reliable daily-driver state for core workflows (Spaces, Tasks, Calendar, and Project Hub).
 
-## Keputusan
-Kami memutuskan untuk **menunda implementasi AI Layer dan engine Local-First murni keluar dari lingkup MVP v0.1**:
-1. **MVP (v0.1)** berfokus penuh pada:
-   - CRUD Task & Project (List & Kanban).
-   - Kalender internal dengan 1-way sync dari Google Calendar.
-   - Milanote-style Spatial Board v1 (kartu HTML dan konektor garis SVG).
-   - Sinkronisasi berbasis REST API biasa dengan state lokal optimistik.
-2. Fitur AI Layer ditunda dan akan dikembangkan sebagai service/worker eksternal (terintegrasi dari project AI terpisah) pada fase **v0.4**.
-3. Fitur Local-First ditunda ke fase **v0.3**, dengan pondasi skema database (UUIDv7, soft-deletes, timestamps) sudah disiapkan sejak awal di MVP.
+## Decision
+We decide to **defer the AI Layer and full Local-First CRDT engine outside the scope of Core MVP v0.1**:
+1. **MVP (v0.1)** focuses strictly on:
+   - Spaces & Context isolation.
+   - Project Hub (Docs & Plans, Milanote Spatial Board v1, Linear-style Kanban & Lists).
+   - Unified Calendar & task time-blocking.
+   - Standard REST API communication with optimistic client state.
+2. The AI Intelligence Layer is scheduled for **v0.4** as an external worker service, decoupling AI experimentation from the core operational database.
+3. The Local-First engine is scheduled for **v0.3**, with database foundations (UUIDv7, soft-deletes, timestamps) prepared upfront in the schema.
 
-## Konsekuensi
-- **Positif:**
-  - Scope MVP menjadi sangat terukur, realistis, dan cepat selesai untuk segera dipakai (*time-to-dogfooding* cepat).
-  - Kompleksitas arsitektur awal tetap sederhana dan mudah di-debug.
-- **Negatif:**
-  - Aplikasi pada fase MVP v0.1 membutuhkan koneksi internet/jaringan ke backend untuk menyimpan perubahan.
+## Consequences
+- **Positive:**
+  - Keeps the MVP tightly scoped, robust, and rapidly usable for daily dogfooding.
+  - Ensures initial debugging remains straightforward without distributed state synchronization complexity.
+- **Negative:**
+  - Early v0.1 builds require an active network connection to the backend to persist modifications.

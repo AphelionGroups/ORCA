@@ -1,20 +1,20 @@
-# Spesifikasi Sistem & Arsitektur
+# System & Architecture Specification
 
-Dokumen ini mendokumentasikan spesifikasi teknis, arsitektur sistem, skema basis data, dan pola komunikasi antar komponen untuk **ORCA**.
+This document details the technical specifications, system architecture, database schema, and component communication patterns for **ORCA**.
 
 ---
 
-## 1. Arsitektur Tingkat Tinggi
+## 1. High-Level Architecture
 
 ```
                      ┌───────────────────────────────────────────────┐
                      │           SolidJS SPA (Web/Tablet)            │
-                     │  - Multi-Domain Space Switcher (Kantor/Bisnis)│
+                     │  - Multi-Domain Space Switcher (Work/Venture) │
                      │  - Global Quick Capture Modal (Ctrl + K)      │
                      │  - Project Hub (Docs + Board + Tasks)         │
                      │  - Custom Spatial DOM Canvas + SVG Connectors │
                      │  - Unified Calendar & Daily Planning Ritual   │
-                     │  - Vanilla CSS Design Tokens + Kobalte Primitives │
+                     │  - Vanilla CSS Design Tokens + Kobalte        │
                      └───────────────────────┬───────────────────────┘
                                              │ HTTPS / REST (JSON)
                                              ▼
@@ -37,14 +37,14 @@ Dokumen ini mendokumentasikan spesifikasi teknis, arsitektur sistem, skema basis
                      │  │ Universal Cross-Link Engine             │  │
                      │  └─────────────────────────────────────────┘  │
                      │  ┌─────────────────────────────────────────┐  │
-                     │  │ Background Sync Worker (Google Cal Sync)│  │
+                     │  │ Background Sync Worker (Calendar Sync)  │  │
                      │  └─────────────────────────────────────────┘  │
                      └───────────────┬───────────────┬───────────────┘
                                      │               │
                                      ▼               ▼
                            ┌──────────────────┐  ┌─────────────┐
                            │    PostgreSQL    │  │ Redis (Ops) │
-                           │  (Primary Store) │  │  (Queue/    │
+                           │(Supabase / Local)│  │  (Queue /   │
                            │ (UUIDv7 + JSONB) │  │   Locking)  │
                            └──────────────────┘  └─────────────┘
                                      ▲
@@ -57,62 +57,65 @@ Dokumen ini mendokumentasikan spesifikasi teknis, arsitektur sistem, skema basis
 
 ---
 
-## 2. Arsitektur Frontend (SolidJS)
+## 2. Frontend Architecture (SolidJS)
 
-### A. Alasan Pemilihan SolidJS
-- **Fine-Grained Reactivity:** Reaktivitas tanpa Virtual DOM. Fungsi komponen hanya dipanggil 1 kali saat mount; pembaruan sinyal langsung mengubah DOM node secara terisolasi.
-- **Performa Canvas Spatial:** Saat ratusan kartu berpindah koordinat (`x, y`), SolidJS hanya memperbarui atribut CSS `transform: translate3d(x, y, 0)` kartu tersebut tanpa memicu re-render pada isi kartu (rich text editor, checklist, gambar).
+### A. Rationale for SolidJS
+- **Fine-Grained Reactivity:** Reactivity without Virtual DOM overhead. Component functions execute only once upon mounting; signal mutations update DOM nodes directly and in complete isolation.
+- **Spatial Canvas Performance:** When dozens or hundreds of cards shift coordinates `(x, y)`, SolidJS only modifies the CSS attribute `transform: translate3d(x, y, 0)` without triggering expensive re-renders inside the cards (rich text editors, checklists, images).
 
-### B. Desain Spatial DOM Board (Milanote Pattern)
-Canvas ORCA **bukan canvas bitmap/raster**, melainkan **Spatial DOM Board**:
-1. **Viewport Container:** Mengelola gesture pan dan zoom (menggunakan CSS `transform: scale(z) translate(x, y)` pada div container utama).
-2. **Card Layer (HTML):** Setiap kartu (sticky note, task card, image, text) adalah elemen `div` biasa. Hal ini memungkinkan pemanfaatan fitur native browser seperti text selection, accessibility, spellcheck, dan embed komponen form interaktif.
-3. **Connector Layer (SVG):** Layer SVG transparan di belakang/atas kartu yang menggambar kurva Bézier atau garis ortogonal yang menghubungkan titik-titik konektor antar kartu secara reaktif.
+### B. Spatial DOM Canvas Design (Milanote Pattern)
+ORCA's canvas is **not a raster or bitmap canvas**; it is an optimized **Spatial DOM Board**:
+1. **Viewport Container:** Manages pan and zoom gestures via CSS `transform: scale(z) translate(x, y)` on the primary container div.
+2. **Card Layer (HTML):** Every node (sticky note, task card, image, text block) is a standard HTML `div`. This allows the application to retain native browser accessibility, text selection, spell-checking, and interactive forms.
+3. **Connector Layer (SVG):** A transparent SVG overlay renders dynamic Bézier curves and relational lines between connector anchor points across cards.
 
-### C. Pola Antarmuka "Project Hub"
-Setiap proyek menyajikan tiga tampilan terintegrasi yang berbagi konteks data yang sama:
-- **Tab Docs & Plans:** Editor dokumen kaya (Markdown) untuk strategi, SOP, PRD, dan rencana aktivitas dengan kemampuan menyorot teks untuk langsung dijadikan task (*text-to-task*).
-- **Tab Spatial Board:** Papan kanvas visual untuk brainstorming, moodboard, dan diagram alur; kartu di kanvas dapat dikonversi menjadi task dengan satu klik (*card-to-task*).
-- **Tab Tasks:** Tampilan eksekusi (Kanban board & List view) yang menampung seluruh task yang lahir dari dokumen maupun kanvas.
+### C. The "Project Hub" UI Paradigm
+Every project integrates three concurrent views sharing an identical data context:
+- **Docs & Plans Tab:** Rich Markdown document authoring for strategies, SOPs, and PRDs, featuring direct text-to-task conversion.
+- **Spatial Board Tab:** Freeform visual canvas for moodboards, idea graphs, and mind maps; canvas cards convert into tasks with one click.
+- **Tasks Tab:** Linear-style execution interface (Kanban board & List view) aggregating all tasks created from documents or boards.
 
 ### D. Global Quick Capture & Daily Planning
-- **Quick Capture Modal (`Ctrl+K`):** Komponen modal global yang dapat dipanggil di layar mana pun untuk memasukkan ide kilat ke dalam Inbox tanpa memecah alur kerja yang sedang aktif.
-- **Daily Planning Ritual Drawer/View:** Tampilan samping kalender di mana pengguna menarik (*drag-and-drop*) daftar tugas prioritas hari ini ke dalam slot waktu kalender.
+- **Quick Capture Modal (`Ctrl+K`):** Global modal triggerable anywhere to capture thoughts into the Inbox without disrupting current work.
+- **Daily Planning Ritual Drawer:** A side drawer allowing users to drag and drop priority tasks directly into open calendar slots.
 
 ---
 
-## 3. Arsitektur Backend (Go)
+## 3. Backend Architecture (Go)
 
-### A. Alasan Pemilihan Go
-- **Resource Footprint Sangat Rendah:** Konsumsi RAM idle hanya ~15–30 MB, menjadikannya sangat ideal untuk self-host di VPS atau cluster Kubernetes berspesifikasi minimal.
-- **Single Static Binary:** Proses deployment sangat sederhana, menghasilkan Docker image berbasis Alpine/Distroless berukuran < 25 MB.
-- **Goroutine & Concurrency Native:** Penjadwalan background worker (seperti sync rutin Google Calendar) tidak membutuhkan dependency tambahan yang rumit.
+### A. Rationale for Go
+- **Minimal Resource Footprint:** Idle RAM consumption is only $\sim 15\text{--}30\text{ MB}$, making it exceptionally well-suited for low-cost VPS instances or lightweight Kubernetes clusters.
+- **Single Static Binary:** Clean compilation producing lightweight container images under $25\text{ MB}$.
+- **Native Concurrency:** Goroutines provide lightweight scheduling for background sync routines without requiring complex external brokers.
 
-### B. Struktur Internal Modular Monolith
-Backend Go diatur menggunakan struktur modular berbasis domain (*Domain-Driven Packaging*):
+### B. Modular Monolith Layout
+The Go backend is structured using domain-driven packaging:
 ```
 cmd/
-  server/               # Entrypoint HTTP API
+  server/               # HTTP API entrypoint
+  migrate/              # Database migration CLI
 internal/
-  platform/             # Database, config, logger, middleware
-  workspace/            # Domain Workspace & Tenant Scoping
-  space/                # Domain Spaces (Kantor, Pribadi, Bisnis A, Bisnis B)
-  auth/                 # Domain Autentikasi (Session / JWT)
-  doc/                  # Domain Business Documents & Knowledge Base
-  project/              # Domain Project Hub & Koordinasi Inisiatif
-  task/                 # Domain Task & Kanban Management
-  calendar/             # Domain Event, Time-blocking & Google Calendar Sync
-  board/                # Domain Spatial Board & Note Blocks
-  link/                 # Domain Cross-linking relasional
+  platform/             # Database connection pools, config, logging, middleware
+  workspace/            # Workspace domain & tenant scoping
+  space/                # Spaces domain (Day Job, Personal, Ventures)
+  auth/                 # Authentication & session domain
+  doc/                  # Business documents & markdown domain
+  project/              # Project Hub coordination domain
+  task/                 # Task & Kanban execution domain
+  calendar/             # Events, time-blocking & calendar sync domain
+  board/                # Spatial canvas & note blocks domain
+  link/                 # Universal polymorphic cross-link domain
 ```
 
-## 4. Skema Basis Data (PostgreSQL)
+---
 
-Semua tabel menggunakan **UUIDv7** sebagai Primary Key (time-ordered, terurut waktu, ramah indexing B-Tree, dan aman di-generate di sisi client). Seluruh entitas utama memiliki `workspace_id` untuk isolasi tenant & Row-Level Security (RLS), serta `created_at`, `updated_at`, dan `deleted_at` untuk audit & kesiapan sinkronisasi.
+## 4. Database Schema (PostgreSQL)
 
-### A. Identitas, Multi-Tenancy & Spaces
+All primary keys use **UUIDv7** (time-ordered, B-Tree index friendly, and safely client-generatable). All core entities enforce `workspace_id` for multi-tenant isolation and row-level security, alongside `created_at`, `updated_at`, and `deleted_at` timestamps for auditing and future sync readiness.
+
+### A. Tenancy, Users & Spaces
 ```sql
--- Ruang lingkup akun utama (Tenant Boundary)
+-- Workspace Boundary (Tenant Isolation)
 CREATE TABLE workspaces (
     id UUID PRIMARY KEY, -- UUIDv7
     name VARCHAR(255) NOT NULL,
@@ -123,7 +126,7 @@ CREATE TABLE workspaces (
     deleted_at TIMESTAMPTZ
 );
 
--- Pengguna sistem
+-- Users
 CREATE TABLE users (
     id UUID PRIMARY KEY,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -135,7 +138,7 @@ CREATE TABLE users (
     deleted_at TIMESTAMPTZ
 );
 
--- Spaces: Pemisah peran kehidupan/pekerjaan (Kantor, Pribadi, Bisnis A, Bisnis B)
+-- Spaces: Context partition (Day Job, Personal, Ventures)
 CREATE TABLE spaces (
     id UUID PRIMARY KEY,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -151,9 +154,9 @@ CREATE TABLE spaces (
 );
 ```
 
-### B. Project Hub & Planning Layer
+### B. Project Hub & Documentation Layer
 ```sql
--- Projects: Wadah inisiatif yang menaungi Docs, Boards, dan Tasks
+-- Projects: Initiative containers housing Docs, Boards, and Tasks
 CREATE TABLE projects (
     id UUID PRIMARY KEY,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -168,15 +171,15 @@ CREATE TABLE projects (
     deleted_at TIMESTAMPTZ
 );
 
--- Documents: Dokumen bisnis panjang (Brand Guidelines, PRD, Activity Plan, SOP)
+-- Documents: Long-form strategy docs (Brand Guidelines, PRDs, SOPs)
 CREATE TABLE documents (
     id UUID PRIMARY KEY,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
-    project_id UUID REFERENCES projects(id) ON DELETE SET NULL, -- Nullable: Dokumen proyek atau dokumen mandiri Space
+    project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
     doc_type VARCHAR(50) NOT NULL DEFAULT 'general', -- 'brand_guideline', 'prd', 'activity_plan', 'sop', 'general'
-    content TEXT NOT NULL DEFAULT '',                -- Format Markdown / Rich Content
+    content TEXT NOT NULL DEFAULT '',
     is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -184,14 +187,14 @@ CREATE TABLE documents (
 );
 ```
 
-### C. Spatial Brainstorming Board (Milanote Pattern)
+### C. Spatial Canvas & Brainstorming Board
 ```sql
--- Note Boards: Kanvas spatial 2D
+-- Note Boards: 2D Spatial Canvases
 CREATE TABLE note_boards (
     id UUID PRIMARY KEY,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
-    project_id UUID REFERENCES projects(id) ON DELETE SET NULL, -- Nullable: Kanvas proyek atau kanvas mandiri Space
+    project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
     viewport_state JSONB NOT NULL DEFAULT '{"x": 0, "y": 0, "zoom": 1}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -199,7 +202,7 @@ CREATE TABLE note_boards (
     deleted_at TIMESTAMPTZ
 );
 
--- Note Blocks: Komponen kartu di kanvas (Sticky notes, gambar, teks, embed)
+-- Note Blocks: Canvas elements (Sticky notes, text, shapes, media, task embeds)
 CREATE TABLE note_blocks (
     id UUID PRIMARY KEY,
     board_id UUID NOT NULL REFERENCES note_boards(id) ON DELETE CASCADE,
@@ -216,33 +219,33 @@ CREATE TABLE note_blocks (
 );
 ```
 
-### D. Tasks & Unified Time-Blocking Calendar
+### D. Tasks & Time-Blocking Calendar
 ```sql
--- Tasks: Tugas eksekusi (Mendukung Inbox dan Daily Planning)
+-- Tasks: Execution items (supporting Inbox triage and Daily Planning)
 CREATE TABLE tasks (
     id UUID PRIMARY KEY,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
-    project_id UUID REFERENCES projects(id) ON DELETE SET NULL, -- Jika NULL, berada di Inbox Space
+    project_id UUID REFERENCES projects(id) ON DELETE SET NULL, -- NULL indicates Inbox status
     parent_task_id UUID REFERENCES tasks(id) ON DELETE CASCADE, -- Subtasks
     title VARCHAR(255) NOT NULL,
     description TEXT,
     status VARCHAR(50) NOT NULL DEFAULT 'todo', -- 'todo', 'in_progress', 'done', 'cancelled'
     priority VARCHAR(20) NOT NULL DEFAULT 'medium', -- 'low', 'medium', 'high', 'urgent'
-    due_date TIMESTAMPTZ,      -- Deadline resmi
-    planned_date DATE,         -- Tanggal fokus eksekusi (Daily Planning)
-    estimated_minutes INT,     -- Estimasi durasi (menit) untuk time-blocking
+    due_date TIMESTAMPTZ,
+    planned_date DATE,
+    estimated_minutes INT, -- Time-blocking estimate
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ
 );
 
--- Events: Kalender terpadu dan time-blocking slot
+-- Events: Calendar schedule and time-block allocations
 CREATE TABLE events (
     id UUID PRIMARY KEY,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     space_id UUID REFERENCES spaces(id) ON DELETE SET NULL,
-    linked_task_id UUID REFERENCES tasks(id) ON DELETE SET NULL, -- Terhubung dengan task (time-blocking)
+    linked_task_id UUID REFERENCES tasks(id) ON DELETE SET NULL, -- Bound task for time-blocking
     title VARCHAR(255) NOT NULL,
     description TEXT,
     start_at TIMESTAMPTZ NOT NULL,
@@ -257,17 +260,17 @@ CREATE TABLE events (
 ```
 
 ### E. Universal Cross-Link Engine
-Tabel generik polimorfik untuk menghubungkan entitas apa pun (misal: teks dokumen $\rightarrow$ task, kartu board $\rightarrow$ task, atau garis konektor SVG antar kartu di kanvas).
 ```sql
+-- Generic polymorphic link engine connecting arbitrary entity pairs
 CREATE TABLE entity_links (
     id UUID PRIMARY KEY,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     from_type VARCHAR(50) NOT NULL, -- 'document', 'note_block', 'task', 'event', 'note_board'
     from_id UUID NOT NULL,
-    to_type VARCHAR(50) NOT NULL,   -- 'task', 'event', 'note_block', 'document'
+    to_type VARCHAR(50) NOT NULL,
     to_id UUID NOT NULL,
     relation_type VARCHAR(50) NOT NULL DEFAULT 'relates_to', -- 'converted_to', 'connects_to', 'blocks', 'timeblocks'
-    metadata JSONB DEFAULT '{}'::jsonb, -- Titik anchor & konfigurasi kurva SVG
+    metadata JSONB DEFAULT '{}'::jsonb, -- SVG line handles, anchors, curve parameters
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT unique_entity_link UNIQUE(workspace_id, from_type, from_id, to_type, to_id, relation_type)
 );
@@ -275,29 +278,13 @@ CREATE TABLE entity_links (
 
 ---
 
-## 5. Sinkronisasi Google Calendar (Worker Pattern)
+## 5. Deployment Topology (Dev vs Production)
 
-1. **OAuth2 Flow:** Pengguna menghubungkan akun Google via OAuth2 (scope `calendar.readonly` untuk MVP v0.1).
-2. **Kredensial:** Disimpan terenkripsi di tabel `integration_connections`.
-3. **Sync Loop (Goroutine):**
-   - Background worker berjalan secara berkala (misal setiap 10–15 menit) atau via webhooks bila didukung.
-   - Mengambil event Google Calendar menggunakan `syncToken` inkremental.
-   - Melakukan upsert ke tabel `events` lokal.
-
----
-
-## 6. Deployment Architecture
-
-### A. Fase 1: Docker Compose (Lokal & Single VPS)
-- `docker-compose.yml` menyatukan:
-  - `orca-api`: Binary Go.
-  - `orca-web`: Nginx serving static build SolidJS SPA.
-  - `orca-db`: PostgreSQL 16 Alpine.
-  - `orca-redis`: Redis 7 Alpine.
-
-### B. Fase 2: Helm Chart (Kubernetes / RKE)
-- Memetakan deployment terpisah:
-  - Ingress controller (Nginx Ingress + Cert-Manager untuk HTTPS).
-  - Pod API (stateless, horizontal scalable).
-  - StatefulSet / External PostgreSQL.
-  - Secret management untuk token OAuth2 dan database password.
+ORCA adopts a dual-tier Docker Compose architecture:
+1. **Local Development (`compose.yml` + `compose.override.yml`):**
+   - Automatically provisions local `postgres:16-alpine` and `redis:7-alpine`.
+   - Mounts migration and demo seed scripts on initial start.
+2. **Production (`compose.yml` only):**
+   - Runs exclusively the `api` and `web` containers.
+   - Connects to managed external cloud databases (**Supabase**) and Redis (**Upstash**).
+   - Zero excess resource consumption on host servers.

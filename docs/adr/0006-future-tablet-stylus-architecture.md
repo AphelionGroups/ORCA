@@ -1,34 +1,34 @@
-# ADR 0006: Arsitektur Input Stylus/Pen untuk Brainstorming Tablet
+# ADR 0006: Tablet Stylus & Pen Input Architecture for Visual Brainstorming
 
 ## Status
-Diterima (Accepted)
+Accepted
 
-## Tanggal
+## Date
 2026-09-16
 
-## Konteks
-Brainstorming visual dan pencatatan ide di atas tablet (iPad dengan Apple Pencil atau Android dengan S-Pen) menuntut kemampuan mencoret atau menulis bebas (*handwriting/freehand drawing*).
-Elemen HTML DOM (`div`) tidak dapat merender goresan kuas atau pulpen yang mulus secara alami. Diperlukan strategi teknis untuk mendukung input stylus tanpa harus membuang keunggulan Spatial DOM yang sudah dipilih di ADR 0002.
+## Context
+Visual brainstorming and rapid ideation on tablet hardware (e.g., iPad with Apple Pencil or Samsung Galaxy Tab with S-Pen) heavily benefit from freehand sketching and digital handwriting.
+Standard HTML DOM elements (`div`) cannot naturally render smooth calligraphic brush strokes. A dedicated technical strategy is required to support stylus inking without compromising the high-performance Spatial DOM card architecture established in ADR 0002.
 
-## Keputusan
-Kami merancang arsitektur input pen/stylus sebagai berikut (dijadwalkan untuk rilis **v0.2**):
-1. **Layered Architecture:**
-   - Menambahkan layer canvas/SVG transparan di atas/di antara kartu Spatial DOM.
-   - Menggunakan API browser native `PointerEvent` (`e.pointerType === 'pen'` dan `e.pressure`) untuk mendeteksi stylus.
-2. **Library Vektor: `perfect-freehand`:**
-   - Menggunakan library agnostik `perfect-freehand` (tanpa ketergantungan React).
-   - Mengonversi titik koordinat mentah `[x, y, pressure]` menjadi kurva Bézier halus dan merendernya sebagai path SVG (`<path d="..." />`).
-3. **Pemisahan Gesture & Palm Rejection:**
-   - Menerapkan CSS `touch-action: none` pada area kanvas.
-   - Input stylus otomatis mengaktifkan mode gambar (*ink*).
-   - Sentuhan 2 jari digunakan untuk navigasi kanvas (*pan & pinch-to-zoom*). Sentuhan telapak tangan yang lebar diabaikan.
-4. **Penyimpanan Berbasis Vektor (JSONB):**
-   - Hasil coretan disimpan sebagai array koordinat vektor di database PostgreSQL, bukan gambar bitmap (PNG/JPEG), agar ukuran data tetap kecil dan tidak pecah saat di-zoom.
+## Decision
+We establish the following technical design for stylus/pen input (scheduled for **v0.2**):
+1. **Layered Hybrid Canvas Overlay:**
+   - Overlay a transparent SVG/canvas drawing layer directly across the Spatial DOM canvas.
+   - Leverage standard browser `PointerEvent` APIs (`e.pointerType === 'pen'` and `e.pressure`) to differentiate stylus interaction from finger touch.
+2. **Vector Inking via `perfect-freehand`:**
+   - Integrate the framework-agnostic `perfect-freehand` library.
+   - Transform raw input streams `[x, y, pressure]` into organic Bézier curves rendered directly as SVG vector paths (`<path d="..." />`).
+3. **Gesture Differentiation & Palm Rejection:**
+   - Enforce CSS `touch-action: none` across the canvas drawing surface.
+   - Stylus input triggers inking strokes immediately.
+   - Dual-finger touch gestures handle viewport transformations (pan and pinch-to-zoom). Wide contact areas (palms) are rejected based on pointer radius and contact metrics.
+4. **Vector Storage via JSONB:**
+   - Freehand strokes persist as structured coordinate paths within PostgreSQL `JSONB` columns rather than rasterized bitmaps (PNG/JPEG), ensuring compact storage and infinite scalability without pixelation.
 
-## Konsekuensi
-- **Positif:**
-  - Tetap mempertahankan SolidJS tanpa perlu mengimpor runtime React hanya demi fitur drawing.
-  - Performa rendering goresan tinta dapat mencapai 120Hz (ProMotion) di perangkat tablet.
-  - Goresan tersimpan dalam format vektor yang dapat diproses oleh AI/OCR di masa depan.
-- **Negatif:**
-  - Fitur ini memerlukan penanganan gesture yang cermat pada berbagai browser seluler/tablet untuk menghindari konflik antara scrolling bawaan dan menggambar.
+## Consequences
+- **Positive:**
+  - Preserves SolidJS architecture without pulling in heavy external whiteboard dependencies.
+  - Capable of achieving high-refresh-rate inking (up to 120Hz ProMotion on supported tablets).
+  - Vectorized stroke paths can be ingested by future AI/OCR summarization pipelines.
+- **Negative:**
+  - Requires meticulous cross-platform pointer gesture handling to prevent conflicts with native browser viewport scrolling.

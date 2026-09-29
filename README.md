@@ -1,131 +1,155 @@
 # ORCA
 
-> **Personal & Business Operating System:** Milanote + Notion Docs + Google Calendar + Linear Task Management, jadi satu, self-hostable, dan siap AI layer.
+> **Personal & Business Operating System:** Milanote visual canvas + Notion documents + Google Calendar time-blocking + Linear task management, consolidated into a single, self-hostable workspace ready for an AI intelligence layer.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status: Planning & Design](https://img.shields.io/badge/Status-Planning%20%26%20Design-orange.svg)](#roadmap)
+[![Status: Planning & Design](https://img.shields.io/badge/Status-Active%20Development-orange.svg)](#project-roadmap)
 
 ---
 
-## 📌 Ringkasan Eksekutif
+## 📌 Executive Summary
 
-**ORCA** adalah ruang kerja terpadu (*unified workspace & operating system*) yang dirancang untuk mengelola seluruh domain kehidupan dan pekerjaan (Kantor, Kehidupan Pribadi, Bisnis A, Bisnis B, dll.) tanpa kehilangan fokus dan tanpa fragmentasi aplikasi:
-1. **Multi-Domain Spaces:** Memisahkan konteks antara pekerjaan kantor, bisnis, dan ranah pribadi dengan context switcher instan dan *All-Spaces view*.
-2. **Project Hub (Docs + Board + Tasks):** Menggabungkan 3 lapisan alur kerja: dokumen strategi/brand panjang (gaya Notion), kanvas visual brainstorming bebas (gaya Milanote), dan eksekusi Kanban/List (gaya Linear).
-3. **Calendar & Time-Blocking:** Mengintegrasikan Google Calendar dan memungkinkan *drag-and-drop task* ke slot jam nyata dengan ritual *Daily Planning*.
-4. **Global Quick Capture (`Ctrl+K`):** Menangkap ide dan tugas kilat dalam hitungan detik ke dalam Inbox tanpa memecah konsentrasi.
+**ORCA** is a unified workspace and operating system designed for managing the full spectrum of personal and professional life (Day Job, Personal Life, Venture A, Venture B, etc.) without losing focus or juggling fragmented tools:
 
-Dirancang khusus dengan prinsip **self-host first-class citizen**, **modular monolith**, dan **ringan konsumsi resource** (<30MB RAM idle pada backend), sehingga dapat dijalankan dengan mudah menggunakan Docker Compose di VPS rumahan maupun Helm Chart di cluster Kubernetes (RKE).
+1. **Multi-Domain Spaces:** Clean context isolation between employment, side businesses, and personal affairs with an instant space switcher and an aggregated *All-Spaces view*.
+2. **Project Hub (Docs + Board + Tasks):** Blends three essential workflow layers into each project:
+   - **Docs & Plans:** Long-form markdown strategy documents, Brand Guidelines, PRDs, and SOPs with text-to-task conversion.
+   - **Spatial Board:** Freeform visual brainstorming canvas (Milanote style) with sticky notes, shapes, SVG relational connectors, and card-to-task conversion.
+   - **Tasks Execution:** Linear-style Kanban and List views with priority, estimation, due dates, and drag-and-drop state transitions.
+3. **Calendar & Time-Blocking:** Unified multi-space schedule view featuring task-to-calendar drag-and-drop time-blocking and *Daily Planning* rituals.
+4. **Global Quick Capture (`Ctrl+K`):** Instantly captures fleeting ideas, notes, or action items into the Inbox in seconds without breaking focus.
+
+Engineered from the ground up as a **self-host first-class citizen** with a **modular monolith** architecture and minimal resource overhead ($<30\text{ MB}$ idle backend memory footprint), ORCA runs seamlessly on home lab servers, cloud VPS instances via Docker Compose, and Kubernetes clusters (RKE).
 
 ---
 
-## 🏗️ Tech Stack Inti
+## 🏗️ Core Tech Stack
 
-| Layer | Teknologi | Alasan Utama |
+| Layer | Technology | Primary Rationale |
 |---|---|---|
-| **Frontend App** | **SolidJS + TypeScript + Vite** | Fine-grained reactivity tanpa Virtual DOM; sangat cepat dan hemat memori saat menangani interaksi canvas/board. |
-| **Styling & Components** | **Vanilla CSS (Design Tokens & CSS Variables) + Kobalte / Corvu** | Fleksibilitas penuh tanpa abstraksi utility class, performa rendering kanvas maksimal, dan kontrol 100% atas efek visual custom. |
-| **Canvas / Board Engine** | **Custom Spatial DOM + SVG Connectors** | Meniru arsitektur Milanote: kartu menggunakan elemen HTML native (mudah untuk rich text & form), garis penghubung dirender via SVG. |
-| **Backend API** | **Go (Golang)** | Single static binary, footprint RAM sangat kecil (~15–30 MB), konkurensi native (goroutine) untuk sync worker, minim maintenance jangka panjang. |
-| **Database** | **PostgreSQL** | Relasi antar entitas yang kuat, didukung kolom `JSONB` untuk payload block canvas yang fleksibel, dan UUIDv7 sebagai ID standar. |
-| **Deployment** | **Docker Compose & Helm (Kubernetes RKE)** | Distribusi portabel dan ramah homelab/self-hoster. |
+| **Frontend App** | **SolidJS + TypeScript + Vite** | Fine-grained reactivity without Virtual DOM overhead; blazingly fast and memory-efficient for spatial canvas interactions. |
+| **Styling & Components** | **Vanilla CSS (Design Tokens & CSS Variables) + Kobalte / Corvu** | Full styling flexibility, zero utility-class abstractions, peak canvas rendering performance, and complete control over custom visual aesthetics. |
+| **Canvas / Board Engine** | **Custom Spatial DOM + SVG Connectors** | Milanote-inspired architecture: cards are native HTML elements (enabling native rich text and forms), while dynamic relational lines are rendered via an SVG layer. |
+| **Backend API** | **Go (Golang)** | Single static binary, tiny RAM footprint ($\sim 15\text{--}30\text{ MB}$), native goroutine concurrency for sync workers, and zero maintenance overhead. |
+| **Database** | **PostgreSQL** | Strong relational integrity, `JSONB` columns for flexible canvas block payloads, and time-ordered UUIDv7 as the primary key standard. |
+| **Deployment** | **Docker Compose & Helm (Kubernetes RKE)** | Portable container distribution, friendly for home labs, self-hosters, and enterprise clusters. |
 
 ---
 
-## 🗺️ Roadmap Proyek
+## 🗺️ Project Roadmap
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│                    ROADMAP PROYEK ORCA                    │
+│                    ORCA PROJECT ROADMAP                   │
 └───────────────────────────────────────────────────────────┘
                            │
                            ▼
-  [ v0.1 — MVP Inti (Fokus Saat Ini) ]
+  [ v0.1 — Core MVP (Current Focus) ]
   • Go Modular Monolith API + PostgreSQL (Auth, Spaces, Projects, Docs, Tasks, Calendar, Boards).
   • SolidJS SPA Shell (Sidebar Context Switcher, Global Quick Capture Ctrl+K).
-  • Spaces Management (Kantor, Pribadi, Bisnis A, Bisnis B, All-Spaces View).
+  • Spaces Management (Day Job, Personal, Venture A, Venture B, All-Spaces View).
   • Project Hub:
     - Tab Docs & Plans (Long-form Markdown, Brand Doc, PRD, Activity Plan, Text-to-Task).
-    - Tab Spatial Board (Milanote Canvas, Draggable Cards, Sticky Notes, Garis Relasi SVG, Card-to-Task).
+    - Tab Spatial Board (Milanote Canvas, Draggable Cards, Sticky Notes, SVG Connector Arrows, Card-to-Task).
     - Tab Tasks (Kanban, List View, Status, Priority, Due Date, Subtasks).
-  • Calendar View & Time-Blocking (Google Calendar 1-Way Sync + Daily Planning ritual).
-  • Single Docker Compose deployment.
+  • Calendar View & Time-Blocking (Task-to-Calendar drag & drop + Daily Planning ritual).
+  • Dual-mode Docker Compose deployment (Local Dev vs Cloud Production).
                            │
                            ▼
   [ v0.2 — Brainstorming & Tablet Expansion ]
-  • Freehand Pen / Stylus layer ditenagai `perfect-freehand` di atas canvas SVG.
-  • Optimasi gesture tablet (Palm rejection, pinch-to-zoom, Apple Pencil/S-Pen).
-  • Unified Cross-linking (Task ↔ Note Card ↔ Calendar Event).
+  • Freehand Pen / Stylus layer powered by `perfect-freehand` on SVG canvas.
+  • Tablet gesture optimizations (Palm rejection, pinch-to-zoom, Apple Pencil / S-Pen).
+  • Unified Cross-linking inspector (Task ↔ Note Card ↔ Calendar Event).
                            │
                            ▼
   [ v0.3 — Local-First & Synchronization ]
-  • Local-first engine (IndexedDB cache di client).
-  • Background synchronization / CRDT untuk editing bebas latensi & offline mode.
+  • Local-first engine (IndexedDB cache in client browser).
+  • Background CRDT / delta sync engine for zero-latency editing and full offline support.
                            │
                            ▼
-  [ v0.4 — AI Layer (External Agent) ]
-  • Integrasi Letta AI / Agent Core dari service eksternal.
-  • Daily planner summary & context ingestion dari catatan + jadwal + task.
+  [ v0.4 — AI Intelligence Layer (External Agent) ]
+  • Letta AI / Agent Core integration via external worker service.
+  • Daily planner executive summary & context ingestion from notes + schedule + tasks.
                            │
                            ▼
   [ v1.0 — Open Source Release & RKE Helm Chart ]
-  • Helm Chart produksi untuk Kubernetes / RKE.
-  • Dokumentasi komprehensif self-host & backup automation.
+  • Production Helm Chart for Kubernetes / RKE.
+  • Comprehensive self-hosting and backup automation documentation.
 ```
 
 ---
 
-## 📚 Indeks Dokumentasi
+## 📚 Documentation Index
 
-Semua spesifikasi detail proyek dikelola secara terstruktur di dalam folder [`docs/`](docs/):
+All system specifications and design guidelines are organized in the [`docs/`](docs/) directory:
 
-- **[Konteks & Filosofi Desain](docs/context.md):** Latar belakang masalah, prinsip desain, dan arah evolusi proyek.
-- **[Spesifikasi Sistem & Arsitektur](docs/spec.md):** Arsitektur detail frontend, backend, skema database, dan strategi deployment.
-- **[Kebutuhan Fungsional (FR)](docs/functional-requirements.md):** Rincian kebutuhan fungsional modul per modul (Tasks, Calendar, Board, Hub).
-- **[Panduan Pengembangan & Kontribusi](docs/development-guide.md):** Aturan penulisan kode, struktur direktori, workflow git, dan panduan kontribusi.
-- **[Architecture Decision Records (ADR)](docs/adr/):** Catatan riwayat keputusan teknis krusial proyek:
-  - [ADR 0001: Pencatatan Keputusan Arsitektur](docs/adr/0001-record-architecture-decisions.md)
-  - [ADR 0002: Frontend SolidJS dan Custom Spatial DOM Canvas](docs/adr/0002-frontend-solidjs-and-spatial-dom.md)
-  - [ADR 0003: Backend Go Modular Monolith](docs/adr/0003-backend-go-modular-monolith.md)
-  - [ADR 0004: Standar Data UUIDv7 dan Kesiapan Local-First](docs/adr/0004-data-architecture-uuidv7-and-future-sync.md)
-  - [ADR 0005: Penundaan AI Layer dan Local-First untuk MVP](docs/adr/0005-defer-ai-and-local-first-for-mvp.md)
-  - [ADR 0006: Desain Arsitektur Stylus/Pen untuk Tablet](docs/adr/0006-future-tablet-stylus-architecture.md)
+- **[Self-Hosting & Deployment Guide](docs/self-hosting-guide.md):** Complete guide for installing ORCA locally, on VPS instances, with Supabase, Cloud Redis, and SSL reverse proxies.
+- **[Context & Design Philosophy](docs/context.md):** Background problems, architectural principles, and long-term product vision.
+- **[System & Architecture Specification](docs/spec.md):** Detailed frontend architecture, backend modular layout, database schema, and communication patterns.
+- **[Functional Requirements (FR)](docs/functional-requirements.md):** Granular functional requirements by module (Tasks, Calendar, Board, Project Hub, Auth).
+- **[Development & Contribution Guide](docs/development-guide.md):** Coding standards, project layout, git workflow, and developer setup.
+- **[Architecture Decision Records (ADR)](docs/adr/):** Historical log of significant technical choices:
+  - [ADR 0001: Record Architecture Decisions](docs/adr/0001-record-architecture-decisions.md)
+  - [ADR 0002: SolidJS Frontend & Custom Spatial DOM Canvas](docs/adr/0002-frontend-solidjs-and-spatial-dom.md)
+  - [ADR 0003: Go Modular Monolith Backend](docs/adr/0003-backend-go-modular-monolith.md)
+  - [ADR 0004: Data Architecture: UUIDv7 & Local-First Readiness](docs/adr/0004-data-architecture-uuidv7-and-future-sync.md)
+  - [ADR 0005: Defer AI Layer & Local-First for MVP](docs/adr/0005-defer-ai-and-local-first-for-mvp.md)
+  - [ADR 0006: Tablet Stylus & Pen Input Architecture](docs/adr/0006-future-tablet-stylus-architecture.md)
 
 ---
 
-## 🚀 Quickstart & Self-Hosting
+## 🚀 Quickstart & Deployment (Dev vs Prod)
 
-ORCA dirancang sebagai *first-class citizen* untuk self-hosting. Seluruh subsistem (PostgreSQL 16, Redis 7, Go Modular Monolith API, dan SolidJS Frontend Nginx) dapat dijalankan dalam 1 perintah:
+ORCA features an **intelligent Docker Compose setup**: the launch command remains identical (`docker compose up -d --build`), while the runtime environment automatically adapts between local development and cloud production:
 
-### 1. Menjalankan dengan Docker Compose
+### 1. Local Development (All-in-One Local Stack)
+In local development, Docker Compose automatically overlays [`compose.override.yml`](compose.override.yml) onto [`compose.yml`](compose.yml):
+- Starts local **PostgreSQL 16** and **Redis 7** containers with database schemas and demo seed data automatically applied.
+- Starts **API (Go)** and **Web Frontend (Nginx/SolidJS)**.
 
 ```bash
-# Clone repositori
+# Clone the repository
 git clone https://github.com/AphelionGroups/ORCA.git
 cd ORCA
 
-# Jalankan seluruh stack (Database, Redis, Go API, Frontend)
+# Launch local dev environment (PostgreSQL, Redis, Go API, Frontend)
 docker compose up -d --build
 ```
 
-### 2. Titik Akses Layanan
+### 2. Production Deployment (Cloud PostgreSQL / Supabase + Cloud Redis)
+On production servers, deploy **only** [`compose.yml`](compose.yml) (do not copy or include `compose.override.yml`):
+- Runs **only** the lightweight **API** and **Web** containers ($<50\text{ MB}$ total idle RAM).
+- Connects to external managed databases like **Supabase** via `DATABASE_URL`.
+- Connects to external cache providers like **Upstash** via `REDIS_URL`.
+- Simply configure `.env` (refer to [`.env.example`](.env.example)) and run the exact same command:
 
-| Komponen | URL / Port | Keterangan |
+```bash
+# In production (with only compose.yml and .env):
+docker compose up -d --build
+```
+
+> 📖 **Full Deployment Guide:** For step-by-step Supabase setup, Cloud Redis, Caddy/Nginx reverse proxy, and SSL, see the **[Self-Hosting Guide](docs/self-hosting-guide.md)**.
+
+---
+
+## 🌐 Service Access Endpoints
+
+| Component | Default URL / Port | Description |
 |---|---|---|
-| **Web Frontend (Operating System)** | [`http://localhost:3000`](http://localhost:3000) | Antarmuka SolidJS SPA (Nginx) dengan dark obsidian theme & reverse proxy `/api/`. |
-| **Backend REST API** | [`http://localhost:8080/api/v1`](http://localhost:8080/api/v1) | Go Modular Monolith API. Healthcheck di `/healthz`. |
-| **PostgreSQL Database** | `localhost:5432` | User: `orca`, Pass: `orca_secret`, DB: `orca_db`. Otomatis terisi schema & seed. |
-| **Redis Cache** | `localhost:6379` | In-memory cache & pub/sub broker. |
+| **Web Frontend (Operating System)** | [`http://localhost:3000`](http://localhost:3000) | SolidJS SPA interface with dark obsidian theme & reverse proxy `/api/`. |
+| **Backend REST API** | [`http://localhost:8080/api/v1`](http://localhost:8080/api/v1) | Go Modular Monolith API. Healthcheck available at `/healthz`. |
+| **PostgreSQL Database (Dev Only)** | `localhost:5432` | User: `orca`, Pass: `orca_secret`, DB: `orca_db`. Auto-seeded with demo data. |
+| **Redis Cache (Dev Only)** | `localhost:6379` | Local in-memory cache and pub/sub broker. |
 
-> **Header Multi-Tenancy:**  
-> Setiap request API menggunakan header:  
+> **Multi-Tenancy Header:**  
+> Requests carry the workspace tenant header:  
 > `X-Workspace-ID: 018f0000-0000-7000-8000-000000000001`
 
 ---
 
-### 3. Pengujian Otomatis (Smoke Test & Health Verification)
+## 🧪 Automated Testing & Health Verification
 
-Validasi seluruh endpoint API dan aset frontend secara otomatis:
+Validate all backend API endpoints and frontend assets automatically:
 
 ```powershell
 # Windows (PowerShell)
@@ -138,6 +162,6 @@ chmod +x ./scripts/verify_e2e.sh
 
 ---
 
-## 📄 Lisensi
+## 📄 License
 
-Proyek ini dirilis di bawah lisensi [MIT](LICENSE).
+This project is licensed under the [MIT License](LICENSE).

@@ -1,5 +1,5 @@
 # =========================================================
-# ORCA Frontend SolidJS SPA - Production Dockerfile
+# ORCA Frontend SolidJS SPA - Production Containerfile
 # Multi-stage build with Nginx reverse proxy
 # =========================================================
 

@@ -1,28 +1,29 @@
-# ADR 0004: Arsitektur Data: Penggunaan UUIDv7 & Kesiapan Local-First
+# ADR 0004: Data Architecture: Standardizing on UUIDv7 & Local-First Readiness
 
 ## Status
-Diterima (Accepted)
+Accepted
 
-## Tanggal
+## Date
 2026-09-16
 
-## Konteks
-Sistem ORCA dimulai sebagai aplikasi web dengan sinkronisasi REST API biasa untuk MVP. Namun, roadmap masa depan menargetkan dukungan **Local-First & Offline Sync** (mirip Obsidian atau Milanote).
-Jika basis data awal menggunakan integer auto-increment (`SERIAL` / `BIGSERIAL`), migrasi ke local-first di kemudian hari akan sangat menyakitkan karena ID baru yang dibuat di sisi client saat offline akan mengalami konflik saat di-sinkronisasi ke server.
-Di sisi lain, UUIDv4 standar bersifat acak total dan menyebabkan fragmentasi indeks B-Tree yang parah pada tabel PostgreSQL berukuran besar.
+## Context
+ORCA begins as a web application communicating via standard REST APIs for its MVP. However, the future roadmap explicitly targets **Local-First & Offline Synchronization** capabilities (similar to Obsidian and Milanote).
+Using legacy auto-incrementing integers (`SERIAL` / `BIGSERIAL`) creates major migration hurdles because IDs generated client-side during offline sessions collide upon server synchronization.
+Conversely, standard UUIDv4 identifiers are entirely random, causing severe B-Tree index fragmentation and cache misses in PostgreSQL at scale.
 
-## Keputusan
-Kami menetapkan standar data sebagai berikut:
-1. **Primary Key Menggunakan UUIDv7:** UUIDv7 menggabungkan timestamp UNIX (terurut waktu) dengan bit acak. Ini memungkinkan client maupun server membuat ID secara mandiri tanpa bentrok, sekaligus menjaga performa indeks B-Tree di PostgreSQL tetap cepat.
-2. **Kolom Wajib Kesiapan Sinkronisasi:** Setiap entitas utama wajib memiliki:
-   - `workspace_id`: Menjamin batas isolasi data (*multi-tenant ready*).
-   - `created_at` dan `updated_at` bertipe `TIMESTAMPTZ`: Digunakan sebagai *sync cursor* untuk mendeteksi perubahan data.
-   - `deleted_at` bertipe `TIMESTAMPTZ` (*Soft Deletes*): Agar client offline mengetahui entitas mana yang telah dihapus tanpa kehilangan riwayat sinkronisasi.
-3. **Penyimpanan Konten Dinamis Menggunakan JSONB:** Blok konten pada board disimpan dalam kolom `JSONB` agar fleksibel menampung variasi tipe kartu tanpa perlu alter tabel setiap kali ada jenis block baru.
+## Decision
+We standardize the data architecture on the following conventions:
+1. **Primary Keys Use UUIDv7:** UUIDv7 combines a Unix timestamp (time-ordered) with cryptographically secure random bits. This enables both client and server to generate conflict-free identifiers independently while preserving optimal B-Tree index locality in PostgreSQL.
+2. **Mandatory Synchronization Fields:** Every core table includes:
+   - `workspace_id`: Enforcing multi-tenant boundary isolation.
+   - `created_at` and `updated_at` (`TIMESTAMPTZ`): Serving as synchronization cursors to detect deltas.
+   - `deleted_at` (`TIMESTAMPTZ` for Soft Deletes): Enabling offline clients to detect deleted records during sync.
+3. **Dynamic Content Storage via JSONB:** Canvas card blocks store their properties in `JSONB` columns, allowing flexible addition of new card block types without repetitive schema migrations.
 
-## Konsekuensi
-- **Positif:**
-  - Migrasi ke arsitektur Local-First / CRDT di masa depan dapat dilakukan tanpa perlu mengubah skema database dasar atau memigrasikan ID.
-  - Generasi ID dapat dilakukan langsung di frontend secara deterministik (optimistic UI instan).
-- **Negatif:**
-  - UUID memakan ruang penyimpanan sedikit lebih besar dibanding integer 32-bit (16 byte vs 4 byte), namun dampak ini dapat diabaikan untuk skala beban kerja personal/tim kecil.
+## Consequences
+- **Positive:**
+  - Future transitions to Local-First and CRDT delta synchronization require zero primary key refactoring.
+  - IDs can be generated directly in the frontend for instantaneous optimistic UI updates.
+  - Maintains optimal B-Tree index performance.
+- **Negative:**
+  - UUIDs consume slightly more storage than 32-bit integers (16 bytes vs 4 bytes), an acceptable trade-off for modern database workloads.

@@ -1,21 +1,21 @@
-# ADR 0001: Pencatatan Keputusan Arsitektur Menggunakan ADR
+# ADR 0001: Record Architecture Decisions Using ADR
 
 ## Status
-Diterima (Accepted)
+Accepted
 
-## Tanggal
+## Date
 2026-09-16
 
-## Konteks
-Proyek ORCA dirancang sebagai aplikasi personal workspace modular yang nantinya akan dirilis sebagai open-source dan berpotensi menjadi SaaS. Dalam pengembangannya, banyak keputusan teknis penting yang diambil (pilihan framework, pola database, trade-off arsitektur). Tanpa pencatatan sistematis, konteks mengapa suatu keputusan diambil akan hilang di masa depan, terutama saat proyek berkembang atau melibatkan kontributor baru.
+## Context
+ORCA is designed as a modular personal operating system intended for self-hosting, open-source distribution, and potential commercial multi-tenancy. Throughout development, critical technical choices are made (frameworks, database paradigms, architectural boundaries). Without systematic logging, the context behind these decisions risks being lost over time, leading to redundant debates and design regressions.
 
-## Keputusan
-Kami mengadopsi format **Architecture Decision Records (ADR)** berbasis file Markdown di dalam folder `docs/adr/`. Setiap ADR memuat:
-1. **Status:** Diusulkan, Diterima, Ditolak, atau Digantikan.
-2. **Konteks:** Masalah dan alasan mengapa keputusan ini harus diambil.
-3. **Keputusan:** Solusi dan pendekatan teknis yang dipilih.
-4. **Konsekuensi:** Manfaat positif maupun trade-off negatif dari keputusan tersebut.
+## Decision
+We adopt the **Architecture Decision Records (ADR)** pattern using Markdown documents stored in `docs/adr/`. Each ADR includes:
+1. **Status:** Proposed, Accepted, Rejected, or Deprecated.
+2. **Context:** The problem and factors compelling the decision.
+3. **Decision:** The selected technical direction and implementation approach.
+4. **Consequences:** Positive benefits as well as acknowledged trade-offs.
 
-## Konsekuensi
-- **Positif:** Semua keputusan teknis memiliki riwayat yang transparan dan dapat dilacak. Mencegah debat berulang atas topik yang sudah pernah diputuskan.
-- **Negatif:** Menambah sedikit beban penulisan dokumentasi saat melakukan perubahan arsitektur besar.
+## Consequences
+- **Positive:** All architectural choices are documented with full context and rationale, enabling transparent onboarding for new contributors.
+- **Negative:** Minor administrative overhead when introducing major architectural changes.
