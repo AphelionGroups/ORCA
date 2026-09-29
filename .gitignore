@@ -11,6 +11,8 @@ bin/
 # Environment and local configs
 .env
 *.local
+certs/*
+!certs/.gitkeep
 
 # Node & Frontend dependencies
 node_modules/

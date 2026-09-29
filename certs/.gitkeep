@@ -1,0 +1,6 @@
+# Place your custom SSL certificates here if you have them:
+# - fullchain.pem & privkey.pem (Let's Encrypt standard)
+# - or tls.crt & tls.key
+#
+# If left empty, ORCA will automatically generate a self-signed SSL certificate
+# for any domain/IP upon container startup.

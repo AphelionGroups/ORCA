@@ -172,9 +172,45 @@ docker compose ps
 
 ---
 
-## 🔒 Reverse Proxy & SSL Configuration
+## 🔒 HTTPS & SSL Configuration
 
-To expose ORCA securely via HTTPS on your domain (e.g. `https://orca.yourdomain.com`):
+ORCA provides **built-in HTTPS support directly in the frontend Nginx container without hardcoding any domain name**:
+
+### 1. Built-in Automatic SSL (Zero Configuration)
+
+Upon container startup, ORCA automatically detects and enables SSL:
+- **No Hardcoded Domain:** Nginx is configured with `server_name _;`, matching any domain name, local hostname (e.g. `nh-labs.local`), or raw IP address (e.g. `192.168.1.50`, `localhost`).
+- **Auto-Generated Self-Signed Certificate:** If no certificate is found, ORCA automatically generates a 2048-bit RSA self-signed SSL certificate with multi-SAN support (`DNS:localhost`, `DNS:*.local`, `IP:127.0.0.1`, `IP:0.0.0.0`).
+- **Immediate Access:**
+  - **HTTP:** `http://<your-host>:3000`
+  - **HTTPS:** `https://<your-host>:3443`
+  - In production, set `WEB_PORT=80` and `WEB_SSL_PORT=443` in `.env` to bind standard web ports.
+
+### 2. Supplying Custom / Valid SSL Certificates (Let's Encrypt, Cloudflare, Custom CA)
+
+To use trusted certificates with no browser security warnings:
+1. Place your certificate files into the `./certs` directory:
+   - **Let's Encrypt / Certbot:** `fullchain.pem` and `privkey.pem`
+   - **Standard / Kubernetes:** `tls.crt` and `tls.key`
+   - **Alternative:** `orca.crt` and `orca.key`
+2. Restart the containers:
+   ```bash
+   docker compose restart web
+   ```
+   The container will automatically detect your files and apply them to Nginx.
+
+### 3. Optional HTTPS Redirection (`FORCE_SSL`)
+
+If you want all plain HTTP (port 80) traffic to automatically redirect to HTTPS (port 443), set in `.env`:
+```ini
+FORCE_SSL=true
+```
+
+---
+
+## 🌐 External Reverse Proxy Options (Optional)
+
+If you prefer to terminate SSL at an external host layer:
 
 ### Option A: Caddy (Automatic HTTPS)
 
@@ -195,7 +231,7 @@ Run Caddy:
 caddy run --config Caddyfile
 ```
 
-### Option B: Nginx
+### Option B: Host Nginx
 
 Create `/etc/nginx/sites-available/orca.conf`:
 

@@ -45,6 +45,11 @@ services:
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-3000}:80"
+      - "${WEB_SSL_PORT:-3443}:443"
+    environment:
+      FORCE_SSL: ${FORCE_SSL:-false}
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
     depends_on:
       api:
         condition: service_healthy
