@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, onMount, For, Show } from 'solid-js';
+import { createSignal, onMount, onCleanup, For, Show } from 'solid-js';
 import { 
   Inbox, 
   Plus, 
@@ -86,6 +86,13 @@ export const InboxView: Component<InboxViewProps> = (props) => {
 
   onMount(() => {
     loadData();
+    const handleInboxUpdate = () => {
+      loadData();
+    };
+    window.addEventListener('orca:inbox_updated', handleInboxUpdate);
+    onCleanup(() => {
+      window.removeEventListener('orca:inbox_updated', handleInboxUpdate);
+    });
   });
 
   const availableProjectsForConvert = () => {
@@ -102,7 +109,11 @@ export const InboxView: Component<InboxViewProps> = (props) => {
     setSavingNote(true);
     try {
       const newNote = await api.createInboxNote({ content: val });
-      setNotes([newNote, ...notes()]);
+      if (newNote && newNote.id) {
+        setNotes([newNote, ...notes().filter(n => n.id !== newNote.id)]);
+      } else {
+        await loadData();
+      }
       setQuickInput('');
       showToast('Catatan disimpan ke Inbox');
     } catch (err) {

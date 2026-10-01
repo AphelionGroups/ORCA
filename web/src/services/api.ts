@@ -449,22 +449,24 @@ export const api = {
 
   // Inbox Notes (Quick Thoughts, Memos, Scratchpad)
   getInboxNotes: async (includeArchived = false): Promise<InboxNote[]> => {
-    const res = await request<{ data: InboxNote[] }>(`/inbox${includeArchived ? '?archived=true' : ''}`);
-    return res.data || [];
+    const res = await request<any>(`/inbox${includeArchived ? '?archived=true' : ''}`);
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.data)) return res.data;
+    return [];
   },
   createInboxNote: async (data: { content: string; color?: string }): Promise<InboxNote> => {
-    const res = await request<{ data: InboxNote }>('/inbox', {
+    const res = await request<any>('/inbox', {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    return res.data;
+    return res?.data || res;
   },
   updateInboxNote: async (id: string, data: Partial<InboxNote>): Promise<InboxNote> => {
-    const res = await request<{ data: InboxNote }>(`/inbox/${id}`, {
+    const res = await request<any>(`/inbox/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
-    return res.data;
+    return res?.data || res;
   },
   deleteInboxNote: async (id: string): Promise<void> => {
     await request(`/inbox/${id}`, {

@@ -40,7 +40,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	httputil.RespondJSON(w, http.StatusOK, notes)
+	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": notes})
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +68,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.RespondJSON(w, http.StatusCreated, note)
+	httputil.RespondJSON(w, http.StatusCreated, map[string]any{"data": note})
 }
 
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +90,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.RespondJSON(w, http.StatusOK, note)
+	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": note})
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
@@ -133,7 +133,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.RespondJSON(w, http.StatusOK, existing)
+	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": existing})
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {

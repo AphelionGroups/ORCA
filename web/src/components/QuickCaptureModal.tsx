@@ -68,6 +68,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
       setLoading(true);
       try {
         await api.createInboxNote({ content: cleanContent });
+        window.dispatchEvent(new CustomEvent('orca:inbox_updated'));
         setContent('');
         props.onClose();
         if (props.onItemCreated) {
