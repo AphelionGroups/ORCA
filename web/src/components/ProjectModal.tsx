@@ -81,6 +81,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
         });
         props.onSaved(created);
       }
+      window.dispatchEvent(new CustomEvent('orca:projects_updated'));
       props.onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to save project');
@@ -99,6 +100,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
       if (props.onDeleted) {
         props.onDeleted(props.projectToEdit.id);
       }
+      window.dispatchEvent(new CustomEvent('orca:projects_updated'));
       props.onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to delete project');

@@ -508,28 +508,50 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     return b.type === 'text' ? 36 : 74;
   };
 
-  // Load all projects and spaces
-  const loadProjects = async () => {
+  // Synchronized Project & Space loader with cancellation / request sequence protection
+  let loadProjectsReqId = 0;
+
+  const loadProjectsForSpace = async (spaceId?: string | null, targetProjectId?: string | null) => {
+    const reqId = ++loadProjectsReqId;
     setLoadingProjects(true);
+    setProjects([]); // Clear immediately so stale projects from other spaces are never displayed
+
+    if (!targetProjectId) {
+      setSelectedProjectId(null);
+    }
+
     try {
       const [fetchedProjects, fetchedSpaces] = await Promise.all([
-        api.getProjects(props.activeSpaceId || undefined),
-        api.getSpaces()
+        api.getProjects(spaceId || undefined),
+        spaces().length === 0 ? api.getSpaces() : Promise.resolve(spaces())
       ]);
-      setProjects(fetchedProjects || []);
-      setSpaces(fetchedSpaces || []);
 
-      if (props.activeProjectId) {
-        setSelectedProjectId(props.activeProjectId);
+      if (reqId !== loadProjectsReqId) return; // Discard stale out-of-order response
+
+      setProjects(fetchedProjects || []);
+      if (fetchedSpaces && fetchedSpaces.length > 0) {
+        setSpaces(fetchedSpaces);
+      }
+
+      if (targetProjectId && fetchedProjects && fetchedProjects.some(p => p.id === targetProjectId)) {
+        setSelectedProjectId(targetProjectId);
         setActiveTab('board');
       } else {
         setSelectedProjectId(null);
       }
     } catch (err) {
-      console.error('Failed to load projects:', err);
+      if (reqId === loadProjectsReqId) {
+        console.error('Failed to load projects:', err);
+      }
     } finally {
-      setLoadingProjects(false);
+      if (reqId === loadProjectsReqId) {
+        setLoadingProjects(false);
+      }
     }
+  };
+
+  const loadProjects = () => {
+    loadProjectsForSpace(props.activeSpaceId, props.activeProjectId || selectedProjectId());
   };
 
   const handleWindowClick = (e: MouseEvent) => {
@@ -546,7 +568,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   };
 
   onMount(() => {
-    loadProjects();
     window.addEventListener('mousemove', handleGlobalMouseMove);
     window.addEventListener('mouseup', handleGlobalMouseUp);
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -657,43 +678,50 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
   };
 
-  // Sync selectedProjectId when props.activeProjectId changes
-  createEffect(() => {
-    if (props.activeProjectId) {
-      setSelectedProjectId(props.activeProjectId);
-      setActiveTab('board');
-    }
-  });
-
-  // Re-fetch projects if activeSpaceId changes
+  // Synchronized reactive loader when space or project navigation props change
   createEffect(() => {
     const spaceId = props.activeSpaceId;
-    api.getProjects(spaceId || undefined).then(res => {
-      setProjects(res || []);
-      if (props.activeProjectId && res.some(p => p.id === props.activeProjectId)) {
-        setSelectedProjectId(props.activeProjectId);
-        setActiveTab('board');
-      } else if (!props.activeProjectId) {
-        setSelectedProjectId(null);
-      }
-    }).catch(console.error);
+    const projId = props.activeProjectId;
+    loadProjectsForSpace(spaceId, projId);
   });
+
+  // Track sub-data request ID to eliminate async race conditions
+  let loadSubDataReqId = 0;
 
   // Load Project Detail sub-entities when selectedProjectId changes
   createEffect(async () => {
     const pId = selectedProjectId();
-    if (!pId) return;
+    const reqId = ++loadSubDataReqId;
+
+    if (!pId) {
+      setDocs([]);
+      setSelectedDocId(null);
+      setBoards([]);
+      setBlocks([]);
+      setConnections([]);
+      setTasks([]);
+      setLoadingSubData(false);
+      return;
+    }
 
     // Direct into project's board view
     setActiveTab('board');
-
     setLoadingSubData(true);
+    setDocs([]);
+    setSelectedDocId(null);
+    setBoards([]);
+    setBlocks([]);
+    setConnections([]);
+    setTasks([]);
+
     try {
       const [fetchedDocs, fetchedBoards, fetchedTasks] = await Promise.all([
         api.getDocuments({ project_id: pId }),
         api.getBoards({ project_id: pId }),
         api.getTasks({ project_id: pId })
       ]);
+
+      if (reqId !== loadSubDataReqId) return;
 
       setDocs(fetchedDocs || []);
       setSelectedDocId(fetchedDocs && fetchedDocs.length > 0 ? fetchedDocs[0].id : null);
@@ -709,6 +737,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             space_id: targetSpaceId,
             title: 'Main Board',
           });
+          if (reqId !== loadSubDataReqId) return;
           currentBoards = [newBoard];
         } catch (e) {
           console.error('Failed to auto-create board:', e);
@@ -718,6 +747,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       setBoards(currentBoards);
       if (currentBoards.length > 0) {
         const fetchedBlocks = await api.getBoardBlocks(currentBoards[0].id);
+        if (reqId !== loadSubDataReqId) return;
         setBlocks(fetchedBlocks || []);
         if (fetchedBlocks && fetchedBlocks.length >= 2) {
           const connectable = fetchedBlocks.filter(b => b.type !== 'sticky');
@@ -736,13 +766,21 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
       setTasks(fetchedTasks || []);
     } catch (err) {
-      console.error('Failed to load project sub-data:', err);
+      if (reqId === loadSubDataReqId) {
+        console.error('Failed to load project sub-data:', err);
+      }
     } finally {
-      setLoadingSubData(false);
+      if (reqId === loadSubDataReqId) {
+        setLoadingSubData(false);
+      }
     }
   });
 
-  const currentProject = () => projects().find(p => p.id === selectedProjectId()) || projects()[0];
+  const currentProject = () => {
+    const id = selectedProjectId();
+    if (!id) return null;
+    return projects().find(p => p.id === id) || null;
+  };
   const currentDoc = () => docs().find(d => d.id === selectedDocId()) || docs()[0];
   const getSpaceName = (spaceId?: string) => {
     if (!spaceId) return 'Workspace';
@@ -4122,7 +4160,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           <div style={{ "max-width": '1100px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '24px' }}>
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
               <div>
-                <h1 style={{ "font-size": '22px', "font-weight": 600, color: 'var(--text-main)', margin: 0 }}>Projects</h1>
+                <h1 style={{ "font-size": '22px', "font-weight": 600, color: 'var(--text-main)', margin: 0 }}>
+                  {props.activeSpaceId ? `Projects — ${getSpaceName(props.activeSpaceId)}` : 'All Projects'}
+                </h1>
                 <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
                   Wadah inisiatif terpadu: satukan Dokumen Strategi, Spatial Board Milanote, dan Tasks Kanban.
                 </p>
@@ -4140,55 +4180,67 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
             <div style={{ display: 'grid', "grid-template-columns": 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
               <Show when={!loadingProjects()} fallback={
-                <div style={{ color: 'var(--text-dim)', padding: '24px 0' }}>Loading projects...</div>
+                <div style={{ "grid-column": '1 / -1', color: 'var(--text-dim)', padding: '36px 0', "text-align": 'center', "font-size": '13px' }}>
+                  Memuat projects...
+                </div>
               }>
-                <For each={projects()}>
-                  {(proj) => (
-                    <div 
-                      onClick={() => {
-                        setSelectedProjectId(proj.id);
-                        setActiveTab('board');
-                      }}
-                      style={{
-                        padding: '20px',
-                        "border-radius": '8px',
-                        "background-color": 'var(--surface-container-low)',
-                        border: '1px solid var(--border-default)',
-                        display: 'flex',
-                        "flex-direction": 'column',
-                        "justify-content": 'space-between',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
-                        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-                          <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--secondary)', background: 'rgba(68,225,222,0.1)', padding: '2px 6px', "border-radius": '3px' }}>
-                            {getSpaceName(proj.space_id)}
-                          </span>
-                          <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', "text-transform": 'capitalize' }}>
-                            {proj.status}
-                          </span>
-                        </div>
-
-                        <h3 style={{ "font-size": '15px', "font-weight": 600, color: 'var(--text-main)', margin: 0 }}>
-                          {proj.name}
-                        </h3>
-
-                        <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: 0, "line-height": 1.5 }}>
-                          {proj.description || 'No description provided.'}
-                        </p>
-                      </div>
-
-                      <div style={{ "margin-top": '16px', "padding-top": '12px', "border-top": '1px solid var(--border-default)', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '11px', color: 'var(--text-dim)' }}>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <span>Target: {proj.target_date ? new Date(proj.target_date).toLocaleDateString() : 'Ongoing'}</span>
-                        </div>
-                        <span style={{ color: 'var(--secondary)', "font-family": 'var(--font-mono)' }}>Open Hub →</span>
-                      </div>
+                <Show 
+                  when={projects().length > 0}
+                  fallback={
+                    <div style={{ "grid-column": '1 / -1', padding: '48px 24px', "text-align": 'center', border: '1px dashed var(--border-default)', "border-radius": '8px', color: 'var(--text-muted)' }}>
+                      <p style={{ "font-size": '14px', margin: '0 0 8px 0', "font-weight": 500, color: 'var(--text-main)' }}>Belum ada project di space ini</p>
+                      <p style={{ "font-size": '12px', color: 'var(--text-dim)', margin: 0 }}>Klik tombol New Project untuk membuat project pertama di space ini.</p>
                     </div>
-                  )}
-                </For>
+                  }
+                >
+                  <For each={projects()}>
+                    {(proj) => (
+                      <div 
+                        onClick={() => {
+                          setSelectedProjectId(proj.id);
+                          setActiveTab('board');
+                        }}
+                        style={{
+                          padding: '20px',
+                          "border-radius": '8px',
+                          "background-color": 'var(--surface-container-low)',
+                          border: '1px solid var(--border-default)',
+                          display: 'flex',
+                          "flex-direction": 'column',
+                          "justify-content": 'space-between',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
+                            <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--secondary)', background: 'rgba(68,225,222,0.1)', padding: '2px 6px', "border-radius": '3px' }}>
+                              {getSpaceName(proj.space_id)}
+                            </span>
+                            <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', "text-transform": 'capitalize' }}>
+                              {proj.status}
+                            </span>
+                          </div>
+
+                          <h3 style={{ "font-size": '15px', "font-weight": 600, color: 'var(--text-main)', margin: 0 }}>
+                            {proj.name}
+                          </h3>
+
+                          <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: 0, "line-height": 1.5 }}>
+                            {proj.description || 'No description provided.'}
+                          </p>
+                        </div>
+
+                        <div style={{ "margin-top": '16px', "padding-top": '12px', "border-top": '1px solid var(--border-default)', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '11px', color: 'var(--text-dim)' }}>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <span>Target: {proj.target_date ? new Date(proj.target_date).toLocaleDateString() : 'Ongoing'}</span>
+                          </div>
+                          <span style={{ color: 'var(--secondary)', "font-family": 'var(--font-mono)' }}>Open Hub →</span>
+                        </div>
+                      </div>
+                    )}
+                  </For>
+                </Show>
               </Show>
             </div>
           </div>

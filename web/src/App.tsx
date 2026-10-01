@@ -23,14 +23,13 @@ export const App: Component = () => {
 
   const handleNavigate = (route: string, spaceId?: string | null, projectId?: string | null) => {
     setCurrentRoute(route);
-    if (spaceId !== undefined) {
-      setActiveSpaceId(spaceId);
-    }
-    if (projectId !== undefined) {
-      setActiveProjectId(projectId);
-    } else if (spaceId !== undefined && spaceId !== activeSpaceId()) {
+    if (route === 'inbox' || route === 'calendar') {
+      setActiveSpaceId(null);
       setActiveProjectId(null);
+      return;
     }
+    setActiveSpaceId(spaceId ?? null);
+    setActiveProjectId(projectId ?? null);
   };
 
   // Global keyboard shortcut Ctrl+K / Cmd+K

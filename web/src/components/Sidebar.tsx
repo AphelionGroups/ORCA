@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, onMount, For, Show } from 'solid-js';
+import { createSignal, onMount, onCleanup, For, Show } from 'solid-js';
 import { 
   Inbox, 
   Calendar, 
@@ -84,6 +84,15 @@ export const Sidebar: Component<SidebarProps> = (props) => {
 
   onMount(() => {
     loadData();
+    const handleRefresh = () => {
+      loadData();
+    };
+    window.addEventListener('orca:projects_updated', handleRefresh);
+    window.addEventListener('orca:spaces_updated', handleRefresh);
+    onCleanup(() => {
+      window.removeEventListener('orca:projects_updated', handleRefresh);
+      window.removeEventListener('orca:spaces_updated', handleRefresh);
+    });
   });
 
   const toggleSpaceCollapse = (spaceId: string, e: MouseEvent) => {
@@ -150,7 +159,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
             {/* 1. Inbox */}
             <div 
               class={`sidebar-nav-item ${props.currentRoute === 'inbox' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('inbox', props.activeSpaceId, null)}
+              onClick={() => props.onNavigate('inbox', null, null)}
             >
               <Inbox size={15} color={props.currentRoute === 'inbox' ? 'var(--secondary)' : 'var(--text-dim)'} />
               <span>Inbox</span>
@@ -159,7 +168,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
             {/* 2. Calendar */}
             <div 
               class={`sidebar-nav-item ${props.currentRoute === 'calendar' ? 'active' : ''}`}
-              onClick={() => props.onNavigate('calendar', props.activeSpaceId, null)}
+              onClick={() => props.onNavigate('calendar', null, null)}
             >
               <Calendar size={15} color={props.currentRoute === 'calendar' ? 'var(--tertiary)' : 'var(--text-dim)'} />
               <span>Calendar</span>
@@ -186,7 +195,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           <div style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
             {/* All Spaces Entry */}
             <div
-              class={`sidebar-space-row ${props.activeSpaceId === null && !props.activeProjectId ? 'active' : ''}`}
+              class={`sidebar-space-row ${props.currentRoute === 'projects' && props.activeSpaceId === null && !props.activeProjectId ? 'active' : ''}`}
               onClick={() => props.onNavigate('projects', null, null)}
             >
               <div class="sidebar-space-left">
@@ -201,24 +210,22 @@ export const Sidebar: Component<SidebarProps> = (props) => {
               {(space) => {
                 const isCollapsed = () => !!collapsedSpaces()[space.id];
                 const spaceProjects = () => getProjectsForSpace(space.id);
-                const isSpaceActive = () => props.activeSpaceId === space.id;
+                const isSpaceActive = () => props.currentRoute === 'projects' && props.activeSpaceId === space.id;
                 const SpaceIcon = getSpaceIconComponent(space.icon);
 
                 return (
                   <div class="sidebar-space-group">
-                    {/* Space Row: Clicking toggles collapse and opens the space's project cards */}
+                    {/* Space Row: Clicking opens the space and ensures its tree is expanded */}
                     <div 
                       class={`sidebar-space-row ${isSpaceActive() ? 'active' : ''}`}
                       onClick={() => {
-                        // 1. Toggle collapse status (terbalik dari status sebelumnya)
                         setCollapsedSpaces(prev => ({
                           ...prev,
-                          [space.id]: !prev[space.id]
+                          [space.id]: false
                         }));
-                        // 2. Tampilkan card project dari space ini
                         props.onNavigate('projects', space.id, null);
                       }}
-                      title={`Klik untuk buka/tutup dan tampilkan projects ${space.name}`}
+                      title={`Tampilkan projects ${space.name}`}
                     >
                       <div class="sidebar-space-left">
                         {/* Chevron Collapse Toggle */}

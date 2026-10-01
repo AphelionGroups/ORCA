@@ -90,6 +90,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
         });
         props.onSaved(created);
       }
+      window.dispatchEvent(new CustomEvent('orca:spaces_updated'));
       props.onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to save space');
@@ -108,6 +109,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
       if (props.onDeleted) {
         props.onDeleted(props.spaceToEdit.id);
       }
+      window.dispatchEvent(new CustomEvent('orca:spaces_updated'));
       props.onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to delete space');
