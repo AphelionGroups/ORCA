@@ -321,69 +321,55 @@ export const Sidebar: Component<SidebarProps> = (props) => {
 
       {/* 3. Footer Area (Fixed) */}
       <div class="sidebar-footer-fixed">
-        {/* User Identity & Profile Card */}
-        <div style={{
-          display: 'flex',
-          "align-items": 'center',
-          "justify-content": 'space-between',
-          padding: '8px 10px',
-          background: 'var(--surface-container-low)',
-          "border-radius": '8px',
-          border: '1px solid var(--border-default)',
-          "margin-bottom": '8px'
-        }}>
+        {/* User Identity & Profile Card (Obsidian Studio Widget) */}
+        <div class="profile-sidebar-widget">
           <div 
-            style={{ display: 'flex', "align-items": 'center', gap: '8px', flex: 1, cursor: 'pointer', overflow: 'hidden' }}
+            class="profile-sidebar-identity"
             onClick={() => props.onOpenProfile && props.onOpenProfile()}
-            title="Buka Edit Profil"
+            title="Buka Pengaturan Profil & Akun"
           >
-            <div style={{
-              width: '28px',
-              height: '28px',
-              "border-radius": '50%',
-              overflow: 'hidden',
-              background: 'var(--surface-container-high)',
-              border: '1px solid var(--border-default)',
-              display: 'flex',
-              "align-items": 'center',
-              "justify-content": 'center',
-              "flex-shrink": 0
-            }}>
+            <div class="profile-sidebar-avatar">
               <Show when={props.currentUser?.avatar_url} fallback={
-                <User size={15} color="var(--text-dim)" />
+                <div style={{ width: '100%', height: '100%', display: 'flex', "align-items": 'center', "justify-content": 'center', "border-radius": '50%' }}>
+                  <User size={16} color="var(--primary)" />
+                </div>
               }>
                 <img 
                   src={props.currentUser?.avatar_url} 
                   alt="Avatar" 
-                  style={{ width: '100%', height: '100%', "object-fit": 'cover' }} 
                 />
               </Show>
+              <div class="profile-sidebar-status-dot" title="Online" />
             </div>
-            <div style={{ overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>
-              <div style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)', overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>
-                {props.currentUser?.name || 'User'}
+
+            <div class="profile-sidebar-info">
+              <div class="profile-sidebar-name-row">
+                <span class="profile-sidebar-name">
+                  {props.currentUser?.name || 'User'}
+                </span>
+                <span class="profile-sidebar-badge">Owner</span>
               </div>
-              <div style={{ "font-size": '10px', color: 'var(--text-dim)', overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>
-                {props.currentUser?.email || 'Edit profile'}
-              </div>
+              <span class="profile-sidebar-email">
+                {props.currentUser?.email || 'user@orca.local'}
+              </span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', "align-items": 'center', gap: '2px' }}>
+          <div class="profile-sidebar-actions">
             <button
               type="button"
-              class="btn-icon"
-              style={{ padding: '4px', "border-radius": '4px' }}
-              title="Edit Profil"
+              class="profile-action-btn"
+              title="Edit Profil (Pengaturan)"
+              aria-label="Edit Profil"
               onClick={() => props.onOpenProfile && props.onOpenProfile()}
             >
               <Settings size={13} />
             </button>
             <button
               type="button"
-              class="btn-icon"
-              style={{ padding: '4px', "border-radius": '4px', color: '#f87171' }}
+              class="profile-action-btn logout"
               title="Keluar (Logout)"
+              aria-label="Keluar dari akun"
               onClick={() => props.onLogout && props.onLogout()}
             >
               <LogOut size={13} />
