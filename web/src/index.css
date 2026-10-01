@@ -2213,7 +2213,7 @@ select,
 }
 
 /* =========================================================
-   USER PROFILE & ACCOUNT HUB (Obsidian Studio Aesthetic)
+   USER PROFILE & SETTINGS MODAL
    ========================================================= */
 
 .profile-sidebar-widget {
@@ -2232,42 +2232,31 @@ select,
   overflow: hidden;
 }
 
-.profile-sidebar-widget::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
-}
-
 .profile-sidebar-widget:hover {
   background: rgba(26, 28, 34, 0.95);
   border-color: rgba(139, 141, 248, 0.35);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 12px rgba(139, 141, 248, 0.1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   transform: translateY(-0.5px);
 }
 
 .profile-sidebar-identity {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
   cursor: pointer;
 }
 
 .profile-sidebar-avatar {
-  position: relative;
   width: 32px;
   height: 32px;
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--surface-container-high);
-  border: 1.5px solid rgba(139, 141, 248, 0.4);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  overflow: visible;
+  border: 1px solid var(--border-default);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 }
 
 .profile-sidebar-avatar img {
@@ -2277,28 +2266,10 @@ select,
   border-radius: 50%;
 }
 
-.profile-sidebar-status-dot {
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #22c55e;
-  border: 1.5px solid var(--surface-card);
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
-}
-
 .profile-sidebar-info {
   display: flex;
   flex-direction: column;
   min-width: 0;
-}
-
-.profile-sidebar-name-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
 }
 
 .profile-sidebar-name {
@@ -2311,20 +2282,8 @@ select,
   letter-spacing: -0.01em;
 }
 
-.profile-sidebar-badge {
-  font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(139, 141, 248, 0.12);
-  color: var(--primary-dim);
-  border: 1px solid rgba(139, 141, 248, 0.25);
-}
-
 .profile-sidebar-email {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -2362,85 +2321,75 @@ select,
   color: #f87171;
 }
 
-/* Modal Profile Studio Hub */
+/* Modal Profile */
 .profile-modal-card {
   position: relative;
   width: 100%;
-  max-width: 540px;
+  max-width: 480px;
   background: var(--surface-card);
   border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.04);
   overflow: hidden;
   animation: modalCardScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.profile-cover-banner {
-  position: relative;
-  height: 90px;
-  width: 100%;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.4) 0%, rgba(59, 130, 246, 0.25) 50%, rgba(68, 225, 222, 0.15) 100%);
+.profile-modal-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
-  box-sizing: border-box;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-.profile-cover-pattern {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
-  background-size: 16px 16px;
-  pointer-events: none;
-  opacity: 0.7;
+.profile-modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .profile-header-close {
-  position: relative;
-  z-index: 2;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text-main);
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .profile-header-close:hover {
-  background: rgba(0, 0, 0, 0.6);
-  border-color: rgba(255, 255, 255, 0.25);
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
 }
 
-.profile-studio-body {
-  padding: 0 24px 24px 24px;
-  margin-top: -38px;
-  position: relative;
-  z-index: 2;
+.profile-modal-body {
+  padding: 20px 24px 24px 24px;
 }
 
 .profile-avatar-row {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .profile-avatar-large {
   position: relative;
-  width: 76px;
-  height: 76px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   background: var(--surface-container-high);
-  border: 3px solid var(--surface-card);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  border: 2px solid var(--border-default);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2456,10 +2405,10 @@ select,
 
 .profile-avatar-cam-badge {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 26px;
-  height: 26px;
+  bottom: -2px;
+  right: -2px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: var(--primary);
   color: #ffffff;
@@ -2468,33 +2417,13 @@ select,
   justify-content: center;
   border: 2px solid var(--surface-card);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
   transition: all 0.15s ease;
 }
 
 .profile-avatar-cam-badge:hover {
   transform: scale(1.1);
   background: var(--brand-secondary);
-}
-
-.profile-hero-meta {
-  margin-bottom: 20px;
-}
-
-.profile-hero-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-main);
-  letter-spacing: -0.015em;
-  line-height: 1.25;
-  margin-bottom: 3px;
-}
-
-.profile-hero-badges {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 .profile-nav-tabs {
@@ -2504,7 +2433,7 @@ select,
   padding: 4px;
   background: var(--surface-container-lowest);
   border: 1px solid var(--border-default);
-  border-radius: 10px;
+  border-radius: 8px;
   margin-bottom: 20px;
 }
 
@@ -2514,10 +2443,10 @@ select,
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 7px 12px;
   font-size: 12px;
   font-weight: 500;
-  border-radius: 7px;
+  border-radius: 6px;
   border: none;
   background: transparent;
   color: var(--text-dim);
@@ -2534,20 +2463,6 @@ select,
   color: #ffffff;
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-}
-
-.profile-info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.profile-info-card {
-  padding: 12px;
-  border-radius: 10px;
-  background: var(--surface-container-low);
-  border: 1px solid var(--border-default);
 }
 
 /* =========================================================

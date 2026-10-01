@@ -6,18 +6,13 @@ import {
   User, 
   Mail, 
   Lock, 
-  ShieldCheck, 
   Loader2, 
   Check, 
   AlertCircle,
-  HardDrive,
   Eye,
   EyeOff,
-  Cloud,
   KeyRound,
-  Trash2,
-  Sparkles,
-  Info
+  Trash2
 } from 'lucide-solid';
 import { api } from '../services/api';
 import { getCurrentUser, setCurrentUser } from '../services/user';
@@ -30,7 +25,7 @@ interface ProfileModalProps {
 }
 
 export const ProfileModal: Component<ProfileModalProps> = (props) => {
-  const [activeTab, setActiveTab] = createSignal<'general' | 'security' | 'storage'>('general');
+  const [activeTab, setActiveTab] = createSignal<'general' | 'security'>('general');
   const [fullName, setFullName] = createSignal('');
   const [email, setEmail] = createSignal('');
   const [avatarUrl, setAvatarUrl] = createSignal('');
@@ -44,7 +39,6 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
   const [isSaving, setIsSaving] = createSignal(false);
   const [errorMsg, setErrorMsg] = createSignal<string | null>(null);
   const [successMsg, setSuccessMsg] = createSignal<string | null>(null);
-  const [storageDriver, setStorageDriver] = createSignal<string>('Object Storage (S3 API)');
 
   // Keyboard navigation: Escape key closes modal (WCAG 2.2 Guideline)
   createEffect(() => {
@@ -114,9 +108,8 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
     try {
       const uploadRes = await api.uploadImage(file);
       setAvatarUrl(uploadRes.url);
-      setStorageDriver(uploadRes.driver === 's3' ? 'S3-Compatible (R2/Supabase/AWS)' : 'Local Disk Storage');
-      setSuccessMsg(`Foto berhasil diunggah ke ${uploadRes.driver === 's3' ? 'Object Storage' : 'Local Storage'}!`);
-      setTimeout(() => setSuccessMsg(null), 3500);
+      setSuccessMsg('Foto profil berhasil diperbarui!');
+      setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
       setErrorMsg('Gagal mengunggah foto: ' + (err.message || 'Error'));
     } finally {
@@ -140,7 +133,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
 
     if (newPassword()) {
       if (!currentPassword()) {
-        setErrorMsg('Masukkan kata sandi saat ini untuk melakukan perubahan');
+        setErrorMsg('Masukkan kata sandi saat ini untuk melakukan perubahan kata sandi');
         setActiveTab('security');
         return;
       }
@@ -185,7 +178,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
         props.onProfileUpdated(profile);
       }
 
-      setSuccessMsg('Profil dan data akun Anda berhasil diperbarui!');
+      setSuccessMsg('Profil berhasil diperbarui!');
       setTimeout(() => {
         props.onClose();
       }, 1000);
@@ -206,46 +199,29 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
           aria-labelledby="profile-modal-title"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Cover & Ambient Header */}
-          <div class="profile-cover-banner">
-            <div class="profile-cover-pattern" />
-            <div style={{ display: 'flex', "align-items": 'center', gap: '8px', "z-index": 2 }}>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.15)',
-                "backdrop-filter": 'blur(6px)',
-                padding: '4px 10px',
-                "border-radius": '20px',
-                display: 'flex',
-                "align-items": 'center',
-                gap: '6px',
-                color: '#fff',
-                "font-size": '11px',
-                "font-weight": 600,
-                border: '1px solid rgba(255, 255, 255, 0.2)'
-              }}>
-                <Sparkles size={12} />
-                <span>ORCA Account Hub</span>
-              </div>
-            </div>
-
+          {/* Header */}
+          <div class="profile-modal-header">
+            <h2 id="profile-modal-title" class="profile-modal-title">
+              Edit Profil
+            </h2>
             <button 
               type="button" 
               class="profile-header-close"
               aria-label="Tutup jendela edit profil"
               onClick={props.onClose} 
             >
-              <X size={15} aria-hidden="true" />
+              <X size={16} aria-hidden="true" />
             </button>
           </div>
 
           {/* Modal Main Body */}
-          <div class="profile-studio-body">
-            {/* Avatar & Hero Row */}
+          <div class="profile-modal-body">
+            {/* Avatar Row */}
             <div class="profile-avatar-row">
               <div class="profile-avatar-large">
                 <Show when={avatarUrl()} fallback={
                   <div style={{ width: '100%', height: '100%', display: 'flex', "align-items": 'center', "justify-content": 'center', "border-radius": '50%', background: 'var(--surface-container-high)' }}>
-                    <User size={36} color="var(--primary)" />
+                    <User size={34} color="var(--primary)" />
                   </div>
                 }>
                   <img 
@@ -254,10 +230,10 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                   />
                 </Show>
 
-                {/* Camera Upload Badge */}
+                {/* Quick Camera Upload Icon */}
                 <label 
                   class="profile-avatar-cam-badge"
-                  title="Klik untuk mengganti avatar"
+                  title="Klik untuk memilih foto profil baru"
                   style={{ cursor: isUploading() ? 'not-allowed' : 'pointer' }}
                 >
                   <Show when={isUploading()} fallback={<Camera size={13} />}>
@@ -273,17 +249,17 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                 </label>
               </div>
 
-              {/* Quick Actions (Upload / Remove) */}
+              {/* Avatar Action Buttons */}
               <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
                 <label 
                   class="btn-secondary" 
                   style={{ 
                     padding: '6px 12px', 
-                    "font-size": '11px', 
-                    "font-weight": 600,
+                    "font-size": '11.5px', 
+                    "font-weight": 500,
                     display: 'inline-flex', 
                     "align-items": 'center', 
-                    gap: '5px', 
+                    gap: '6px', 
                     cursor: isUploading() ? 'not-allowed' : 'pointer'
                   }}
                 >
@@ -302,62 +278,18 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                   <button 
                     type="button" 
                     class="btn-secondary" 
-                    style={{ padding: '6px 10px', "font-size": '11px', color: '#f87171' }}
+                    style={{ padding: '6px 10px', "font-size": '11.5px', color: '#f87171' }}
                     onClick={() => setAvatarUrl('')}
                     title="Hapus foto profil"
                   >
                     <Trash2 size={13} />
+                    <span>Hapus</span>
                   </button>
                 </Show>
               </div>
             </div>
 
-            {/* Hero Meta (Name & Badges) */}
-            <div class="profile-hero-meta">
-              <h2 id="profile-modal-title" class="profile-hero-name">
-                {fullName() || 'Pengguna ORCA'}
-              </h2>
-              <div class="profile-hero-badges">
-                <span style={{ 
-                  "font-size": '11px', 
-                  color: 'var(--text-dim)', 
-                  display: 'flex', 
-                  "align-items": 'center', 
-                  gap: '4px' 
-                }}>
-                  <Mail size={12} />
-                  {email() || 'user@orca.local'}
-                </span>
-                <span style={{
-                  "font-size": '10px',
-                  "font-weight": 600,
-                  padding: '2px 8px',
-                  "border-radius": '12px',
-                  background: 'rgba(99, 102, 241, 0.15)',
-                  color: 'var(--primary-dim)',
-                  border: '1px solid rgba(99, 102, 241, 0.3)'
-                }}>
-                  Workspace Owner
-                </span>
-                <span style={{
-                  "font-size": '10px',
-                  "font-weight": 500,
-                  padding: '2px 8px',
-                  "border-radius": '12px',
-                  background: 'rgba(34, 197, 94, 0.12)',
-                  color: '#4ade80',
-                  border: '1px solid rgba(34, 197, 94, 0.25)',
-                  display: 'inline-flex',
-                  "align-items": 'center',
-                  gap: '4px'
-                }}>
-                  <span style={{ width: '5px', height: '5px', "border-radius": '50%', background: '#22c55e' }} />
-                  Aktif
-                </span>
-              </div>
-            </div>
-
-            {/* Navigation Tabs (General vs Security vs Storage) */}
+            {/* Navigation Tabs (Profil vs Keamanan) */}
             <div class="profile-nav-tabs" role="tablist">
               <button
                 type="button"
@@ -367,7 +299,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                 onClick={() => setActiveTab('general')}
               >
                 <User size={14} />
-                <span>Identitas</span>
+                <span>Profil</span>
               </button>
               <button
                 type="button"
@@ -378,16 +310,6 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
               >
                 <KeyRound size={14} />
                 <span>Keamanan</span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                class={`profile-nav-tab ${activeTab() === 'storage' ? 'active' : ''}`}
-                aria-selected={activeTab() === 'storage'}
-                onClick={() => setActiveTab('storage')}
-              >
-                <Cloud size={14} />
-                <span>Storage</span>
               </button>
             </div>
 
@@ -428,9 +350,9 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
               </div>
             </Show>
 
-            {/* Tab Panels */}
+            {/* Form */}
             <form onSubmit={handleSave}>
-              {/* TAB 1: IDENTITAS UMUM */}
+              {/* TAB 1: PROFIL (Nama & Email) */}
               <Show when={activeTab() === 'general'}>
                 <div style={{ display: 'flex', "flex-direction": 'column', gap: '14px', "margin-bottom": '20px' }}>
                   <div>
@@ -454,7 +376,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                           "font-size": '13px',
                           "box-sizing": 'border-box' 
                         }} 
-                        placeholder="Contoh: Nurhabib Assolihudin" 
+                        placeholder="Nama lengkap Anda" 
                         value={fullName()} 
                         onInput={(e) => setFullName(e.currentTarget.value)} 
                         required 
@@ -465,7 +387,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
 
                   <div>
                     <label for="profile-email-input" style={{ display: 'block', "font-size": '12px', "font-weight": 500, color: 'var(--text-muted)', "margin-bottom": '6px' }}>
-                      Alamat Email (Akun Utama)
+                      Alamat Email
                     </label>
                     <div style={{ position: 'relative' }}>
                       <input 
@@ -484,7 +406,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                           "font-size": '13px',
                           "box-sizing": 'border-box' 
                         }} 
-                        placeholder="nama@domain.com" 
+                        placeholder="email@example.com" 
                         value={email()} 
                         onInput={(e) => setEmail(e.currentTarget.value)} 
                         required 
@@ -492,56 +414,12 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                       <Mail size={15} aria-hidden="true" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
                     </div>
                   </div>
-
-                  {/* Summary Cards */}
-                  <div class="profile-info-grid">
-                    <div class="profile-info-card">
-                      <div style={{ display: 'flex', "align-items": 'center', gap: '6px', "margin-bottom": '4px', color: 'var(--text-dim)', "font-size": '11px' }}>
-                        <ShieldCheck size={13} color="var(--primary)" />
-                        <span>Hak Akses</span>
-                      </div>
-                      <div style={{ "font-size": '13px', "font-weight": 600, color: 'var(--text-main)' }}>
-                        Workspace Owner
-                      </div>
-                      <div style={{ "font-size": '10px', color: 'var(--text-dim)', "margin-top": '2px' }}>
-                        Kontrol penuh atas seluruh proyek & media
-                      </div>
-                    </div>
-
-                    <div class="profile-info-card">
-                      <div style={{ display: 'flex', "align-items": 'center', gap: '6px', "margin-bottom": '4px', color: 'var(--text-dim)', "font-size": '11px' }}>
-                        <HardDrive size={13} color="#44e1de" />
-                        <span>Penyimpanan Media</span>
-                      </div>
-                      <div style={{ "font-size": '13px', "font-weight": 600, color: 'var(--text-main)', overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>
-                        {storageDriver()}
-                      </div>
-                      <div style={{ "font-size": '10px', color: 'var(--text-dim)', "margin-top": '2px' }}>
-                        Terkonfigurasi via S3/R2/Supabase
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </Show>
 
-              {/* TAB 2: KEAMANAN & KATA SANDI */}
+              {/* TAB 2: KEAMANAN (Ganti Kata Sandi) */}
               <Show when={activeTab() === 'security'}>
                 <div style={{ display: 'flex', "flex-direction": 'column', gap: '14px', "margin-bottom": '20px' }}>
-                  <div style={{
-                    padding: '10px 14px',
-                    background: 'rgba(99, 102, 241, 0.08)',
-                    border: '1px solid rgba(99, 102, 241, 0.2)',
-                    "border-radius": '8px',
-                    display: 'flex',
-                    "align-items": 'center',
-                    gap: '10px'
-                  }}>
-                    <Info size={16} color="var(--primary)" style={{ "flex-shrink": 0 }} />
-                    <span style={{ "font-size": '11.5px', color: 'var(--text-muted)', "line-height": 1.4 }}>
-                      Kosongkan bagian kata sandi jika Anda hanya ingin memperbarui identitas profil dan foto avatar.
-                    </span>
-                  </div>
-
                   <div>
                     <label for="profile-curr-pass" style={{ display: 'block', "font-size": '12px', "font-weight": 500, color: 'var(--text-muted)', "margin-bottom": '6px' }}>
                       Kata Sandi Saat Ini
@@ -713,69 +591,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                 </div>
               </Show>
 
-              {/* TAB 3: OBJECT STORAGE & INFRA */}
-              <Show when={activeTab() === 'storage'}>
-                <div style={{ display: 'flex', "flex-direction": 'column', gap: '14px', "margin-bottom": '20px' }}>
-                  <div style={{
-                    padding: '14px',
-                    background: 'var(--surface-container-low)',
-                    border: '1px solid var(--border-default)',
-                    "border-radius": '10px',
-                    display: 'flex',
-                    "flex-direction": 'column',
-                    gap: '12px'
-                  }}>
-                    <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-                      <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-                        <Cloud size={16} color="var(--primary)" />
-                        <span style={{ "font-size": '13px', "font-weight": 600, color: 'var(--text-main)' }}>
-                          Status S3 Object Storage
-                        </span>
-                      </div>
-                      <span style={{
-                        "font-size": '10px',
-                        "font-weight": 600,
-                        padding: '2px 8px',
-                        "border-radius": '10px',
-                        background: 'rgba(68, 225, 222, 0.1)',
-                        color: '#44e1de',
-                        border: '1px solid rgba(68, 225, 222, 0.25)'
-                      }}>
-                        Connected
-                      </span>
-                    </div>
-
-                    <div style={{ "font-size": '12px', color: 'var(--text-dim)', "line-height": 1.5 }}>
-                      Setiap gambar avatar dan canvas board disimpan langsung ke bucket S3 yang ditentukan di file konfigurasi <code style={{ color: '#44e1de', background: 'rgba(0,0,0,0.3)', padding: '1px 5px', "border-radius": '3px' }}>.env</code> (Supabase Storage, Cloudflare R2, atau AWS S3).
-                    </div>
-
-                    <div style={{
-                      display: 'grid',
-                      "grid-template-columns": '1fr 1fr',
-                      gap: '8px',
-                      padding: '10px',
-                      background: 'rgba(0, 0, 0, 0.25)',
-                      "border-radius": '8px',
-                      "font-size": '11px'
-                    }}>
-                      <div>
-                        <span style={{ color: 'var(--text-dim)' }}>Driver Aktif:</span>
-                        <div style={{ color: 'var(--text-main)', "font-weight": 600, "margin-top": '2px' }}>
-                          {storageDriver()}
-                        </div>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-dim)' }}>Tenant Scope:</span>
-                        <div style={{ color: 'var(--text-main)', "font-weight": 600, "margin-top": '2px' }}>
-                          UUIDv7 Isolated
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Show>
-
-              {/* Modal Footer Controls */}
+              {/* Modal Footer Buttons */}
               <div style={{ 
                 display: 'flex', 
                 "align-items": 'center', 
@@ -820,4 +636,3 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
     </Show>
   );
 };
-

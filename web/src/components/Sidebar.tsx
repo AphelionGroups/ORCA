@@ -339,18 +339,14 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                   alt="Avatar" 
                 />
               </Show>
-              <div class="profile-sidebar-status-dot" title="Online" />
             </div>
 
             <div class="profile-sidebar-info">
-              <div class="profile-sidebar-name-row">
-                <span class="profile-sidebar-name">
-                  {props.currentUser?.name || 'User'}
-                </span>
-                <span class="profile-sidebar-badge">Owner</span>
-              </div>
+              <span class="profile-sidebar-name">
+                {props.currentUser?.name || 'User'}
+              </span>
               <span class="profile-sidebar-email">
-                {props.currentUser?.email || 'user@orca.local'}
+                {props.currentUser?.email || ''}
               </span>
             </div>
           </div>
