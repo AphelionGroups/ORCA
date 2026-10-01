@@ -352,6 +352,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const [docs, setDocs] = createSignal<OrcaDoc[]>([]);
   const [selectedDocId, setSelectedDocId] = createSignal<string | null>(null);
   const [boards, setBoards] = createSignal<NoteBoard[]>([]);
+  const [selectedBoardId, setSelectedBoardId] = createSignal<string | null>(null);
+  const [isCreatingBoard, setIsCreatingBoard] = createSignal(false);
+  const [newBoardTitle, setNewBoardTitle] = createSignal('');
   const [blocks, setBlocks] = createSignal<NoteBlock[]>([]);
   const [tasks, setTasks] = createSignal<Task[]>([]);
   const [loadingSubData, setLoadingSubData] = createSignal(false);
@@ -697,6 +700,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       setDocs([]);
       setSelectedDocId(null);
       setBoards([]);
+      setSelectedBoardId(null);
       setBlocks([]);
       setConnections([]);
       setTasks([]);
@@ -710,6 +714,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     setDocs([]);
     setSelectedDocId(null);
     setBoards([]);
+    setSelectedBoardId(null);
     setBlocks([]);
     setConnections([]);
     setTasks([]);
@@ -745,8 +750,14 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       }
 
       setBoards(currentBoards);
-      if (currentBoards.length > 0) {
-        const fetchedBlocks = await api.getBoardBlocks(currentBoards[0].id);
+      const activeBoard = (selectedBoardId() && currentBoards.some(b => b.id === selectedBoardId()))
+        ? currentBoards.find(b => b.id === selectedBoardId())!
+        : currentBoards[0] || null;
+
+      setSelectedBoardId(activeBoard ? activeBoard.id : null);
+
+      if (activeBoard) {
+        const fetchedBlocks = await api.getBoardBlocks(activeBoard.id);
         if (reqId !== loadSubDataReqId) return;
         setBlocks(fetchedBlocks || []);
         if (fetchedBlocks && fetchedBlocks.length >= 2) {
@@ -780,6 +791,97 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     const id = selectedProjectId();
     if (!id) return null;
     return projects().find(p => p.id === id) || null;
+  };
+
+  const currentBoard = () => {
+    const id = selectedBoardId();
+    if (id) {
+      const found = boards().find(b => b.id === id);
+      if (found) return found;
+    }
+    return boards()[0] || null;
+  };
+
+  const handleSelectBoard = async (boardId: string) => {
+    if (boardId === selectedBoardId()) return;
+    setSelectedBoardId(boardId);
+    setLoadingSubData(true);
+    try {
+      const fetchedBlocks = await api.getBoardBlocks(boardId);
+      setBlocks(fetchedBlocks || []);
+      setSelectedBlockId(null);
+      setSelectedBlockIds([]);
+      setSelectedConnection(null);
+      setUndoStack([]);
+      setRedoStack([]);
+      if (fetchedBlocks && fetchedBlocks.length >= 2) {
+        const connectable = fetchedBlocks.filter(b => b.type !== 'sticky');
+        if (connectable.length >= 2) {
+          setConnections([{ fromId: connectable[0].id, toId: connectable[1].id }]);
+        } else {
+          setConnections([]);
+        }
+      } else {
+        setConnections([]);
+      }
+    } catch (err) {
+      console.error('Failed to switch board:', err);
+    } finally {
+      setLoadingSubData(false);
+    }
+  };
+
+  const handleCreateBoard = async (title?: string) => {
+    const proj = currentProject();
+    if (!proj) return;
+    const name = (title || newBoardTitle()).trim() || `Board ${boards().length + 1}`;
+    try {
+      const created = await api.createBoard({
+        project_id: proj.id,
+        space_id: proj.space_id,
+        title: name,
+      });
+      setBoards([...boards(), created]);
+      setSelectedBoardId(created.id);
+      setBlocks([]);
+      setConnections([]);
+      setIsCreatingBoard(false);
+      setNewBoardTitle('');
+    } catch (err) {
+      console.error('Failed to create board:', err);
+    }
+  };
+
+  const handleRenameBoard = async (boardId: string, newTitle: string) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    try {
+      await api.updateBoard(boardId, { title: trimmed });
+      setBoards(boards().map(b => b.id === boardId ? { ...b, title: trimmed } : b));
+    } catch (err) {
+      console.error('Failed to rename board:', err);
+    }
+  };
+
+  const handleDeleteBoard = async (boardId: string) => {
+    if (boards().length <= 1) {
+      alert('Project minimal harus memiliki satu board.');
+      return;
+    }
+    if (!confirm('Hapus board ini beserta seluruh blok di dalamnya?')) return;
+    try {
+      await api.deleteBoard(boardId);
+      const remaining = boards().filter(b => b.id !== boardId);
+      setBoards(remaining);
+      if (selectedBoardId() === boardId) {
+        const nextBoard = remaining[0];
+        if (nextBoard) {
+          await handleSelectBoard(nextBoard.id);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete board:', err);
+    }
   };
   const currentDoc = () => docs().find(d => d.id === selectedDocId()) || docs()[0];
   const getSpaceName = (spaceId?: string) => {
@@ -1583,7 +1685,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     newY: number,
     srcSide?: 'top' | 'right' | 'bottom' | 'left'
   ) => {
-    const board = boards()[0];
+    const board = currentBoard();
     if (!board) return;
     const type = srcBlock.type;
     const width = srcBlock.width || getBlockWidth(srcBlock);
@@ -1626,7 +1728,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
   // Create a new block at coordinates or viewport center
   const handleCreateBlock = async (type: NoteBlock['type'] = 'card', posX?: number, posY?: number) => {
-    const board = boards()[0];
+    const board = currentBoard();
     if (!board) {
       console.warn('No active board found to attach block.');
       return;
@@ -1701,7 +1803,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       return;
     }
 
-    const board = boards()[0];
+    const board = currentBoard();
     if (!board) {
       alert('Papan board tidak ditemukan');
       return;
@@ -1795,7 +1897,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
   // Duplicate block with offset and full undo history support
   const handleDuplicateBlock = async (block: NoteBlock) => {
-    const board = boards()[0];
+    const board = currentBoard();
     if (!board) return;
 
     const w = getBlockWidth(block);
@@ -1844,7 +1946,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const handlePasteBlock = async () => {
     const clip = copiedBlock();
     if (!clip) return;
-    const board = boards()[0];
+    const board = currentBoard();
     if (!board) return;
 
     const offset = 32;
@@ -1925,7 +2027,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         if (action.connections && action.connections.length > 0) {
           setConnections(prev => [...prev, ...action.connections]);
         }
-        const board = boards()[0];
+        const board = currentBoard();
         if (board) {
           for (const b of action.blocks) {
             try {
@@ -2021,7 +2123,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     switch (action.type) {
       case 'create_block': {
         setBlocks(prev => [...prev, action.block]);
-        const board = boards()[0];
+        const board = currentBoard();
         if (board) {
           try {
             await api.createNoteBlock(board.id, {
@@ -2923,8 +3025,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             >
               <LayoutGrid size={13} color={activeTab() === 'board' ? 'var(--secondary)' : 'var(--text-dim)'} />
               <span>Board</span>
-              <Show when={blocks().length > 0}>
-                <span style={{ "font-size": '10px', opacity: 0.6 }}>({blocks().length})</span>
+              <Show when={boards().length > 0}>
+                <span style={{ "font-size": '10px', opacity: 0.6 }}>({boards().length})</span>
               </Show>
             </button>
             <button 
@@ -3228,11 +3330,213 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                   : (activeCanvasTool() === 'pan' || isSpacePressed() ? 'grab' : 'default')
               }}
             >
-              {/* Board Header Info */}
-              <div style={{ position: 'absolute', top: '16px', left: '16px', "z-index": 15, display: 'flex', "align-items": 'center', gap: '8px', padding: '6px 12px', "border-radius": '6px', "background-color": 'var(--surface-card)', border: '1px solid var(--border-default)', "font-size": '11px', color: 'var(--text-muted)' }}>
-                <span style={{ color: '#3b82f6', "font-family": 'var(--font-mono)' }}>CANVAS:</span>
-                <span style={{ color: 'var(--text-main)' }}>{boards()[0]?.title || 'Spatial Ideation Board'}</span>
-                <span style={{ color: 'var(--text-dim)', "font-size": '10px' }}>({blocks().length} nodes)</span>
+              {/* Floating Board Switcher & Management Bar */}
+              <div 
+                class="board-switcher-bar"
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  left: '16px',
+                  "z-index": 20,
+                  display: 'flex',
+                  "align-items": 'center',
+                  gap: '6px',
+                  padding: '4px 6px',
+                  "border-radius": '8px',
+                  "background-color": 'var(--surface-container-low)',
+                  border: '1px solid var(--border-default)',
+                  "box-shadow": '0 4px 12px rgba(0,0,0,0.15)',
+                  "max-width": 'calc(100% - 32px)',
+                  "overflow-x": 'auto'
+                }}
+              >
+                <For each={boards()}>
+                  {(b) => {
+                    const isActive = () => (selectedBoardId() || boards()[0]?.id) === b.id;
+                    const [isEditing, setIsEditing] = createSignal(false);
+                    const [editTitle, setEditTitle] = createSignal(b.title);
+
+                    return (
+                      <div
+                        class={`board-tab-pill ${isActive() ? 'active' : ''}`}
+                        style={{
+                          display: 'flex',
+                          "align-items": 'center',
+                          gap: '6px',
+                          padding: '4px 10px',
+                          "border-radius": '6px',
+                          "font-size": '12px',
+                          cursor: 'pointer',
+                          "user-select": 'none',
+                          transition: 'all 0.12s ease',
+                          background: isActive() ? 'var(--surface-container-high)' : 'transparent',
+                          color: isActive() ? 'var(--text-main)' : 'var(--text-muted)',
+                          border: isActive() ? '1px solid var(--border-default)' : '1px solid transparent'
+                        }}
+                        onClick={() => {
+                          if (!isActive()) {
+                            handleSelectBoard(b.id);
+                          }
+                        }}
+                      >
+                        <Show 
+                          when={isEditing()} 
+                          fallback={
+                            <span 
+                              onDblClick={(e) => {
+                                e.stopPropagation();
+                                setEditTitle(b.title);
+                                setIsEditing(true);
+                              }}
+                              style={{ "font-weight": isActive() ? 600 : 400, "white-space": 'nowrap' }}
+                              title="Klik untuk memilih, klik 2x untuk rename"
+                            >
+                              {b.title}
+                            </span>
+                          }
+                        >
+                          <input
+                            type="text"
+                            value={editTitle()}
+                            onInput={(e) => setEditTitle(e.currentTarget.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleRenameBoard(b.id, editTitle());
+                                setIsEditing(false);
+                              } else if (e.key === 'Escape') {
+                                setIsEditing(false);
+                              }
+                            }}
+                            onBlur={() => {
+                              handleRenameBoard(b.id, editTitle());
+                              setIsEditing(false);
+                            }}
+                            autofocus
+                            style={{
+                              background: 'var(--surface)',
+                              border: '1px solid var(--primary)',
+                              color: 'var(--text-main)',
+                              "font-size": '12px',
+                              padding: '2px 6px',
+                              "border-radius": '4px',
+                              outline: 'none',
+                              width: '110px'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </Show>
+
+                        {/* If active, show node count */}
+                        <Show when={isActive()}>
+                          <span style={{ "font-size": '10px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
+                            ({blocks().length})
+                          </span>
+                        </Show>
+
+                        {/* Delete action if more than 1 board */}
+                        <Show when={boards().length > 1 && isActive()}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteBoard(b.id);
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--text-dim)',
+                              cursor: 'pointer',
+                              padding: '2px',
+                              display: 'flex',
+                              "align-items": 'center',
+                              "margin-left": '2px',
+                              opacity: 0.7
+                            }}
+                            title="Hapus board ini"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </Show>
+                      </div>
+                    );
+                  }}
+                </For>
+
+                {/* Add Board Inline Form / Button */}
+                <Show
+                  when={isCreatingBoard()}
+                  fallback={
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewBoardTitle(`Board ${boards().length + 1}`);
+                        setIsCreatingBoard(true);
+                      }}
+                      style={{
+                        display: 'flex',
+                        "align-items": 'center',
+                        gap: '4px',
+                        padding: '4px 8px',
+                        "border-radius": '6px',
+                        background: 'none',
+                        border: '1px dashed var(--border-default)',
+                        color: 'var(--text-dim)',
+                        "font-size": '11px',
+                        cursor: 'pointer',
+                        "white-space": 'nowrap'
+                      }}
+                      title="Tambah Board Baru di Project Ini"
+                    >
+                      <Plus size={12} />
+                      <span>New Board</span>
+                    </button>
+                  }
+                >
+                  <div style={{ display: 'flex', "align-items": 'center', gap: '4px' }}>
+                    <input
+                      type="text"
+                      placeholder="Nama board..."
+                      value={newBoardTitle()}
+                      onInput={(e) => setNewBoardTitle(e.currentTarget.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleCreateBoard();
+                        } else if (e.key === 'Escape') {
+                          setIsCreatingBoard(false);
+                        }
+                      }}
+                      autofocus
+                      style={{
+                        background: 'var(--surface)',
+                        border: '1px solid var(--primary)',
+                        color: 'var(--text-main)',
+                        "font-size": '12px',
+                        padding: '3px 8px',
+                        "border-radius": '4px',
+                        outline: 'none',
+                        width: '130px'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleCreateBoard()}
+                      class="btn-primary"
+                      style={{ padding: '3px 8px', "font-size": '11px' }}
+                    >
+                      Simpan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingBoard(false)}
+                      class="btn-secondary"
+                      style={{ padding: '3px 6px', "font-size": '11px' }}
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </Show>
               </div>
 
               {/* Dynamic Dot Grid Background moves with pan */}
