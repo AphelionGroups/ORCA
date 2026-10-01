@@ -443,6 +443,14 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   let isSelectingArea = false;
   let selectionStartWorld = { x: 0, y: 0 };
 
+  interface SnapGuide {
+    type: 'vertical' | 'horizontal';
+    pos: number;
+    start: number;
+    end: number;
+  }
+  const [snapGuides, setSnapGuides] = createSignal<SnapGuide[]>([]);
+
   let draggingBlockState: {
     blockId: string;
     startX: number;
@@ -683,6 +691,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       setSelectionBox(null);
       isSelectingArea = false;
       setEditingBlockId(null);
+      setSnapGuides([]);
     }
     if (e.key === 'Delete' || e.key === 'Backspace') {
       if (selectedBlockIds().length > 0 || selectedBlockId()) {
@@ -1010,8 +1019,10 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
       const scale = zoom() / 100;
       const containerRect = canvasContainerRef ? canvasContainerRef.getBoundingClientRect() : (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const clickX = Math.round((e.clientX - containerRect.left - pan().x) / scale);
-      const clickY = Math.round((e.clientY - containerRect.top - pan().y) / scale);
+      const rawX = (e.clientX - containerRect.left - pan().x) / scale;
+      const rawY = (e.clientY - containerRect.top - pan().y) / scale;
+      const clickX = Math.round(rawX / 24) * 24;
+      const clickY = Math.round(rawY / 24) * 24;
       handleCreateBlock(activeCanvasTool() as any, clickX, clickY);
       setActiveCanvasTool('select');
       setCursorCanvasPos(null);
@@ -1056,8 +1067,10 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       const scale = zoom() / 100;
       const containerRect = canvasContainerRef?.getBoundingClientRect();
       if (containerRect) {
-        const clickX = Math.round((e.clientX - containerRect.left - pan().x) / scale);
-        const clickY = Math.round((e.clientY - containerRect.top - pan().y) / scale);
+        const rawX = (e.clientX - containerRect.left - pan().x) / scale;
+        const rawY = (e.clientY - containerRect.top - pan().y) / scale;
+        const clickX = Math.round(rawX / 24) * 24;
+        const clickY = Math.round(rawY / 24) * 24;
         handleCreateBlock(activeCanvasTool() as any, clickX, clickY);
         setActiveCanvasTool('select');
         setCursorCanvasPos(null);
@@ -1282,6 +1295,11 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           break;
       }
 
+      newW = Math.round(newW / 12) * 12;
+      newH = Math.round(newH / 12) * 12;
+      newX = Math.round(newX / 12) * 12;
+      newY = Math.round(newY / 12) * 12;
+
       setBlocks(blocks().map(b => b.id === blockId ? {
         ...b,
         pos_x: Math.round(newX),
@@ -1427,13 +1445,109 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       return;
     }
 
-    // 3. Dragging selected block(s)
+    // 3. Dragging selected block(s) with Whimsical-grade Smart Alignment & Grid Snap
     if (draggingBlockState) {
       const scale = zoom() / 100;
-      const dx = (e.clientX - draggingBlockState.startX) / scale;
-      const dy = (e.clientY - draggingBlockState.startY) / scale;
+      const rawDx = (e.clientX - draggingBlockState.startX) / scale;
+      const rawDy = (e.clientY - draggingBlockState.startY) / scale;
 
-      const posMap = new Map(draggingBlockState.initialPositions.map(p => [p.id, { x: p.x + dx, y: p.y + dy }]));
+      const leadInitial = draggingBlockState.initialPositions.find(p => p.id === draggingBlockState!.blockId) 
+        || draggingBlockState.initialPositions[0];
+      const leadBlock = blocks().find(b => b.id === leadInitial.id);
+
+      const leadW = leadBlock ? getBlockWidth(leadBlock) : 200;
+      const leadH = leadBlock ? getBlockHeight(leadBlock) : 100;
+
+      const rawLeadX = leadInitial.x + rawDx;
+      const rawLeadY = leadInitial.y + rawDy;
+
+      const draggedIds = new Set(draggingBlockState.initialPositions.map(p => p.id));
+      const stationaryBlocks = blocks().filter(b => !draggedIds.has(b.id));
+
+      const SNAP_DIST = 8; // magnetic threshold
+      const GRID_SIZE = 12; // grid snap interval (matches 24px dot grid)
+
+      let bestX = Math.round(rawLeadX / GRID_SIZE) * GRID_SIZE;
+      let minDiffX = SNAP_DIST;
+      let xGuide: SnapGuide | null = null;
+
+      // Smart X alignment against other blocks
+      for (const other of stationaryBlocks) {
+        const otherW = getBlockWidth(other);
+        const otherH = getBlockHeight(other);
+
+        const otherLeft = other.pos_x;
+        const otherCenter = other.pos_x + otherW / 2;
+        const otherRight = other.pos_x + otherW;
+
+        const candidates = [
+          { targetX: otherLeft, guideX: otherLeft },
+          { targetX: otherRight, guideX: otherRight },
+          { targetX: otherCenter - leadW / 2, guideX: otherCenter },
+          { targetX: otherLeft - leadW, guideX: otherLeft },
+          { targetX: otherRight - leadW, guideX: otherRight }
+        ];
+
+        for (const cand of candidates) {
+          const diff = Math.abs(rawLeadX - cand.targetX);
+          if (diff < minDiffX) {
+            minDiffX = diff;
+            bestX = cand.targetX;
+            xGuide = {
+              type: 'vertical',
+              pos: cand.guideX,
+              start: Math.min(rawLeadY, other.pos_y) - 40,
+              end: Math.max(rawLeadY + leadH, other.pos_y + otherH) + 40
+            };
+          }
+        }
+      }
+
+      let bestY = Math.round(rawLeadY / GRID_SIZE) * GRID_SIZE;
+      let minDiffY = SNAP_DIST;
+      let yGuide: SnapGuide | null = null;
+
+      // Smart Y alignment against other blocks
+      for (const other of stationaryBlocks) {
+        const otherW = getBlockWidth(other);
+        const otherH = getBlockHeight(other);
+
+        const otherTop = other.pos_y;
+        const otherCenter = other.pos_y + otherH / 2;
+        const otherBottom = other.pos_y + otherH;
+
+        const candidates = [
+          { targetY: otherTop, guideY: otherTop },
+          { targetY: otherBottom, guideY: otherBottom },
+          { targetY: otherCenter - leadH / 2, guideY: otherCenter },
+          { targetY: otherTop - leadH, guideY: otherTop },
+          { targetY: otherBottom - leadH, guideY: otherBottom }
+        ];
+
+        for (const cand of candidates) {
+          const diff = Math.abs(rawLeadY - cand.targetY);
+          if (diff < minDiffY) {
+            minDiffY = diff;
+            bestY = cand.targetY;
+            yGuide = {
+              type: 'horizontal',
+              pos: cand.guideY,
+              start: Math.min(rawLeadX, other.pos_x) - 40,
+              end: Math.max(rawLeadX + leadW, other.pos_x + otherW) + 40
+            };
+          }
+        }
+      }
+
+      const activeGuides: SnapGuide[] = [];
+      if (xGuide) activeGuides.push(xGuide);
+      if (yGuide) activeGuides.push(yGuide);
+      setSnapGuides(activeGuides);
+
+      const finalDx = bestX - leadInitial.x;
+      const finalDy = bestY - leadInitial.y;
+
+      const posMap = new Map(draggingBlockState.initialPositions.map(p => [p.id, { x: p.x + finalDx, y: p.y + finalDy }]));
 
       setBlocks(blocks().map(b => {
         const newPos = posMap.get(b.id);
@@ -1449,14 +1563,17 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       return;
     }
 
-    // 4. Track cursor position for placement ghost preview
+    // 4. Track cursor position for placement ghost preview with 24px grid snap
     if (['card', 'sticky', 'text', 'shape'].includes(activeCanvasTool())) {
       const containerRect = canvasContainerRef?.getBoundingClientRect();
       if (containerRect) {
         const scale = zoom() / 100;
-        const x = Math.round((e.clientX - containerRect.left - pan().x) / scale);
-        const y = Math.round((e.clientY - containerRect.top - pan().y) / scale);
-        setCursorCanvasPos({ x, y });
+        const rawX = (e.clientX - containerRect.left - pan().x) / scale;
+        const rawY = (e.clientY - containerRect.top - pan().y) / scale;
+        setCursorCanvasPos({ 
+          x: Math.round(rawX / 24) * 24, 
+          y: Math.round(rawY / 24) * 24 
+        });
       }
     } else if (cursorCanvasPos()) {
       setCursorCanvasPos(null);
@@ -1613,6 +1730,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
 
     if (draggingBlockState) {
+      setSnapGuides([]);
       const movedPositions = draggingBlockState.initialPositions;
       draggingBlockState = null;
 
@@ -1778,9 +1896,11 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
 
     const scale = zoom() / 100;
-    // If coordinates not provided, drop at visible canvas center
-    const x = posX !== undefined ? posX : Math.round((-pan().x + 360) / scale + (blocks().length * 20) % 100);
-    const y = posY !== undefined ? posY : Math.round((-pan().y + 180) / scale + (blocks().length * 20) % 100);
+    // If coordinates not provided, drop at visible canvas center snapped to grid
+    const rawX = posX !== undefined ? posX : (-pan().x + 360) / scale + (blocks().length * 24) % 120;
+    const rawY = posY !== undefined ? posY : (-pan().y + 180) / scale + (blocks().length * 24) % 120;
+    const x = Math.round(rawX / 24) * 24;
+    const y = Math.round(rawY / 24) * 24;
 
     const user = getCurrentUser();
     const authorData = {
@@ -3854,7 +3974,10 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
               }}
               onMouseDown={handleCanvasMouseDown}
               onContextMenu={(e) => e.preventDefault()}
-              onMouseLeave={() => setCursorCanvasPos(null)}
+              onMouseLeave={() => {
+                setCursorCanvasPos(null);
+                setSnapGuides([]);
+              }}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -3993,6 +4116,55 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                   </defs>
                   {renderConnectorCurves()}
                 </svg>
+
+                {/* Whimsical-style Smart Alignment Guides */}
+                <Show when={snapGuides().length > 0}>
+                  <svg
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      overflow: 'visible',
+                      "pointer-events": 'none',
+                      "z-index": 55
+                    }}
+                  >
+                    <For each={snapGuides()}>
+                      {(guide) => (
+                        <Show
+                          when={guide.type === 'vertical'}
+                          fallback={
+                            <line
+                              x1={guide.start}
+                              y1={guide.pos}
+                              x2={guide.end}
+                              y2={guide.pos}
+                              stroke="var(--secondary)"
+                              stroke-width="1.5"
+                              stroke-dasharray="4 3"
+                              opacity="0.9"
+                              style={{ filter: 'drop-shadow(0 0 3px rgba(68, 225, 222, 0.75))' }}
+                            />
+                          }
+                        >
+                          <line
+                            x1={guide.pos}
+                            y1={guide.start}
+                            x2={guide.pos}
+                            y2={guide.end}
+                            stroke="var(--secondary)"
+                            stroke-width="1.5"
+                            stroke-dasharray="4 3"
+                            opacity="0.9"
+                            style={{ filter: 'drop-shadow(0 0 3px rgba(68, 225, 222, 0.75))' }}
+                          />
+                        </Show>
+                      )}
+                    </For>
+                  </svg>
+                </Show>
 
                 {/* Live Arrow Preview (canvas-space) when dragging a handle */}
                 <Show when={dragArrowStart() && dragArrowEnd()}>
