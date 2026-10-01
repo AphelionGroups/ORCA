@@ -20,6 +20,7 @@ import (
 	"github.com/AphelionGroups/ORCA/internal/board"
 	"github.com/AphelionGroups/ORCA/internal/calendar"
 	"github.com/AphelionGroups/ORCA/internal/doc"
+	"github.com/AphelionGroups/ORCA/internal/inbox"
 	"github.com/AphelionGroups/ORCA/internal/link"
 	"github.com/AphelionGroups/ORCA/internal/platform/config"
 	"github.com/AphelionGroups/ORCA/internal/platform/db"
@@ -151,6 +152,7 @@ func main() {
 				spaceRepo := space.NewRepository(dbPool.Pool)
 				projectRepo := project.NewRepository(dbPool.Pool)
 				docRepo := doc.NewRepository(dbPool.Pool)
+				inboxRepo := inbox.NewRepository(dbPool.Pool)
 				taskRepo := task.NewRepository(dbPool.Pool)
 				calendarRepo := calendar.NewRepository(dbPool.Pool)
 				boardRepo := board.NewRepository(dbPool.Pool)
@@ -160,6 +162,7 @@ func main() {
 				spaceHandler := space.NewHandler(spaceRepo)
 				projectHandler := project.NewHandler(projectRepo)
 				docHandler := doc.NewHandler(docRepo)
+				inboxHandler := inbox.NewHandler(inboxRepo)
 				taskHandler := task.NewHandler(taskRepo)
 				calendarHandler := calendar.NewHandler(calendarRepo)
 				boardHandler := board.NewHandler(boardRepo)
@@ -177,6 +180,7 @@ func main() {
 				tenant.Mount("/spaces", spaceHandler.Routes())
 				tenant.Mount("/projects", projectHandler.Routes())
 				tenant.Mount("/documents", docHandler.Routes())
+				tenant.Mount("/inbox", inboxHandler.Routes())
 				tenant.Mount("/tasks", taskHandler.Routes())
 				tenant.Mount("/events", calendarHandler.Routes())
 				tenant.Mount("/boards", boardHandler.BoardRoutes())

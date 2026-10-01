@@ -157,6 +157,18 @@ CREATE TABLE IF NOT EXISTS entity_links (
     CONSTRAINT unique_entity_link UNIQUE(workspace_id, from_type, from_id, to_type, to_id, relation_type)
 );
 
+-- 11. INBOX NOTES (Raw Thoughts, Quick Memos & Scratchpad)
+CREATE TABLE IF NOT EXISTS inbox_notes (
+    id UUID PRIMARY KEY,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    color VARCHAR(20) DEFAULT 'default',
+    is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
+);
+
 -- =========================================================
 -- INDEXES FOR FAST RETRIEVAL AND TENANT ISOLATION
 -- =========================================================
@@ -172,6 +184,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id) WHERE delet
 CREATE INDEX IF NOT EXISTS idx_events_workspace_timerange ON events(workspace_id, start_at, end_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_entity_links_from ON entity_links(workspace_id, from_type, from_id);
 CREATE INDEX IF NOT EXISTS idx_entity_links_to ON entity_links(workspace_id, to_type, to_id);
+CREATE INDEX IF NOT EXISTS idx_inbox_notes_workspace ON inbox_notes(workspace_id) WHERE deleted_at IS NULL;
 
 -- =========================================================
 -- DEFAULT SEED DATA (Personal Workspace & Owner)

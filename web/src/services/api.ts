@@ -61,6 +61,16 @@ export interface Document {
   updated_at: string;
 }
 
+export interface InboxNote {
+  id: string;
+  workspace_id: string;
+  content: string;
+  color?: string;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CalendarEvent {
   id: string;
   workspace_id: string;
@@ -435,5 +445,44 @@ export const api = {
     await request(`/blocks/${id}`, {
       method: 'DELETE',
     });
+  },
+
+  // Inbox Notes (Quick Thoughts, Memos, Scratchpad)
+  getInboxNotes: async (includeArchived = false): Promise<InboxNote[]> => {
+    const res = await request<{ data: InboxNote[] }>(`/inbox${includeArchived ? '?archived=true' : ''}`);
+    return res.data || [];
+  },
+  createInboxNote: async (data: { content: string; color?: string }): Promise<InboxNote> => {
+    const res = await request<{ data: InboxNote }>('/inbox', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+  updateInboxNote: async (id: string, data: Partial<InboxNote>): Promise<InboxNote> => {
+    const res = await request<{ data: InboxNote }>(`/inbox/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+  deleteInboxNote: async (id: string): Promise<void> => {
+    await request(`/inbox/${id}`, {
+      method: 'DELETE',
+    });
+  },
+  convertInboxNoteToTask: async (id: string, data: { space_id: string; project_id?: string; title?: string; priority?: string; due_date?: string }): Promise<{ task_id: string }> => {
+    const res = await request<{ data: { task_id: string } }>(`/inbox/${id}/convert-task`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+  convertInboxNoteToDoc: async (id: string, data: { space_id: string; project_id?: string; title?: string }): Promise<{ document_id: string }> => {
+    const res = await request<{ data: { document_id: string } }>(`/inbox/${id}/convert-doc`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data;
   },
 };

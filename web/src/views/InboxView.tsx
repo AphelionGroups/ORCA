@@ -3,54 +3,80 @@ import { createSignal, onMount, For, Show } from 'solid-js';
 import { 
   Inbox, 
   Plus, 
-  Check, 
   Trash2, 
   Clock, 
-  FolderKanban,
-  RotateCcw
+  CheckSquare, 
+  FileText, 
+  Edit3, 
+  Check, 
+  X, 
+  RefreshCw,
+  Loader2
 } from 'lucide-solid';
 import { api } from '../services/api';
-import type { Task, Space, Project } from '../services/api';
+import type { InboxNote, Space, Project } from '../services/api';
 
 interface InboxViewProps {
-  onNavigate: (route: string, spaceId?: string | null) => void;
+  onNavigate: (route: string, spaceId?: string | null, projectId?: string | null) => void;
   onOpenQuickCapture: () => void;
 }
 
 export const InboxView: Component<InboxViewProps> = (props) => {
   const [quickInput, setQuickInput] = createSignal('');
-  const [tasks, setTasks] = createSignal<Task[]>([]);
+  const [notes, setNotes] = createSignal<InboxNote[]>([]);
   const [spaces, setSpaces] = createSignal<Space[]>([]);
   const [projects, setProjects] = createSignal<Project[]>([]);
   const [loading, setLoading] = createSignal(true);
-  const [assigningTaskId, setAssigningTaskId] = createSignal<string | null>(null);
+  const [savingNote, setSavingNote] = createSignal(false);
+  const [editingNoteId, setEditingNoteId] = createSignal<string | null>(null);
+  const [editContent, setEditContent] = createSignal('');
+  const [successToast, setSuccessToast] = createSignal<string | null>(null);
+
+  // Conversion Modal State
+  const [convertModalOpen, setConvertModalOpen] = createSignal(false);
+  const [convertTargetType, setConvertTargetType] = createSignal<'task' | 'doc'>('task');
+  const [convertingNote, setConvertingNote] = createSignal<InboxNote | null>(null);
+  const [convertTitle, setConvertTitle] = createSignal('');
+  const [convertSpaceId, setConvertSpaceId] = createSignal('');
+  const [convertProjectId, setConvertProjectId] = createSignal('');
+  const [convertPriority, setConvertPriority] = createSignal<'low' | 'medium' | 'high' | 'urgent'>('medium');
+  const [convertLoading, setConvertLoading] = createSignal(false);
+  const [convertError, setConvertError] = createSignal('');
 
   const formatRelativeTime = (dateStr: string) => {
-    if (!dateStr) return 'Recently';
+    if (!dateStr) return 'Baru saja';
     const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffSec = Math.floor(diffMs / 1000);
-    if (diffSec < 60) return 'Just now';
+    if (diffSec < 60) return 'Baru saja';
     const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffMin < 60) return `${diffMin}m yang lalu`;
     const diffHours = Math.floor(diffMin / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) return `${diffHours}j yang lalu`;
     const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays}d ago`;
+    return `${diffDays}h yang lalu`;
+  };
+
+  const showToast = (msg: string) => {
+    setSuccessToast(msg);
+    setTimeout(() => setSuccessToast(null), 3500);
   };
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [fetchedTasks, fetchedSpaces, fetchedProjects] = await Promise.all([
-        api.getTasks({ inbox: true }),
+      const [fetchedNotes, fetchedSpaces, fetchedProjects] = await Promise.all([
+        api.getInboxNotes(),
         api.getSpaces(),
         api.getProjects()
       ]);
-      setTasks(fetchedTasks || []);
+      setNotes(fetchedNotes || []);
       setSpaces(fetchedSpaces || []);
       setProjects(fetchedProjects || []);
+      if (fetchedSpaces && fetchedSpaces.length > 0 && !convertSpaceId()) {
+        setConvertSpaceId(fetchedSpaces[0].id);
+      }
     } catch (err) {
       console.error('Failed to load inbox data:', err);
     } finally {
@@ -62,60 +88,124 @@ export const InboxView: Component<InboxViewProps> = (props) => {
     loadData();
   });
 
-  const getSpaceInfo = (spaceId: string) => {
-    const sp = spaces().find(s => s.id === spaceId);
-    return {
-      name: sp ? sp.name : 'Workspace',
-      color: sp ? sp.color : 'var(--secondary)'
-    };
+  const availableProjectsForConvert = () => {
+    const spId = convertSpaceId();
+    if (!spId) return projects();
+    return projects().filter(p => p.space_id === spId);
   };
 
-  const handleAddItem = async (e: Event) => {
-    e.preventDefault();
+  const handleAddNote = async (e?: Event) => {
+    if (e) e.preventDefault();
     const val = quickInput().trim();
     if (!val) return;
 
-    const defaultSpace = spaces()[0]?.id || '018f0000-0000-7000-8000-000000000010';
+    setSavingNote(true);
     try {
-      const newTask = await api.createTask({
-        title: val,
-        space_id: defaultSpace,
-        status: 'todo',
-        priority: 'medium',
-      });
-      setTasks([newTask, ...tasks()]);
+      const newNote = await api.createInboxNote({ content: val });
+      setNotes([newNote, ...notes()]);
       setQuickInput('');
+      showToast('Catatan disimpan ke Inbox');
     } catch (err) {
-      console.error('Failed to capture inbox task:', err);
+      console.error('Failed to capture inbox note:', err);
+    } finally {
+      setSavingNote(false);
     }
   };
 
-  const handleMarkDone = async (id: string) => {
+  const handleDeleteNote = async (id: string) => {
     try {
-      await api.updateTaskStatus(id, 'done');
-      setTasks(tasks().filter(t => t.id !== id));
+      await api.deleteInboxNote(id);
+      setNotes(notes().filter(n => n.id !== id));
+      showToast('Catatan dihapus');
     } catch (err) {
-      console.error('Failed to mark task done:', err);
+      console.error('Failed to delete note:', err);
     }
   };
 
-  const handleDiscard = async (id: string) => {
+  const handleStartEdit = (note: InboxNote) => {
+    setEditingNoteId(note.id);
+    setEditContent(note.content);
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    const trimmed = editContent().trim();
+    if (!trimmed) return;
     try {
-      await api.deleteTask(id);
-      setTasks(tasks().filter(t => t.id !== id));
+      const updated = await api.updateInboxNote(id, { content: trimmed });
+      setNotes(notes().map(n => n.id === id ? updated : n));
+      setEditingNoteId(null);
+      showToast('Perubahan catatan disimpan');
     } catch (err) {
-      console.error('Failed to delete task:', err);
+      console.error('Failed to update note:', err);
     }
   };
 
-  const handleAssignToProject = async (taskId: string, projectId: string) => {
+  const handleOpenConvert = (note: InboxNote, type: 'task' | 'doc') => {
+    setConvertingNote(note);
+    setConvertTargetType(type);
+    setConvertError('');
+    // Use first line as title candidate
+    const firstLine = note.content.split('\n')[0].trim();
+    setConvertTitle(firstLine);
+    if (spaces().length > 0 && !convertSpaceId()) {
+      setConvertSpaceId(spaces()[0].id);
+    }
+    const avail = availableProjectsForConvert();
+    if (avail.length > 0) {
+      setConvertProjectId(avail[0].id);
+    } else {
+      setConvertProjectId('');
+    }
+    setConvertModalOpen(true);
+  };
+
+  const handleExecuteConvert = async (e: Event) => {
+    e.preventDefault();
+    const note = convertingNote();
+    if (!note) return;
+
+    const spaceId = convertSpaceId();
+    if (!spaceId) {
+      setConvertError('Pilih Space tujuan');
+      return;
+    }
+
+    const projectId = convertProjectId();
+    if (!projectId) {
+      setConvertError('Pilih Project tujuan. Task dan Dokumen harus berada di dalam Project.');
+      return;
+    }
+
+    setConvertLoading(true);
+    setConvertError('');
+
     try {
-      await api.updateTask(taskId, { project_id: projectId });
-      setTasks(tasks().filter(t => t.id !== taskId));
-      setAssigningTaskId(null);
-      props.onNavigate('projects');
-    } catch (err) {
-      console.error('Failed to assign task to project:', err);
+      if (convertTargetType() === 'task') {
+        await api.convertInboxNoteToTask(note.id, {
+          space_id: spaceId,
+          project_id: projectId,
+          title: convertTitle().trim() || note.content,
+          priority: convertPriority(),
+        });
+        setNotes(notes().filter(n => n.id !== note.id));
+        setConvertModalOpen(false);
+        showToast('Catatan berhasil dijadikan Task di Project!');
+        props.onNavigate('projects', spaceId, projectId);
+      } else {
+        await api.convertInboxNoteToDoc(note.id, {
+          space_id: spaceId,
+          project_id: projectId,
+          title: convertTitle().trim() || note.content,
+        });
+        setNotes(notes().filter(n => n.id !== note.id));
+        setConvertModalOpen(false);
+        showToast('Catatan berhasil dijadikan Dokumen di Project!');
+        props.onNavigate('projects', spaceId, projectId);
+      }
+    } catch (err: any) {
+      setConvertError(err.message || 'Gagal mengubah catatan');
+    } finally {
+      setConvertLoading(false);
     }
   };
 
@@ -125,285 +215,415 @@ export const InboxView: Component<InboxViewProps> = (props) => {
       <header class="orca-header">
         <div class="header-breadcrumbs">
           <div class="breadcrumb-title">
-            <Inbox size={17} color="var(--secondary)" />
+            <Inbox size={16} color="var(--secondary)" />
             <span>Inbox</span>
           </div>
+          <Show when={notes().length > 0}>
+            <span style={{ "font-size": '11.5px', color: 'var(--text-dim)', "margin-left": '6px' }}>
+              ({notes().length} catatan)
+            </span>
+          </Show>
         </div>
 
         <div class="header-actions">
           <button 
+            type="button"
             onClick={loadData}
-            title="Refresh inbox"
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-dim)',
-              cursor: 'pointer',
-              display: 'flex',
-              "align-items": 'center',
-              padding: '6px'
-            }}
+            title="Muat ulang catatan"
+            class="btn-ghost-icon"
+            style={{ width: '28px', height: '28px' }}
           >
-            <RotateCcw size={14} />
-          </button>
-
-          <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
-            {tasks().length} items awaiting triage
-          </span>
-          <button 
-            onClick={props.onOpenQuickCapture}
-            class="btn-pill-white"
-          >
-            <Plus size={14} />
-            <span>Quick Capture</span>
+            <RefreshCw size={14} class={loading() ? 'spin' : ''} />
           </button>
         </div>
       </header>
 
+      {/* Toast Notification */}
+      <Show when={successToast()}>
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          background: 'var(--surface-container-high)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          color: 'var(--text-main)',
+          padding: '10px 16px',
+          "border-radius": '8px',
+          "font-size": '12.5px',
+          display: 'flex',
+          "align-items": 'center',
+          gap: '8px',
+          "box-shadow": '0 10px 30px rgba(0, 0, 0, 0.5)',
+          "z-index": 1000
+        }}>
+          <Check size={14} color="#4ade80" />
+          <span>{successToast()}</span>
+        </div>
+      </Show>
+
       {/* Main Content Area */}
-      <main style={{ flex: 1, "overflow-y": 'auto', padding: '32px', "background-color": 'var(--surface)' }}>
-        <div style={{ "max-width": '880px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '20px' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
+        <div style={{ "max-width": '720px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '20px' }}>
           
-          {/* Quick Input Bar */}
-          <form onSubmit={handleAddItem}>
-            <div style={{
-              display: 'flex',
-              "align-items": 'center',
-              gap: '10px',
-              padding: '8px 14px',
-              "background-color": 'var(--surface-container-low)',
+          {/* Quick Note Input Box */}
+          <form 
+            onSubmit={handleAddNote}
+            style={{
+              background: 'var(--surface-card)',
               border: '1px solid var(--border-default)',
-              "border-radius": '8px',
-              "box-shadow": '0 4px 20px rgba(0, 0, 0, 0.25)'
-            }}>
-              <Plus size={16} color="var(--text-dim)" />
-              <input 
-                type="text"
-                value={quickInput()}
-                onInput={e => setQuickInput(e.currentTarget.value)}
-                placeholder="Type a thought, task, or raw note... press Enter to capture"
-                style={{
-                  flex: 1,
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-main)',
-                  "font-size": '13px',
-                  outline: 'none'
-                }}
-              />
-              <span class="kbd-badge">Enter</span>
+              "border-radius": '12px',
+              padding: '12px 14px',
+              display: 'flex',
+              "flex-direction": 'column',
+              gap: '10px',
+              "box-shadow": '0 2px 8px rgba(0, 0, 0, 0.2)'
+            }}
+          >
+            <textarea
+              rows={2}
+              value={quickInput()}
+              onInput={e => setQuickInput(e.currentTarget.value)}
+              onKeyDown={e => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddNote();
+                }
+              }}
+              placeholder="Tulis ide, catatan, atau pemikiran cepat... (Ctrl+Enter untuk simpan)"
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: 'var(--text-main)',
+                "font-size": '13.5px',
+                "font-family": 'inherit',
+                resize: 'none',
+                "line-height": 1.5,
+                "box-sizing": 'border-box'
+              }}
+            />
+            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "border-top": '1px solid var(--border-subtle)', "padding-top": '8px' }}>
+              <span style={{ "font-size": '11px', color: 'var(--text-dim)' }}>
+                Ide dan catatan cepat akan disimpan di Inbox sebelum dijadikan Todo/Dokumen
+              </span>
+              <button
+                type="submit"
+                class="btn-primary"
+                disabled={!quickInput().trim() || savingNote()}
+                style={{ padding: '6px 14px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '6px' }}
+              >
+                <Plus size={13} />
+                <span>{savingNote() ? 'Menyimpan...' : 'Simpan ke Inbox'}</span>
+              </button>
             </div>
           </form>
 
-          {/* Inbox List */}
-          <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
-            <Show when={!loading()} fallback={
-              <div style={{ color: 'var(--text-dim)', "font-size": '12px', "text-align": 'center', padding: '40px 0' }}>
-                Connecting to live stream...
+          {/* Notes List */}
+          <Show when={!loading() && notes().length === 0}>
+            <div style={{
+              padding: '48px 24px',
+              "text-align": 'center',
+              display: 'flex',
+              "flex-direction": 'column',
+              "align-items": 'center',
+              gap: '12px',
+              background: 'var(--surface-container-lowest)',
+              border: '1px dashed var(--border-default)',
+              "border-radius": '12px'
+            }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                "border-radius": '50%',
+                background: 'var(--surface-container-high)',
+                display: 'flex',
+                "align-items": 'center',
+                "justify-content": 'center'
+              }}>
+                <Inbox size={20} color="var(--text-dim)" />
               </div>
-            }>
-              <Show when={tasks().length > 0} fallback={
-                <div style={{
-                  padding: '48px 24px',
-                  "text-align": 'center',
-                  "border-radius": '8px',
-                  border: '1px dashed var(--border-default)',
-                  color: 'var(--text-dim)'
-                }}>
-                  <Inbox size={28} style={{ margin: '0 auto 12px auto', opacity: 0.4 }} />
-                  <p style={{ "font-size": '13px', color: 'var(--text-muted)', margin: '0 0 6px 0' }}>Inbox Zero Achieved</p>
-                  <span style={{ "font-size": '11px' }}>All captured items have been triaged or promoted to projects.</span>
-                </div>
-              }>
-                <For each={tasks()}>
-                  {(task) => {
-                    const spaceInfo = getSpaceInfo(task.space_id);
-                    const isAssigning = () => assigningTaskId() === task.id;
+              <div>
+                <h4 style={{ margin: '0 0 4px 0', "font-size": '14px', "font-weight": 600, color: 'var(--text-main)' }}>
+                  Inbox Bersih
+                </h4>
+                <p style={{ margin: 0, "font-size": '12.5px', color: 'var(--text-dim)', "max-width": '360px', "line-height": 1.5 }}>
+                  Gunakan Inbox untuk menangkap ide atau catatan sementara sebelum Anda mengaturnya ke dalam project atau tugas.
+                </p>
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  style={{ "margin-top": '14px', "font-size": '12px', padding: '6px 14px' }}
+                  onClick={() => props.onOpenQuickCapture()}
+                >
+                  Buka Quick Capture (Ctrl+K)
+                </button>
+              </div>
+            </div>
+          </Show>
 
-                    return (
-                      <div 
-                        style={{
-                          padding: '16px',
-                          "border-radius": '8px',
-                          "background-color": 'rgba(24, 26, 32, 0.8)',
-                          border: '1px solid var(--border-default)',
-                          display: 'flex',
-                          "flex-direction": 'column',
-                          gap: '12px',
-                          transition: 'border-color 0.15s ease'
-                        }}
-                      >
-                        <div style={{
-                          display: 'flex',
-                          "align-items": 'flex-start',
-                          "justify-content": 'space-between',
-                          gap: '16px'
+          <Show when={notes().length > 0}>
+            <div style={{ display: 'flex', "flex-direction": 'column', gap: '10px' }}>
+              <For each={notes()}>
+                {(note) => (
+                  <div style={{
+                    background: 'var(--surface-card)',
+                    border: '1px solid var(--border-default)',
+                    "border-radius": '10px',
+                    padding: '14px 16px',
+                    display: 'flex',
+                    "flex-direction": 'column',
+                    gap: '10px',
+                    transition: 'border-color 0.15s ease'
+                  }}>
+                    {/* Note Content / Editing */}
+                    <Show 
+                      when={editingNoteId() === note.id}
+                      fallback={
+                        <div style={{ 
+                          "font-size": '13.5px', 
+                          color: 'var(--text-main)', 
+                          "white-space": 'pre-wrap', 
+                          "line-height": 1.55,
+                          "word-break": 'break-word' 
                         }}>
-                          <div style={{ display: 'flex', "flex-direction": 'column', gap: '6px', flex: 1 }}>
-                            <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-                              <span style={{
-                                padding: '2px 6px',
-                                "border-radius": '4px',
-                                "font-size": '10px',
-                                "font-family": 'var(--font-mono)',
-                                "text-transform": 'uppercase',
-                                background: 'rgba(68, 225, 222, 0.12)',
-                                color: 'var(--secondary)'
-                              }}>
-                                {task.priority || 'task'}
-                              </span>
-                              <span style={{
-                                "font-size": '11px',
-                                color: spaceInfo.color,
-                                "font-family": 'var(--font-mono)',
-                                display: 'flex',
-                                "align-items": 'center',
-                                gap: '4px'
-                              }}>
-                                <span style={{
-                                  width: '6px',
-                                  height: '6px',
-                                  "border-radius": '50%',
-                                  "background-color": spaceInfo.color
-                                }} />
-                                {spaceInfo.name}
-                              </span>
-                              <span style={{ "font-size": '11px', color: 'var(--text-dim)', display: 'flex', "align-items": 'center', gap: '4px' }}>
-                                <Clock size={11} />
-                                {formatRelativeTime(task.created_at)}
-                              </span>
-                            </div>
-
-                            <h3 style={{ "font-size": '13px', "font-weight": 500, color: 'var(--text-main)', margin: 0, "line-height": 1.4 }}>
-                              {task.title}
-                            </h3>
-
-                            {task.description && (
-                              <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: 0, "line-height": 1.5 }}>
-                                {task.description}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Triage Action Buttons */}
-                          <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-                            <button 
-                              title="Promote to Project"
-                              onClick={() => {
-                                if (projects().length === 1) {
-                                  handleAssignToProject(task.id, projects()[0].id);
-                                } else {
-                                  setAssigningTaskId(isAssigning() ? null : task.id);
-                                }
-                              }}
-                              style={{
-                                padding: '5px 10px',
-                                "border-radius": '4px',
-                                "background-color": isAssigning() ? 'var(--primary)' : 'var(--surface-container-high)',
-                                color: isAssigning() ? '#ffffff' : 'var(--text-main)',
-                                "font-size": '11px',
-                                border: '1px solid var(--border-default)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                "align-items": 'center',
-                                gap: '4px'
-                              }}
-                            >
-                              <FolderKanban size={12} color={isAssigning() ? '#ffffff' : "var(--primary)"} />
-                              <span>To Project</span>
-                            </button>
-
-                            <button 
-                              title="Archive / Done"
-                              onClick={() => handleMarkDone(task.id)}
-                              style={{
-                                padding: '5px 8px',
-                                "border-radius": '4px',
-                                background: 'none',
-                                color: 'var(--text-dim)',
-                                border: 'none',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <Check size={14} />
-                            </button>
-
-                            <button 
-                              title="Discard"
-                              onClick={() => handleDiscard(task.id)}
-                              style={{
-                                padding: '5px 8px',
-                                "border-radius": '4px',
-                                background: 'none',
-                                color: 'var(--text-dim)',
-                                border: 'none',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
+                          {note.content}
                         </div>
-
-                        {/* Project selector dropdown when promoted */}
-                        <Show when={isAssigning()}>
-                          <div style={{
-                            padding: '10px 12px',
-                            "border-radius": '6px',
-                            "background-color": 'var(--surface-container-lowest)',
-                            border: '1px solid var(--border-default)',
-                            display: 'flex',
-                            "align-items": 'center',
-                            "justify-content": 'space-between',
-                            gap: '8px'
-                          }}>
-                            <span style={{ "font-size": '11px', color: 'var(--text-muted)' }}>
-                              Select destination project:
-                            </span>
-                            <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-                              <For each={projects()}>
-                                {(proj) => (
-                                  <button
-                                    onClick={() => handleAssignToProject(task.id, proj.id)}
-                                    style={{
-                                      padding: '4px 10px',
-                                      "border-radius": '4px',
-                                      "font-size": '11px',
-                                      "background-color": 'var(--surface-container-high)',
-                                      color: 'var(--text-main)',
-                                      border: '1px solid var(--border-default)',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    {proj.name}
-                                  </button>
-                                )}
-                              </For>
-                              <button
-                                onClick={() => setAssigningTaskId(null)}
-                                style={{
-                                  padding: '4px 8px',
-                                  "font-size": '11px',
-                                  color: 'var(--text-dim)',
-                                  background: 'none',
-                                  border: 'none',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        </Show>
+                      }
+                    >
+                      <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
+                        <textarea
+                          rows={3}
+                          value={editContent()}
+                          onInput={e => setEditContent(e.currentTarget.value)}
+                          class="form-input"
+                          style={{ width: '100%', "font-size": '13px', padding: '8px 10px', "box-sizing": 'border-box' }}
+                        />
+                        <div style={{ display: 'flex', gap: '6px', "justify-content": 'flex-end' }}>
+                          <button
+                            type="button"
+                            class="btn-secondary"
+                            style={{ padding: '4px 10px', "font-size": '11.5px' }}
+                            onClick={() => setEditingNoteId(null)}
+                          >
+                            Batal
+                          </button>
+                          <button
+                            type="button"
+                            class="btn-primary"
+                            style={{ padding: '4px 12px', "font-size": '11.5px' }}
+                            onClick={() => handleSaveEdit(note.id)}
+                          >
+                            Simpan
+                          </button>
+                        </div>
                       </div>
-                    );
-                  }}
-                </For>
-              </Show>
+                    </Show>
+
+                    {/* Note Footer: Time & Action Buttons */}
+                    <div style={{
+                      display: 'flex',
+                      "align-items": 'center',
+                      "justify-content": 'space-between',
+                      "border-top": '1px solid var(--border-subtle)',
+                      "padding-top": '8px',
+                      "margin-top": '4px'
+                    }}>
+                      <div style={{ display: 'flex', "align-items": 'center', gap: '5px', "font-size": '11px', color: 'var(--text-dim)' }}>
+                        <Clock size={12} />
+                        <span>{formatRelativeTime(note.created_at)}</span>
+                      </div>
+
+                      <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
+                        {/* Convert to Task */}
+                        <button
+                          type="button"
+                          class="btn-secondary"
+                          style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center', gap: '4px' }}
+                          title="Ubah catatan ini menjadi Task di dalam Project"
+                          onClick={() => handleOpenConvert(note, 'task')}
+                        >
+                          <CheckSquare size={12} color="var(--primary)" />
+                          <span>Jadikan Task</span>
+                        </button>
+
+                        {/* Convert to Document */}
+                        <button
+                          type="button"
+                          class="btn-secondary"
+                          style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center', gap: '4px' }}
+                          title="Ubah catatan ini menjadi Dokumen di dalam Project"
+                          onClick={() => handleOpenConvert(note, 'doc')}
+                        >
+                          <FileText size={12} color="var(--secondary)" />
+                          <span>Jadikan Dokumen</span>
+                        </button>
+
+                        {/* Edit Note */}
+                        <button
+                          type="button"
+                          class="btn-ghost-icon"
+                          style={{ width: '24px', height: '24px' }}
+                          title="Edit Catatan"
+                          onClick={() => handleStartEdit(note)}
+                        >
+                          <Edit3 size={13} color="var(--text-dim)" />
+                        </button>
+
+                        {/* Delete Note */}
+                        <button
+                          type="button"
+                          class="btn-ghost-icon"
+                          style={{ width: '24px', height: '24px' }}
+                          title="Hapus Catatan"
+                          onClick={() => handleDeleteNote(note.id)}
+                        >
+                          <Trash2 size={13} color="#f87171" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
+      </div>
+
+      {/* Convert Note to Task / Document Modal */}
+      <Show when={convertModalOpen()}>
+        <div 
+          class="modal-backdrop" 
+          onClick={() => setConvertModalOpen(false)}
+        >
+          <div 
+            class="modal-card" 
+            style={{ "max-width": '460px' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div class="modal-header">
+              <h3 class="modal-title" style={{ "font-size": '15px', "font-weight": 600 }}>
+                {convertTargetType() === 'task' ? 'Jadikan Task di Project' : 'Jadikan Dokumen di Project'}
+              </h3>
+              <button 
+                type="button" 
+                class="btn-ghost-icon"
+                onClick={() => setConvertModalOpen(false)}
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <Show when={convertError()}>
+              <div class="modal-error-badge" style={{ "margin-bottom": '12px' }}>
+                {convertError()}
+              </div>
             </Show>
+
+            <form onSubmit={handleExecuteConvert} style={{ display: 'flex', "flex-direction": 'column', gap: '14px' }}>
+              <div style={{ "font-size": '12px', color: 'var(--text-dim)', background: 'var(--surface-container-lowest)', padding: '10px 12px', "border-radius": '8px', border: '1px solid var(--border-subtle)' }}>
+                Catatan ini akan dipindahkan dari Inbox menjadi {convertTargetType() === 'task' ? 'sebuah Task' : 'sebuah Dokumen'} di project pilihan Anda.
+              </div>
+
+              {/* Space & Project Pickers */}
+              <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label class="modal-form-label">Space</label>
+                  <select
+                    value={convertSpaceId()}
+                    onChange={e => {
+                      setConvertSpaceId(e.currentTarget.value);
+                      const avail = projects().filter(p => p.space_id === e.currentTarget.value);
+                      setConvertProjectId(avail.length > 0 ? avail[0].id : '');
+                    }}
+                    class="modal-form-input"
+                    style={{ padding: '8px 10px', "font-size": '12.5px' }}
+                  >
+                    <For each={spaces()}>
+                      {(sp) => (
+                        <option value={sp.id}>{sp.name}</option>
+                      )}
+                    </For>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="modal-form-label">Project Tujuan</label>
+                  <select
+                    value={convertProjectId()}
+                    onChange={e => setConvertProjectId(e.currentTarget.value)}
+                    class="modal-form-input"
+                    style={{ padding: '8px 10px', "font-size": '12.5px' }}
+                    required
+                  >
+                    <option value="">Pilih Project...</option>
+                    <For each={availableProjectsForConvert()}>
+                      {(proj) => (
+                        <option value={proj.id}>{proj.name}</option>
+                      )}
+                    </For>
+                  </select>
+                </div>
+              </div>
+
+              {/* Title */}
+              <div>
+                <label class="modal-form-label">
+                  {convertTargetType() === 'task' ? 'Judul Task' : 'Judul Dokumen'}
+                </label>
+                <input 
+                  type="text" 
+                  value={convertTitle()} 
+                  onInput={e => setConvertTitle(e.currentTarget.value)}
+                  class="modal-form-input"
+                  style={{ padding: '8px 10px', "font-size": '13px' }}
+                  required
+                />
+              </div>
+
+              {/* Priority if Task */}
+              <Show when={convertTargetType() === 'task'}>
+                <div>
+                  <label class="modal-form-label">Prioritas</label>
+                  <select
+                    value={convertPriority()}
+                    onChange={e => setConvertPriority(e.currentTarget.value as any)}
+                    class="modal-form-input"
+                    style={{ padding: '8px 10px', "font-size": '12.5px' }}
+                  >
+                    <option value="low">Rendah (Low)</option>
+                    <option value="medium">Sedang (Medium)</option>
+                    <option value="high">Tinggi (High)</option>
+                    <option value="urgent">Mendesak (Urgent)</option>
+                  </select>
+                </div>
+              </Show>
+
+              <div style={{ display: 'flex', "justify-content": 'flex-end', gap: '8px', "margin-top": '6px', "border-top": '1px solid var(--border-default)', "padding-top": '12px' }}>
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  onClick={() => setConvertModalOpen(false)}
+                  disabled={convertLoading()}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  class="btn-primary"
+                  disabled={convertLoading() || !convertProjectId()}
+                  style={{ display: 'flex', "align-items": 'center', gap: '6px' }}
+                >
+                  <Show when={convertLoading()}>
+                    <Loader2 size={13} class="spin" />
+                  </Show>
+                  <span>{convertTargetType() === 'task' ? 'Konversi ke Task' : 'Konversi ke Dokumen'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </main>
+      </Show>
     </div>
   );
 };
