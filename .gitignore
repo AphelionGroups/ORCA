@@ -28,3 +28,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+scratch/

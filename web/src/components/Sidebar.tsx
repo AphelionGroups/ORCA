@@ -19,10 +19,13 @@ import {
   Layers,
   Folder,
   Globe,
-  Sparkles
+  Sparkles,
+  LogOut,
+  Settings
 } from 'lucide-solid';
 import { api, type Space, type Project } from '../services/api';
 import { themeMode, setThemeMode } from '../services/theme';
+import type { UserProfile } from '../services/user';
 import { SpaceModal } from './SpaceModal';
 import { ProjectModal } from './ProjectModal';
 
@@ -32,9 +35,13 @@ interface SidebarProps {
   currentRoute: string;
   activeSpaceId: string | null;
   activeProjectId?: string | null;
+  currentUser?: UserProfile;
   onNavigate: (route: string, spaceId?: string | null, projectId?: string | null) => void;
   onOpenQuickCapture: () => void;
+  onOpenProfile?: () => void;
+  onLogout?: () => void;
 }
+
 
 const getSpaceIconComponent = (iconId?: string) => {
   switch (iconId) {
@@ -314,6 +321,76 @@ export const Sidebar: Component<SidebarProps> = (props) => {
 
       {/* 3. Footer Area (Fixed) */}
       <div class="sidebar-footer-fixed">
+        {/* User Identity & Profile Card */}
+        <div style={{
+          display: 'flex',
+          "align-items": 'center',
+          "justify-content": 'space-between',
+          padding: '8px 10px',
+          background: 'var(--surface-container-low)',
+          "border-radius": '8px',
+          border: '1px solid var(--border-default)',
+          "margin-bottom": '8px'
+        }}>
+          <div 
+            style={{ display: 'flex', "align-items": 'center', gap: '8px', flex: 1, cursor: 'pointer', overflow: 'hidden' }}
+            onClick={() => props.onOpenProfile && props.onOpenProfile()}
+            title="Buka Edit Profil"
+          >
+            <div style={{
+              width: '28px',
+              height: '28px',
+              "border-radius": '50%',
+              overflow: 'hidden',
+              background: 'var(--surface-container-high)',
+              border: '1px solid var(--border-default)',
+              display: 'flex',
+              "align-items": 'center',
+              "justify-content": 'center',
+              "flex-shrink": 0
+            }}>
+              <Show when={props.currentUser?.avatar_url} fallback={
+                <User size={15} color="var(--text-dim)" />
+              }>
+                <img 
+                  src={props.currentUser?.avatar_url} 
+                  alt="Avatar" 
+                  style={{ width: '100%', height: '100%', "object-fit": 'cover' }} 
+                />
+              </Show>
+            </div>
+            <div style={{ overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>
+              <div style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)', overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>
+                {props.currentUser?.name || 'User'}
+              </div>
+              <div style={{ "font-size": '10px', color: 'var(--text-dim)', overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>
+                {props.currentUser?.email || 'Edit profile'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', "align-items": 'center', gap: '2px' }}>
+            <button
+              type="button"
+              class="btn-icon"
+              style={{ padding: '4px', "border-radius": '4px' }}
+              title="Edit Profil"
+              onClick={() => props.onOpenProfile && props.onOpenProfile()}
+            >
+              <Settings size={13} />
+            </button>
+            <button
+              type="button"
+              class="btn-icon"
+              style={{ padding: '4px', "border-radius": '4px', color: '#f87171' }}
+              title="Keluar (Logout)"
+              onClick={() => props.onLogout && props.onLogout()}
+            >
+              <LogOut size={13} />
+            </button>
+          </div>
+        </div>
+
         {/* Theme Switcher Widget */}
         <div class="sidebar-theme-widget">
           <button 

@@ -27,7 +27,9 @@ import {
   Trash2,
   Edit3,
   Eye,
-  Save
+  Save,
+  Image as ImageIcon,
+  Loader2
 } from 'lucide-solid';
 import { api } from '../services/api';
 import type { Project, Space, Document as OrcaDoc, NoteBoard, NoteBlock, Task } from '../services/api';
@@ -251,6 +253,24 @@ const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props) => {
     }
   };
 
+  if (props.block.type === 'image') {
+    return (
+      <div class="canvas-block-content" style={{ padding: '6px' }}>
+        <img 
+          src={props.block.content?.url} 
+          alt={props.block.content?.caption || 'Canvas Image'} 
+          style={{ width: '100%', height: 'auto', display: 'block', "border-radius": '6px', "object-fit": 'contain', "max-height": '400px' }}
+          draggable={false} 
+        />
+        <Show when={props.block.content?.caption}>
+          <div style={{ "font-size": '11px', color: props.textColor || 'var(--text-dim)', padding: '6px 2px 2px 2px', "text-align": 'center' }}>
+            {props.block.content?.caption}
+          </div>
+        </Show>
+      </div>
+    );
+  }
+
   return (
     <div 
       class="canvas-block-content"
@@ -357,6 +377,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     (localStorage.getItem('orca_last_shape_kind') as ShapeKind) || 'rectangle'
   );
   const [showShapePicker, setShowShapePicker] = createSignal(false);
+  const [isUploadingCanvasImage, setIsUploadingCanvasImage] = createSignal(false);
   const [selectedBlockId, setSelectedBlockId] = createSignal<string | null>(null);
   const [selectedBlockIds, setSelectedBlockIds] = createSignal<string[]>([]);
   const [editingBlockId, setEditingBlockId] = createSignal<string | null>(null);
@@ -1631,6 +1652,54 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       console.error('Failed to create block:', err);
     }
   };
+
+  // Upload an image to Object Storage and place it on the canvas as an image block
+  const handleUploadCanvasImage = async (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    if (!file.type.startsWith('image/')) {
+      alert('Pilih file gambar yang valid (JPEG, PNG, WebP, GIF)');
+      return;
+    }
+
+    const board = boards()[0];
+    if (!board) {
+      alert('Papan board tidak ditemukan');
+      return;
+    }
+
+    setIsUploadingCanvasImage(true);
+    try {
+      const uploadRes = await api.uploadImage(file);
+      const scale = zoom() / 100;
+      const x = Math.round((-pan().x + 360) / scale + (blocks().length * 20) % 100);
+      const y = Math.round((-pan().y + 180) / scale + (blocks().length * 20) % 100);
+
+      const created = await api.createNoteBlock(board.id, {
+        type: 'image',
+        pos_x: x,
+        pos_y: y,
+        width: 320,
+        content: {
+          url: uploadRes.url,
+          caption: file.name,
+          driver: uploadRes.driver,
+        },
+      });
+
+      pushUndoAction({ type: 'create_block', block: created });
+      setBlocks(prev => [...prev, created]);
+      setSelectedBlockId(created.id);
+      setSelectedBlockIds([created.id]);
+    } catch (err: any) {
+      alert('Gagal mengunggah gambar ke object storage: ' + (err.message || 'Error'));
+    } finally {
+      setIsUploadingCanvasImage(false);
+      input.value = '';
+    }
+  };
+
 
 
   // Handle block text edit finish, push to Undo stack, and persist to database
@@ -3657,6 +3726,27 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                     Connect <span class="tool-tooltip-kbd">L</span>
                   </span>
                 </button>
+
+                {/* Object Storage Image Upload Tool */}
+                <label 
+                  class="tool-btn"
+                  title="Unggah Gambar ke Object Storage"
+                  style={{ cursor: isUploadingCanvasImage() ? 'not-allowed' : 'pointer', position: 'relative', display: 'flex', "align-items": 'center', "justify-content": 'center' }}
+                >
+                  <Show when={isUploadingCanvasImage()} fallback={<ImageIcon size={15} />}>
+                    <Loader2 size={15} class="spin" />
+                  </Show>
+                  <span class="tool-tooltip">
+                    Upload Image
+                  </span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    style={{ display: 'none' }} 
+                    disabled={isUploadingCanvasImage()} 
+                    onChange={handleUploadCanvasImage} 
+                  />
+                </label>
 
                 <div class="tool-divider"></div>
 

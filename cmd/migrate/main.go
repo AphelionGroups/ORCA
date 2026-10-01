@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/AphelionGroups/ORCA/internal/platform/config"
+	"github.com/AphelionGroups/ORCA/migrations"
 )
 
 func main() {
@@ -29,15 +30,19 @@ func main() {
 	}
 	log.Println("[ORCA-MIGRATE] Database connected successfully!")
 
-	sqlBytes, err := os.ReadFile("migrations/000001_init_schema.up.sql")
-	if err != nil {
-		log.Fatalf("[ORCA-MIGRATE-ERROR] Failed to read migrations/000001_init_schema.up.sql: %v", err)
+	sqlQuery := migrations.InitSchemaSQL
+	if sqlQuery == "" {
+		sqlBytes, err := os.ReadFile("migrations/000001_init_schema.up.sql")
+		if err != nil {
+			log.Fatalf("[ORCA-MIGRATE-ERROR] Failed to read migration file: %v", err)
+		}
+		sqlQuery = string(sqlBytes)
 	}
 
 	log.Println("[ORCA-MIGRATE] Executing 000001_init_schema.up.sql ...")
-	if _, err := pool.Exec(ctx, string(sqlBytes)); err != nil {
+	if _, err := pool.Exec(ctx, sqlQuery); err != nil {
 		log.Fatalf("[ORCA-MIGRATE-ERROR] Failed to execute migration: %v", err)
 	}
 
-	log.Println("[ORCA-MIGRATE-SUCCESS] All 10 tables, indexes, and default seed data have been successfully migrated!")
+	log.Println("[ORCA-MIGRATE-SUCCESS] All database tables, indexes, and default seed data have been successfully migrated!")
 }

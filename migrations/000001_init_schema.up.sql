@@ -24,10 +24,13 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(255) NOT NULL,
+    avatar_url VARCHAR(1024),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ
 );
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(1024);
+
 
 -- 3. SPACES (Context Isolation: Kantor, Pribadi, Bisnis A, Bisnis B)
 CREATE TABLE IF NOT EXISTS spaces (
@@ -184,15 +187,17 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO users (id, workspace_id, email, password_hash, full_name, created_at, updated_at)
+INSERT INTO users (id, workspace_id, email, password_hash, full_name, avatar_url, created_at, updated_at)
 VALUES (
     '018f0000-0000-7000-8000-000000000002',
     '018f0000-0000-7000-8000-000000000001',
     'user@orca.local',
-    '$2a$12$e0MYzXy/vP7J7o7vGqG19.9r2qK.QpW8e.E4Z8fUq9j1vR5W9B9u',
-    'Personal User',
+    '$2a$10$UgohYx.btGVpR.7JelXLLegkjXM3/HqRuHGP.N6LCJ6iGhIKfi1Ju',
+    'Nurhabib Assolihudin',
+    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=faces',
     NOW(),
     NOW()
 )
 ON CONFLICT (id) DO NOTHING;
+
 

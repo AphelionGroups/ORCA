@@ -16,6 +16,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 
+	"github.com/AphelionGroups/ORCA/internal/auth"
 	"github.com/AphelionGroups/ORCA/internal/board"
 	"github.com/AphelionGroups/ORCA/internal/calendar"
 	"github.com/AphelionGroups/ORCA/internal/doc"
@@ -24,9 +25,11 @@ import (
 	"github.com/AphelionGroups/ORCA/internal/platform/db"
 	"github.com/AphelionGroups/ORCA/internal/platform/httputil"
 	"github.com/AphelionGroups/ORCA/internal/platform/middleware"
+	"github.com/AphelionGroups/ORCA/internal/platform/storage"
 	"github.com/AphelionGroups/ORCA/internal/project"
 	"github.com/AphelionGroups/ORCA/internal/space"
 	"github.com/AphelionGroups/ORCA/internal/task"
+	"github.com/AphelionGroups/ORCA/internal/upload"
 )
 
 var startTime = time.Now()
@@ -34,7 +37,7 @@ var startTime = time.Now()
 func main() {
 	cfg := config.Load()
 
-	log.Printf("[ORCA-INIT] Starting ORCA Core API (env=%s, port=%s)", cfg.Env, cfg.Port)
+	log.Printf("[ORCA-INIT] Starting ORCA Core API (env=%s, port=%s, storage=%s)", cfg.Env, cfg.Port, cfg.StorageDriver)
 
 	// Database Connection Pool
 	ctx := context.Background()
@@ -43,10 +46,23 @@ func main() {
 		log.Printf("[ORCA-WARN] Database connection ping failed: %v (will retry on healthcheck)", err)
 	} else {
 		log.Printf("[ORCA-INIT] Connected to PostgreSQL pool successfully")
+
+		// 1. Automatic Database Migrations on Startup
+		if cfg.AutoMigrate {
+			if err := db.AutoMigrate(ctx, dbPool.Pool); err != nil {
+				log.Printf("[ORCA-WARN] Auto-migration execution error: %v", err)
+			}
+		}
 	}
 
 	if dbPool != nil {
 		defer dbPool.Close()
+	}
+
+	// 2. Object Storage Initialization (Supabase, R2, AWS, MinIO, or Local)
+	storageSvc, err := storage.InitStorage(ctx, cfg)
+	if err != nil {
+		log.Printf("[ORCA-WARN] Storage initialization error: %v", err)
 	}
 
 	// Router Setup
@@ -69,6 +85,12 @@ func main() {
 		MaxAge:           300,
 	}))
 
+	// Local Storage Static Serving (if local storage driver is used)
+	if localStore, ok := storageSvc.(*storage.LocalStorage); ok {
+		fs := http.FileServer(http.Dir(localStore.BaseDir()))
+		r.Handle("/uploads/*", http.StripPrefix("/uploads", fs))
+	}
+
 	// Health Check Endpoint
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		dbStatus := "connected"
@@ -87,6 +109,7 @@ func main() {
 			"app":      "ORCA",
 			"uptime":   time.Since(startTime).String(),
 			"database": dbStatus,
+			"storage":  storageSvc.Driver(),
 			"time":     time.Now().UTC(),
 		}
 
@@ -104,8 +127,23 @@ func main() {
 			})
 		})
 
-		// Workspace scoping middleware for all tenant data routes
+		// Initialize Auth Handler
+		var authRepo *auth.Repository
+		if dbPool != nil {
+			authRepo = auth.NewRepository(dbPool.Pool)
+		} else {
+			authRepo = auth.NewRepository(nil)
+		}
+		authHandler := auth.NewHandler(authRepo, cfg.JWTSecret)
+		authMw := middleware.RequireAuth(cfg.JWTSecret, cfg.Env == "development")
+
+		// Mount Auth routes (Login, Register public; /me, /profile protected)
+		api.Mount("/auth", authHandler.Routes(authMw))
+
+		// Workspace and Auth scoping middleware for all tenant data routes
 		api.Group(func(tenant chi.Router) {
+			// Require Bearer token authentication (with dev fallback for X-Workspace-ID in development)
+			tenant.Use(authMw)
 			tenant.Use(middleware.WorkspaceContext)
 
 			if dbPool != nil {
@@ -126,8 +164,16 @@ func main() {
 				calendarHandler := calendar.NewHandler(calendarRepo)
 				boardHandler := board.NewHandler(boardRepo)
 				linkHandler := link.NewHandler(linkRepo)
+				uploadHandler := upload.NewHandler(storageSvc)
 
-				// Mount domain routes
+				// Alias profile routes directly under /api/v1/profile
+				tenant.Get("/profile", authHandler.Me)
+				tenant.Put("/profile", authHandler.UpdateProfile)
+
+				// Uploads endpoint
+				tenant.Mount("/upload", uploadHandler.Routes())
+
+				// Domain routes
 				tenant.Mount("/spaces", spaceHandler.Routes())
 				tenant.Mount("/projects", projectHandler.Routes())
 				tenant.Mount("/documents", docHandler.Routes())
