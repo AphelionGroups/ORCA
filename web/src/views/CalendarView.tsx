@@ -119,10 +119,6 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
             <Calendar size={17} color="var(--primary)" />
             <span>Calendar</span>
           </div>
-          <span class="breadcrumb-sep">/</span>
-          <span class="badge-outline">
-            Temporal Matrix View
-          </span>
         </div>
 
         <div class="header-actions">

@@ -128,10 +128,6 @@ export const InboxView: Component<InboxViewProps> = (props) => {
             <Inbox size={17} color="var(--secondary)" />
             <span>Inbox</span>
           </div>
-          <span class="breadcrumb-sep">/</span>
-          <span class="badge-outline">
-            Triage & Ingestion
-          </span>
         </div>
 
         <div class="header-actions">

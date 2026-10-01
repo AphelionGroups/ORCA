@@ -6,19 +6,13 @@ import {
   Lock, 
   Mail, 
   User, 
-  ShieldCheck, 
   Loader2, 
   AlertCircle,
-  Sparkles,
   Layers,
   Eye,
   EyeOff,
   CheckCircle2,
-  ArrowRight,
-  LayoutGrid,
-  FileText,
-  Calendar,
-  CheckSquare
+  ArrowRight
 } from 'lucide-solid';
 import { api } from '../services/api';
 import type { UserProfile } from '../services/user';
@@ -30,9 +24,9 @@ interface LoginViewProps {
 
 export const LoginView: Component<LoginViewProps> = (props) => {
   const [tab, setTab] = createSignal<'login' | 'register'>('login');
-  const [email, setEmail] = createSignal('user@orca.local');
-  const [password, setPassword] = createSignal('orca12345');
-  const [fullName, setFullName] = createSignal('Nurhabib Assolihudin');
+  const [email, setEmail] = createSignal('');
+  const [password, setPassword] = createSignal('');
+  const [fullName, setFullName] = createSignal('');
   const [confirmPassword, setConfirmPassword] = createSignal('');
   const [showPassword, setShowPassword] = createSignal(false);
   const [showConfirmPassword, setShowConfirmPassword] = createSignal(false);
@@ -97,33 +91,6 @@ export const LoginView: Component<LoginViewProps> = (props) => {
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Gagal memproses autentikasi. Periksa kembali email dan kata sandi Anda.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFillDemo = async () => {
-    setTab('login');
-    setEmail('user@orca.local');
-    setPassword('orca12345');
-    setErrorMsg(null);
-
-    // Auto submit demo credentials for instant frictionless entry
-    setLoading(true);
-    try {
-      const res = await api.login('user@orca.local', 'orca12345');
-      const profile: UserProfile = {
-        id: res.user.id,
-        workspace_id: res.user.workspace_id,
-        name: res.user.full_name,
-        email: res.user.email,
-        avatar_url: res.user.avatar_url,
-        role: res.user.role
-      };
-      setCurrentUser(profile);
-      props.onLoginSuccess(profile);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Gagal login demo. Pastikan database backend sudah berjalan.');
     } finally {
       setLoading(false);
     }
@@ -201,83 +168,30 @@ export const LoginView: Component<LoginViewProps> = (props) => {
             display: 'inline-flex',
             "align-items": 'center',
             "justify-content": 'center',
-            width: '48px',
-            height: '48px',
-            "border-radius": '14px',
+            width: '44px',
+            height: '44px',
+            "border-radius": '12px',
             background: 'linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)',
             color: '#fff',
             "margin-bottom": '12px',
-            "box-shadow": '0 8px 24px rgba(99, 102, 241, 0.45)',
-            position: 'relative'
+            "box-shadow": '0 6px 20px rgba(99, 102, 241, 0.4)'
           }}>
-            <Layers size={26} />
-            <span style={{
-              position: 'absolute',
-              top: '-3px',
-              right: '-3px',
-              width: '10px',
-              height: '10px',
-              "border-radius": '50%',
-              background: '#44e1de',
-              border: '2px solid #1a1c22'
-            }} />
+            <Layers size={24} />
           </div>
 
-          <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '8px', "margin-bottom": '6px' }}>
-            <h1 style={{ 
-              margin: 0, 
-              "font-size": '24px', 
-              "font-weight": 700, 
-              "letter-spacing": '-0.03em',
-              background: 'linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%)',
-              "-webkit-background-clip": 'text',
-              "-webkit-text-fill-color": 'transparent'
-            }}>
-              ORCA
-            </h1>
-            <span style={{
-              "font-size": '10px',
-              "font-weight": 600,
-              padding: '2px 7px',
-              "border-radius": '20px',
-              background: 'rgba(99, 102, 241, 0.18)',
-              color: '#818cf8',
-              border: '1px solid rgba(99, 102, 241, 0.35)',
-              "letter-spacing": '0.04em',
-              "text-transform": 'uppercase'
-            }}>
-              v0.1
-            </span>
-          </div>
+          <h1 style={{ 
+            margin: '0 0 6px 0', 
+            "font-size": '22px', 
+            "font-weight": 700, 
+            "letter-spacing": '-0.02em',
+            color: 'var(--text-main)'
+          }}>
+            ORCA
+          </h1>
 
-          <p style={{ margin: '0 0 14px 0', "font-size": '13px', color: 'var(--text-dim)', "line-height": 1.4 }}>
-            Personal & Business Operating System
+          <p style={{ margin: '0 0 20px 0', "font-size": '13px', color: 'var(--text-dim)' }}>
+            Personal & Team Workspace
           </p>
-
-          {/* Micro Feature Highlights */}
-          <div style={{
-            display: 'flex',
-            "flex-wrap": 'wrap',
-            "justify-content": 'center',
-            gap: '6px'
-          }}>
-            <div style={{ display: 'inline-flex', "align-items": 'center', gap: '4px', "font-size": '11px', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.03)', padding: '3px 8px', "border-radius": '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <LayoutGrid size={11} color="var(--primary)" />
-              <span>Canvas</span>
-            </div>
-            <div style={{ display: 'inline-flex', "align-items": 'center', gap: '4px', "font-size": '11px', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.03)', padding: '3px 8px', "border-radius": '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <FileText size={11} color="#44e1de" />
-              <span>Docs</span>
-            </div>
-            <div style={{ display: 'inline-flex', "align-items": 'center', gap: '4px', "font-size": '11px', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.03)', padding: '3px 8px', "border-radius": '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <CheckSquare size={11} color="#f59e0b" />
-              <span>Tasks</span>
-            </div>
-            <div style={{ display: 'inline-flex', "align-items": 'center', gap: '4px', "font-size": '11px', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.03)', padding: '3px 8px', "border-radius": '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <Calendar size={11} color="#ec4899" />
-              <span>Schedule</span>
-            </div>
-          </div>
         </div>
 
         {/* Tab Switcher */}
@@ -605,75 +519,6 @@ export const LoginView: Component<LoginViewProps> = (props) => {
             </Show>
           </button>
         </form>
-
-        {/* Quick Demo Access Box */}
-        <div style={{
-          "margin-top": '22px',
-          padding: '14px',
-          background: 'rgba(12, 14, 18, 0.6)',
-          border: '1px dashed rgba(255, 255, 255, 0.12)',
-          "border-radius": '11px',
-          display: 'flex',
-          "flex-direction": 'column',
-          gap: '10px'
-        }}>
-          <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-            <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-              <Sparkles size={14} color="#818cf8" />
-              <span style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)' }}>
-                Akun Demo Pengembang
-              </span>
-            </div>
-            <span style={{ "font-size": '10px', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.06)', padding: '2px 6px', "border-radius": '4px' }}>
-              Offline / Dev Ready
-            </span>
-          </div>
-
-          <div style={{ "font-size": '11px', color: 'var(--text-dim)', "line-height": 1.4 }}>
-            Gunakan kredensial bawaan: <code style={{ color: '#44e1de', background: 'rgba(0,0,0,0.3)', padding: '1px 5px', "border-radius": '3px' }}>user@orca.local</code> • <code style={{ color: '#cebdff', background: 'rgba(0,0,0,0.3)', padding: '1px 5px', "border-radius": '3px' }}>orca12345</code>
-          </div>
-
-          <button
-            type="button"
-            class="btn-secondary"
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              "font-size": '12px',
-              "font-weight": 500,
-              display: 'flex',
-              "align-items": 'center',
-              "justify-content": 'center',
-              gap: '6px',
-              "border-radius": '7px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: 'var(--text-main)',
-              cursor: 'pointer',
-              transition: 'background 0.15s'
-            }}
-            onClick={handleFillDemo}
-            disabled={loading()}
-          >
-            <Sparkles size={13} color="var(--primary)" />
-            <span>Isi Otomatis & Masuk Instan</span>
-          </button>
-        </div>
-
-        {/* Security & Self-Hosted Footer Badge */}
-        <div style={{
-          "margin-top": '18px',
-          "text-align": 'center',
-          display: 'flex',
-          "align-items": 'center',
-          "justify-content": 'center',
-          gap: '5px',
-          "font-size": '11px',
-          color: 'var(--text-dim)'
-        }}>
-          <ShieldCheck size={13} color="#4ade80" />
-          <span>Self-Hosted Privacy • Secured by JWT & Bcrypt</span>
-        </div>
       </div>
     </div>
   );

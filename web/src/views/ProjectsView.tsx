@@ -2861,7 +2861,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           <Show when={selectedProjectId() && currentProject()}>
             <span class="breadcrumb-sep">/</span>
             <span class="breadcrumb-title">
-              <span class="status-dot" style={{ "background-color": 'var(--secondary)' }}></span>
               {currentProject()?.name}
             </span>
           </Show>
