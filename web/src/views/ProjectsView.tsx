@@ -29,7 +29,8 @@ import {
   Eye,
   Save,
   Image as ImageIcon,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from 'lucide-solid';
 import { api } from '../services/api';
 import type { Project, Space, Document as OrcaDoc, NoteBoard, NoteBlock, Task } from '../services/api';
@@ -336,6 +337,25 @@ const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props) => {
   );
 };
 
+function formatRelativeTime(dateStr?: string): string {
+  if (!dateStr) return 'Baru saja';
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
+    if (diffSec < 60) return 'Baru saja';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m lalu`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}j lalu`;
+    const diffDay = Math.floor(diffHour / 24);
+    if (diffDay < 30) return `${diffDay}h lalu`;
+    return d.toLocaleDateString('id-ID', { month: 'short', day: 'numeric' });
+  } catch {
+    return 'Baru saja';
+  }
+}
+
 export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   // Projects & Spaces from Backend
   const [projects, setProjects] = createSignal<Project[]>([]);
@@ -353,6 +373,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   const [selectedDocId, setSelectedDocId] = createSignal<string | null>(null);
   const [boards, setBoards] = createSignal<NoteBoard[]>([]);
   const [selectedBoardId, setSelectedBoardId] = createSignal<string | null>(null);
+  const [isBoardCanvasOpen, setIsBoardCanvasOpen] = createSignal(false);
   const [isCreatingBoard, setIsCreatingBoard] = createSignal(false);
   const [newBoardTitle, setNewBoardTitle] = createSignal('');
   const [blocks, setBlocks] = createSignal<NoteBlock[]>([]);
@@ -588,6 +609,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
   // Keyboard shortcut handlers
   const handleGlobalKeyDown = (e: KeyboardEvent) => {
+    if (activeTab() !== 'board' || !isBoardCanvasOpen()) return;
     const target = e.target as HTMLElement;
     if (['input', 'textarea'].includes(target.tagName.toLowerCase())) return;
 
@@ -675,6 +697,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   };
 
   const handleGlobalKeyUp = (e: KeyboardEvent) => {
+    if (activeTab() !== 'board' || !isBoardCanvasOpen()) return;
     if (e.code === 'Space') {
       setIsSpacePressed(false);
       isPanningCanvas = false;
@@ -803,7 +826,6 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
   };
 
   const handleSelectBoard = async (boardId: string) => {
-    if (boardId === selectedBoardId()) return;
     setSelectedBoardId(boardId);
     setLoadingSubData(true);
     try {
@@ -831,6 +853,19 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
     }
   };
 
+  const handleOpenBoard = async (boardId: string) => {
+    await handleSelectBoard(boardId);
+    setIsBoardCanvasOpen(true);
+  };
+
+  const handleCloseBoardCanvas = () => {
+    const curId = selectedBoardId();
+    if (curId) {
+      setBoards(boards().map(b => b.id === curId ? { ...b, block_count: blocks().length } : b));
+    }
+    setIsBoardCanvasOpen(false);
+  };
+
   const handleCreateBoard = async (title?: string) => {
     const proj = currentProject();
     if (!proj) return;
@@ -841,12 +876,14 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         space_id: proj.space_id,
         title: name,
       });
-      setBoards([...boards(), created]);
-      setSelectedBoardId(created.id);
+      const newBoard: NoteBoard = { ...created, block_count: 0 };
+      setBoards([...boards(), newBoard]);
+      setSelectedBoardId(newBoard.id);
       setBlocks([]);
       setConnections([]);
       setIsCreatingBoard(false);
       setNewBoardTitle('');
+      setIsBoardCanvasOpen(true);
     } catch (err) {
       console.error('Failed to create board:', err);
     }
@@ -868,7 +905,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       alert('Project minimal harus memiliki satu board.');
       return;
     }
-    if (!confirm('Hapus board ini beserta seluruh blok di dalamnya?')) return;
+    if (!confirm('Hapus board ini beserta seluruh isinya?')) return;
     try {
       await api.deleteBoard(boardId);
       const remaining = boards().filter(b => b.id !== boardId);
@@ -876,7 +913,13 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       if (selectedBoardId() === boardId) {
         const nextBoard = remaining[0];
         if (nextBoard) {
-          await handleSelectBoard(nextBoard.id);
+          setSelectedBoardId(nextBoard.id);
+          const fetchedBlocks = await api.getBoardBlocks(nextBoard.id);
+          setBlocks(fetchedBlocks || []);
+        } else {
+          setSelectedBoardId(null);
+          setBlocks([]);
+          setIsBoardCanvasOpen(false);
         }
       }
     } catch (err) {
@@ -3291,9 +3334,507 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
           </Show>
 
           {/* =========================================================
-             TAB 2: BOARD (MILANOTE SPATIAL CANVAS ENGINE)
+             TAB 2: BOARD (GALLERY & MILANOTE SPATIAL CANVAS)
              ========================================================= */}
           <Show when={activeTab() === 'board'}>
+            <Show 
+              when={isBoardCanvasOpen()} 
+              fallback={
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  overflow: 'auto',
+                  background: 'var(--surface)',
+                  padding: '32px 40px',
+                  display: 'flex',
+                  "flex-direction": 'column',
+                  gap: '24px'
+                }}>
+                  {/* Header: Title, Count, Subtitle, New Board Button */}
+                  <div style={{
+                    display: 'flex',
+                    "align-items": 'flex-start',
+                    "justify-content": 'space-between',
+                    gap: '16px',
+                    "padding-bottom": '20px',
+                    "border-bottom": '1px solid var(--border-subtle)'
+                  }}>
+                    <div>
+                      <div style={{ display: 'flex', "align-items": 'center', gap: '10px' }}>
+                        <h2 style={{ "font-size": '20px', "font-weight": '600', color: 'var(--text-main)', margin: 0 }}>
+                          Boards
+                        </h2>
+                        <span style={{
+                          "font-size": '11px',
+                          padding: '2px 8px',
+                          "border-radius": '12px',
+                          background: 'var(--surface-container-high)',
+                          color: 'var(--text-muted)',
+                          "font-family": 'var(--font-mono)'
+                        }}>
+                          {boards().length} board
+                        </span>
+                      </div>
+                      <p style={{ "font-size": '13px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                        Ruang kanvas visual untuk pemetaan ide, moodboard, dan perancangan proyek.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewBoardTitle(`Board ${boards().length + 1}`);
+                        setIsCreatingBoard(true);
+                      }}
+                      class="btn-primary"
+                      style={{
+                        display: 'flex',
+                        "align-items": 'center',
+                        gap: '6px',
+                        padding: '8px 16px',
+                        "font-size": '13px',
+                        "border-radius": '8px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Plus size={15} />
+                      <span>Board Baru</span>
+                    </button>
+                  </div>
+
+                  {/* Inline Creation Banner when isCreatingBoard() is true */}
+                  <Show when={isCreatingBoard()}>
+                    <div style={{
+                      display: 'flex',
+                      "align-items": 'center',
+                      gap: '12px',
+                      padding: '14px 20px',
+                      "border-radius": '10px',
+                      background: 'var(--surface-container-low)',
+                      border: '1px solid var(--primary)',
+                      "box-shadow": '0 4px 16px rgba(0,0,0,0.12)'
+                    }}>
+                      <LayoutGrid size={16} color="var(--primary)" />
+                      <span style={{ "font-size": '13px', "font-weight": 500, color: 'var(--text-main)' }}>Nama Board:</span>
+                      <input
+                        type="text"
+                        placeholder="misal: Konsep Arsitektur, Moodboard..."
+                        value={newBoardTitle()}
+                        onInput={(e) => setNewBoardTitle(e.currentTarget.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleCreateBoard();
+                          } else if (e.key === 'Escape') {
+                            setIsCreatingBoard(false);
+                          }
+                        }}
+                        autofocus
+                        style={{
+                          flex: 1,
+                          "max-width": '360px',
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border-default)',
+                          color: 'var(--text-main)',
+                          "font-size": '13px',
+                          padding: '6px 12px',
+                          "border-radius": '6px',
+                          outline: 'none'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleCreateBoard()}
+                        class="btn-primary"
+                        style={{ padding: '6px 14px', "font-size": '12px', "border-radius": '6px' }}
+                      >
+                        Buat & Buka Kanvas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsCreatingBoard(false)}
+                        class="btn-secondary"
+                        style={{ padding: '6px 12px', "font-size": '12px', "border-radius": '6px' }}
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  </Show>
+
+                  {/* Responsive Grid of Board Cards */}
+                  <div style={{
+                    display: 'grid',
+                    "grid-template-columns": 'repeat(auto-fill, minmax(280px, 1fr))',
+                    gap: '22px'
+                  }}>
+                    <For each={boards()}>
+                      {(b) => {
+                        const [isCardHovered, setIsCardHovered] = createSignal(false);
+                        const [isRenaming, setIsRenaming] = createSignal(false);
+                        const [renameVal, setRenameVal] = createSignal(b.title);
+                        const count = () => b.block_count ?? 0;
+
+                        return (
+                          <div
+                            onMouseEnter={() => setIsCardHovered(true)}
+                            onMouseLeave={() => setIsCardHovered(false)}
+                            onClick={() => {
+                              if (!isRenaming()) {
+                                handleOpenBoard(b.id);
+                              }
+                            }}
+                            style={{
+                              display: 'flex',
+                              "flex-direction": 'column',
+                              background: 'var(--surface-container)',
+                              border: isCardHovered() ? '1px solid var(--secondary)' : '1px solid var(--border-default)',
+                              "border-radius": '12px',
+                              overflow: 'hidden',
+                              cursor: 'pointer',
+                              transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
+                              transform: isCardHovered() ? 'translateY(-3px)' : 'none',
+                              "box-shadow": isCardHovered() ? '0 10px 24px rgba(0, 0, 0, 0.22)' : '0 2px 6px rgba(0, 0, 0, 0.08)',
+                              position: 'relative'
+                            }}
+                          >
+                            {/* CANVAS PREVIEW THUMBNAIL */}
+                            <div style={{
+                              position: 'relative',
+                              width: '100%',
+                              height: '150px',
+                              background: 'var(--surface-container-lowest, #0e1217)',
+                              "background-image": 'radial-gradient(var(--canvas-dot, rgba(255, 255, 255, 0.16)) 1.2px, transparent 1.2px)',
+                              "background-size": '16px 16px',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              "align-items": 'center',
+                              "justify-content": 'center',
+                              "border-bottom": '1px solid var(--border-subtle)'
+                            }}>
+                              <Show
+                                when={count() > 0}
+                                fallback={
+                                  <div style={{
+                                    display: 'flex',
+                                    "flex-direction": 'column',
+                                    "align-items": 'center',
+                                    gap: '6px',
+                                    opacity: 0.35,
+                                    color: 'var(--text-muted)'
+                                  }}>
+                                    <LayoutGrid size={22} />
+                                    <span style={{ "font-size": '11px', "letter-spacing": '0.3px' }}>Kanvas Kosong</span>
+                                  </div>
+                                }
+                              >
+                                {/* Simulated miniature spatial elements */}
+                                <div style={{
+                                  position: 'relative',
+                                  width: '180px',
+                                  height: '110px',
+                                  "pointer-events": 'none'
+                                }}>
+                                  {/* Miniature Sticky Note */}
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '12px',
+                                    left: '12px',
+                                    width: '68px',
+                                    height: '56px',
+                                    background: '#fef08a',
+                                    "border-radius": '4px',
+                                    "box-shadow": '0 3px 8px rgba(0,0,0,0.25)',
+                                    transform: 'rotate(-4deg)',
+                                    padding: '6px',
+                                    display: 'flex',
+                                    "flex-direction": 'column',
+                                    gap: '3px'
+                                  }}>
+                                    <div style={{ width: '40px', height: '3px', background: '#854d0e', opacity: 0.7, "border-radius": '2px' }} />
+                                    <div style={{ width: '52px', height: '2px', background: '#a16207', opacity: 0.4, "border-radius": '1px' }} />
+                                    <div style={{ width: '34px', height: '2px', background: '#a16207', opacity: 0.4, "border-radius": '1px' }} />
+                                  </div>
+
+                                  {/* Miniature Card Node */}
+                                  <div style={{
+                                    position: 'absolute',
+                                    bottom: '8px',
+                                    right: '12px',
+                                    width: '84px',
+                                    height: '54px',
+                                    background: 'var(--surface-container-high)',
+                                    border: '1px solid var(--primary)',
+                                    "border-radius": '6px',
+                                    "box-shadow": '0 4px 10px rgba(0,0,0,0.3)',
+                                    padding: '6px',
+                                    display: 'flex',
+                                    "flex-direction": 'column',
+                                    gap: '3px'
+                                  }}>
+                                    <div style={{ display: 'flex', "align-items": 'center', gap: '4px' }}>
+                                      <div style={{ width: '6px', height: '6px', "border-radius": '50%', background: 'var(--primary)' }} />
+                                      <div style={{ width: '48px', height: '3px', background: 'var(--text-main)', opacity: 0.8, "border-radius": '2px' }} />
+                                    </div>
+                                    <div style={{ width: '64px', height: '2px', background: 'var(--text-muted)', opacity: 0.4, "border-radius": '1px' }} />
+                                    <div style={{ width: '42px', height: '2px', background: 'var(--text-muted)', opacity: 0.4, "border-radius": '1px' }} />
+                                  </div>
+
+                                  {/* Miniature Connector Curve */}
+                                  <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>
+                                    <path
+                                      d="M 75 40 Q 100 28, 115 50"
+                                      fill="none"
+                                      stroke="var(--secondary)"
+                                      stroke-width="1.8"
+                                      stroke-dasharray="3 2"
+                                      opacity="0.85"
+                                    />
+                                  </svg>
+                                </div>
+                              </Show>
+
+                              {/* Item count tag on canvas corner */}
+                              <div style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                padding: '2px 8px',
+                                "border-radius": '10px',
+                                background: 'rgba(0,0,0,0.5)',
+                                "backdrop-filter": 'blur(4px)',
+                                color: 'var(--text-muted)',
+                                "font-size": '10px',
+                                "font-family": 'var(--font-mono)',
+                                display: 'flex',
+                                "align-items": 'center',
+                                gap: '4px'
+                              }}>
+                                <LayoutGrid size={10} />
+                                <span>{count()} item</span>
+                              </div>
+
+                              {/* Hover overlay with "Buka Kanvas" button */}
+                              <div style={{
+                                position: 'absolute',
+                                inset: 0,
+                                background: 'rgba(0, 0, 0, 0.48)',
+                                "backdrop-filter": 'blur(2px)',
+                                display: 'flex',
+                                "align-items": 'center',
+                                "justify-content": 'center',
+                                opacity: isCardHovered() ? 1 : 0,
+                                transition: 'opacity 0.18s ease',
+                                "pointer-events": isCardHovered() ? 'auto' : 'none'
+                              }}>
+                                <span style={{
+                                  padding: '6px 14px',
+                                  "border-radius": '20px',
+                                  background: 'var(--secondary)',
+                                  color: '#0b0f17',
+                                  "font-size": '12px',
+                                  "font-weight": 600,
+                                  "box-shadow": '0 4px 12px rgba(68, 225, 222, 0.35)',
+                                  display: 'flex',
+                                  "align-items": 'center',
+                                  gap: '6px'
+                                }}>
+                                  Buka Kanvas →
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* CARD DETAILS / FOOTER */}
+                            <div style={{
+                              padding: '12px 14px',
+                              display: 'flex',
+                              "flex-direction": 'column',
+                              gap: '6px'
+                            }}>
+                              <div style={{
+                                display: 'flex',
+                                "align-items": 'center',
+                                "justify-content": 'space-between',
+                                gap: '8px'
+                              }}>
+                                <Show
+                                  when={isRenaming()}
+                                  fallback={
+                                    <span 
+                                      style={{
+                                        "font-size": '14px',
+                                        "font-weight": 600,
+                                        color: 'var(--text-main)',
+                                        "white-space": 'nowrap',
+                                        overflow: 'hidden',
+                                        "text-overflow": 'ellipsis'
+                                      }}
+                                      title={b.title}
+                                    >
+                                      {b.title}
+                                    </span>
+                                  }
+                                >
+                                  <input
+                                    type="text"
+                                    value={renameVal()}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onInput={(e) => setRenameVal(e.currentTarget.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.stopPropagation();
+                                        handleRenameBoard(b.id, renameVal());
+                                        setIsRenaming(false);
+                                      } else if (e.key === 'Escape') {
+                                        e.stopPropagation();
+                                        setIsRenaming(false);
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      handleRenameBoard(b.id, renameVal());
+                                      setIsRenaming(false);
+                                    }}
+                                    autofocus
+                                    style={{
+                                      flex: 1,
+                                      background: 'var(--surface)',
+                                      border: '1px solid var(--primary)',
+                                      color: 'var(--text-main)',
+                                      "font-size": '13px',
+                                      padding: '2px 6px',
+                                      "border-radius": '4px',
+                                      outline: 'none'
+                                    }}
+                                  />
+                                </Show>
+
+                                {/* Quick actions: Rename & Delete */}
+                                <div 
+                                  style={{ display: 'flex', "align-items": 'center', gap: '4px' }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setRenameVal(b.title);
+                                      setIsRenaming(!isRenaming());
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: 'var(--text-dim)',
+                                      cursor: 'pointer',
+                                      padding: '4px',
+                                      "border-radius": '4px',
+                                      display: 'flex',
+                                      "align-items": 'center',
+                                      opacity: 0.7,
+                                      transition: 'opacity 0.15s ease'
+                                    }}
+                                    title="Ubah Nama Board"
+                                  >
+                                    <Edit3 size={13} />
+                                  </button>
+
+                                  <Show when={boards().length > 1}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteBoard(b.id);
+                                      }}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--text-dim)',
+                                        cursor: 'pointer',
+                                        padding: '4px',
+                                        "border-radius": '4px',
+                                        display: 'flex',
+                                        "align-items": 'center',
+                                        opacity: 0.7,
+                                        transition: 'opacity 0.15s ease'
+                                      }}
+                                      title="Hapus Board"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </Show>
+                                </div>
+                              </div>
+
+                              {/* Relative Updated Timestamp */}
+                              <div style={{
+                                display: 'flex',
+                                "align-items": 'center',
+                                "justify-content": 'space-between',
+                                "font-size": '11px',
+                                color: 'var(--text-dim)'
+                              }}>
+                                <span>Diperbarui {formatRelativeTime(b.updated_at)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    </For>
+
+                    {/* CREATE BOARD CARD (Dashed Card) */}
+                    <div
+                      onClick={() => {
+                        setNewBoardTitle(`Board ${boards().length + 1}`);
+                        setIsCreatingBoard(true);
+                      }}
+                      style={{
+                        display: 'flex',
+                        "flex-direction": 'column',
+                        "align-items": 'center',
+                        "justify-content": 'center',
+                        gap: '10px',
+                        "min-height": '220px',
+                        border: '1.5px dashed var(--border-default)',
+                        "border-radius": '12px',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        transition: 'all 0.18s ease',
+                        padding: '20px'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--secondary)';
+                        e.currentTarget.style.backgroundColor = 'var(--surface-container-low)';
+                        e.currentTarget.style.transform = 'translateY(-3px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border-default)';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.transform = 'none';
+                      }}
+                    >
+                      <div style={{
+                        width: '42px',
+                        height: '42px',
+                        "border-radius": '50%',
+                        background: 'var(--surface-container-high)',
+                        display: 'flex',
+                        "align-items": 'center',
+                        "justify-content": 'center',
+                        color: 'var(--secondary)'
+                      }}>
+                        <Plus size={20} />
+                      </div>
+                      <div style={{ "text-align": 'center' }}>
+                        <div style={{ "font-size": '14px', "font-weight": 600, color: 'var(--text-main)' }}>
+                          Board Baru
+                        </div>
+                        <div style={{ "font-size": '12px', color: 'var(--text-muted)', "margin-top": '2px' }}>
+                          Mulai dari kanvas kosong
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+            >
             <div 
               ref={(el) => {
                 canvasContainerRef = el;
@@ -3330,9 +3871,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                   : (activeCanvasTool() === 'pan' || isSpacePressed() ? 'grab' : 'default')
               }}
             >
-              {/* Floating Board Switcher & Management Bar */}
+              {/* Top Navigation Bar: Back to Cards Gallery + Board Title + Count */}
               <div 
-                class="board-switcher-bar"
+                class="board-canvas-top-bar"
                 style={{
                   position: 'absolute',
                   top: '16px',
@@ -3340,203 +3881,71 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                   "z-index": 20,
                   display: 'flex',
                   "align-items": 'center',
-                  gap: '6px',
-                  padding: '4px 6px',
+                  gap: '8px',
+                  padding: '6px 12px',
                   "border-radius": '8px',
                   "background-color": 'var(--surface-container-low)',
                   border: '1px solid var(--border-default)',
-                  "box-shadow": '0 4px 12px rgba(0,0,0,0.15)',
-                  "max-width": 'calc(100% - 32px)',
-                  "overflow-x": 'auto'
+                  "box-shadow": '0 4px 16px rgba(0,0,0,0.18)'
                 }}
               >
-                <For each={boards()}>
-                  {(b) => {
-                    const isActive = () => (selectedBoardId() || boards()[0]?.id) === b.id;
-                    const [isEditing, setIsEditing] = createSignal(false);
-                    const [editTitle, setEditTitle] = createSignal(b.title);
-
-                    return (
-                      <div
-                        class={`board-tab-pill ${isActive() ? 'active' : ''}`}
-                        style={{
-                          display: 'flex',
-                          "align-items": 'center',
-                          gap: '6px',
-                          padding: '4px 10px',
-                          "border-radius": '6px',
-                          "font-size": '12px',
-                          cursor: 'pointer',
-                          "user-select": 'none',
-                          transition: 'all 0.12s ease',
-                          background: isActive() ? 'var(--surface-container-high)' : 'transparent',
-                          color: isActive() ? 'var(--text-main)' : 'var(--text-muted)',
-                          border: isActive() ? '1px solid var(--border-default)' : '1px solid transparent'
-                        }}
-                        onClick={() => {
-                          if (!isActive()) {
-                            handleSelectBoard(b.id);
-                          }
-                        }}
-                      >
-                        <Show 
-                          when={isEditing()} 
-                          fallback={
-                            <span 
-                              onDblClick={(e) => {
-                                e.stopPropagation();
-                                setEditTitle(b.title);
-                                setIsEditing(true);
-                              }}
-                              style={{ "font-weight": isActive() ? 600 : 400, "white-space": 'nowrap' }}
-                              title="Klik untuk memilih, klik 2x untuk rename"
-                            >
-                              {b.title}
-                            </span>
-                          }
-                        >
-                          <input
-                            type="text"
-                            value={editTitle()}
-                            onInput={(e) => setEditTitle(e.currentTarget.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleRenameBoard(b.id, editTitle());
-                                setIsEditing(false);
-                              } else if (e.key === 'Escape') {
-                                setIsEditing(false);
-                              }
-                            }}
-                            onBlur={() => {
-                              handleRenameBoard(b.id, editTitle());
-                              setIsEditing(false);
-                            }}
-                            autofocus
-                            style={{
-                              background: 'var(--surface)',
-                              border: '1px solid var(--primary)',
-                              color: 'var(--text-main)',
-                              "font-size": '12px',
-                              padding: '2px 6px',
-                              "border-radius": '4px',
-                              outline: 'none',
-                              width: '110px'
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </Show>
-
-                        {/* If active, show node count */}
-                        <Show when={isActive()}>
-                          <span style={{ "font-size": '10px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
-                            ({blocks().length})
-                          </span>
-                        </Show>
-
-                        {/* Delete action if more than 1 board */}
-                        <Show when={boards().length > 1 && isActive()}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteBoard(b.id);
-                            }}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: 'var(--text-dim)',
-                              cursor: 'pointer',
-                              padding: '2px',
-                              display: 'flex',
-                              "align-items": 'center',
-                              "margin-left": '2px',
-                              opacity: 0.7
-                            }}
-                            title="Hapus board ini"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </Show>
-                      </div>
-                    );
+                {/* Back to All Boards Button */}
+                <button
+                  type="button"
+                  onClick={handleCloseBoardCanvas}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    "align-items": 'center',
+                    gap: '6px',
+                    "font-size": '12px',
+                    "font-weight": 500,
+                    padding: '4px 8px',
+                    "border-radius": '6px',
+                    transition: 'all 0.12s ease'
                   }}
-                </For>
-
-                {/* Add Board Inline Form / Button */}
-                <Show
-                  when={isCreatingBoard()}
-                  fallback={
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewBoardTitle(`Board ${boards().length + 1}`);
-                        setIsCreatingBoard(true);
-                      }}
-                      style={{
-                        display: 'flex',
-                        "align-items": 'center',
-                        gap: '4px',
-                        padding: '4px 8px',
-                        "border-radius": '6px',
-                        background: 'none',
-                        border: '1px dashed var(--border-default)',
-                        color: 'var(--text-dim)',
-                        "font-size": '11px',
-                        cursor: 'pointer',
-                        "white-space": 'nowrap'
-                      }}
-                      title="Tambah Board Baru di Project Ini"
-                    >
-                      <Plus size={12} />
-                      <span>New Board</span>
-                    </button>
-                  }
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--text-main)';
+                    e.currentTarget.style.backgroundColor = 'var(--surface-container-high)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--text-muted)';
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                  title="Kembali ke galeri board"
                 >
-                  <div style={{ display: 'flex', "align-items": 'center', gap: '4px' }}>
-                    <input
-                      type="text"
-                      placeholder="Nama board..."
-                      value={newBoardTitle()}
-                      onInput={(e) => setNewBoardTitle(e.currentTarget.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleCreateBoard();
-                        } else if (e.key === 'Escape') {
-                          setIsCreatingBoard(false);
-                        }
-                      }}
-                      autofocus
-                      style={{
-                        background: 'var(--surface)',
-                        border: '1px solid var(--primary)',
-                        color: 'var(--text-main)',
-                        "font-size": '12px',
-                        padding: '3px 8px',
-                        "border-radius": '4px',
-                        outline: 'none',
-                        width: '130px'
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleCreateBoard()}
-                      class="btn-primary"
-                      style={{ padding: '3px 8px', "font-size": '11px' }}
-                    >
-                      Simpan
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsCreatingBoard(false)}
-                      class="btn-secondary"
-                      style={{ padding: '3px 6px', "font-size": '11px' }}
-                    >
-                      Batal
-                    </button>
-                  </div>
-                </Show>
+                  <ArrowLeft size={14} />
+                  <span>Semua Board</span>
+                </button>
+
+                <span style={{ color: 'var(--border-default)', "font-size": '13px', "user-select": 'none' }}>/</span>
+
+                {/* Active Board Title */}
+                <span 
+                  style={{
+                    "font-size": '13px',
+                    "font-weight": 600,
+                    color: 'var(--text-main)',
+                    padding: '2px 4px'
+                  }}
+                >
+                  {currentBoard()?.title || 'Board'}
+                </span>
+
+                {/* Item count badge */}
+                <span style={{
+                  "font-size": '11px',
+                  color: 'var(--text-dim)',
+                  "font-family": 'var(--font-mono)',
+                  padding: '2px 6px',
+                  "border-radius": '4px',
+                  background: 'var(--surface-container-high)'
+                }}>
+                  {blocks().length} item
+                </span>
               </div>
 
               {/* Dynamic Dot Grid Background moves with pan */}
@@ -4136,6 +4545,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                 </div>
               </div>
             </div>
+            </Show>
           </Show>
 
           {/* =========================================================

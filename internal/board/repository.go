@@ -24,26 +24,28 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 
 func (r *Repository) ListBoards(ctx context.Context, workspaceID uuid.UUID, spaceID *uuid.UUID, projectID *uuid.UUID) ([]NoteBoard, error) {
 	query := `
-		SELECT id, workspace_id, space_id, project_id, title, viewport_state, created_at, updated_at
-		FROM note_boards
-		WHERE workspace_id = $1 AND deleted_at IS NULL
+		SELECT b.id, b.workspace_id, b.space_id, b.project_id, b.title, b.viewport_state,
+		       COALESCE((SELECT COUNT(*) FROM note_blocks nb WHERE nb.board_id = b.id AND nb.deleted_at IS NULL), 0) AS block_count,
+		       b.created_at, b.updated_at
+		FROM note_boards b
+		WHERE b.workspace_id = $1 AND b.deleted_at IS NULL
 	`
 	args := []any{workspaceID}
 	argIdx := 2
 
 	if spaceID != nil && *spaceID != uuid.Nil {
-		query += fmt.Sprintf(" AND space_id = $%d", argIdx)
+		query += fmt.Sprintf(" AND b.space_id = $%d", argIdx)
 		args = append(args, *spaceID)
 		argIdx++
 	}
 
 	if projectID != nil && *projectID != uuid.Nil {
-		query += fmt.Sprintf(" AND project_id = $%d", argIdx)
+		query += fmt.Sprintf(" AND b.project_id = $%d", argIdx)
 		args = append(args, *projectID)
 		argIdx++
 	}
 
-	query += " ORDER BY updated_at DESC"
+	query += " ORDER BY b.updated_at DESC"
 
 	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
@@ -55,7 +57,7 @@ func (r *Repository) ListBoards(ctx context.Context, workspaceID uuid.UUID, spac
 	for rows.Next() {
 		var b NoteBoard
 		err := rows.Scan(
-			&b.ID, &b.WorkspaceID, &b.SpaceID, &b.ProjectID, &b.Title, &b.ViewportState, &b.CreatedAt, &b.UpdatedAt,
+			&b.ID, &b.WorkspaceID, &b.SpaceID, &b.ProjectID, &b.Title, &b.ViewportState, &b.BlockCount, &b.CreatedAt, &b.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("board.ListBoards scan: %w", err)
@@ -67,13 +69,15 @@ func (r *Repository) ListBoards(ctx context.Context, workspaceID uuid.UUID, spac
 
 func (r *Repository) GetBoardByID(ctx context.Context, workspaceID, id uuid.UUID) (*NoteBoard, error) {
 	query := `
-		SELECT id, workspace_id, space_id, project_id, title, viewport_state, created_at, updated_at
-		FROM note_boards
-		WHERE workspace_id = $1 AND id = $2 AND deleted_at IS NULL
+		SELECT b.id, b.workspace_id, b.space_id, b.project_id, b.title, b.viewport_state,
+		       COALESCE((SELECT COUNT(*) FROM note_blocks nb WHERE nb.board_id = b.id AND nb.deleted_at IS NULL), 0) AS block_count,
+		       b.created_at, b.updated_at
+		FROM note_boards b
+		WHERE b.workspace_id = $1 AND b.id = $2 AND b.deleted_at IS NULL
 	`
 	var b NoteBoard
 	err := r.pool.QueryRow(ctx, query, workspaceID, id).Scan(
-		&b.ID, &b.WorkspaceID, &b.SpaceID, &b.ProjectID, &b.Title, &b.ViewportState, &b.CreatedAt, &b.UpdatedAt,
+		&b.ID, &b.WorkspaceID, &b.SpaceID, &b.ProjectID, &b.Title, &b.ViewportState, &b.BlockCount, &b.CreatedAt, &b.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

@@ -94,6 +94,7 @@ export interface NoteBoard {
   project_id?: string;
   title: string;
   viewport_state: { x: number; y: number; zoom: number };
+  block_count?: number;
   created_at: string;
   updated_at: string;
 }

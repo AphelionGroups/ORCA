@@ -14,6 +14,7 @@ type NoteBoard struct {
 	ProjectID     *uuid.UUID      `json:"project_id,omitempty"`
 	Title         string          `json:"title"`
 	ViewportState json.RawMessage `json:"viewport_state"`
+	BlockCount    int             `json:"block_count"`
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
 	DeletedAt     *time.Time      `json:"deleted_at,omitempty"`
