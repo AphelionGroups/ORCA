@@ -1,3 +1,4 @@
+import { focusScope } from './focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, Show, For } from 'solid-js';
 import { X, Trash2, FolderKanban } from 'lucide-solid';
@@ -115,7 +116,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
         class="modal-backdrop"
         onClick={(e) => { if (e.target === e.currentTarget) props.onClose(); }}
       >
-        <div class="modal-card">
+        <div class="modal-card" ref={el => focusScope(el, props.onClose)}>
           {/* Header */}
           <div class="modal-header">
             <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
@@ -135,7 +136,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
 
           {/* Error Message */}
           <Show when={error()}>
-            <div class="modal-error-badge">
+            <div class="modal-error-badge" role="alert">
               {error()}
             </div>
           </Show>
@@ -146,14 +147,14 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
               <div style={{ "font-weight": 600, "margin-bottom": '4px' }}>
                 Hapus Project "{props.projectToEdit?.name}"?
               </div>
-              <div style={{ "font-size": '11px', color: 'var(--text-muted)', "margin-bottom": '12px' }}>
+              <div style={{ "font-size": '12px', color: 'var(--text-muted)', "margin-bottom": '12px' }}>
                 Seluruh canvas boards, documents, dan tasks yang terkait dengan project ini akan ikut terhapus permanen. Tindakan ini tidak dapat dibatalkan.
               </div>
               <div style={{ display: 'flex', gap: '8px', "justify-content": 'flex-end' }}>
                 <button 
                   type="button"
                   class="btn-secondary"
-                  style={{ padding: '4px 10px', "font-size": '11px' }}
+                  style={{ padding: '4px 10px', "font-size": '12px' }}
                   onClick={() => setConfirmDelete(false)}
                   disabled={loading()}
                 >
@@ -162,7 +163,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
                 <button 
                   type="button"
                   class="btn-danger"
-                  style={{ padding: '4px 10px', "font-size": '11px' }}
+                  style={{ padding: '4px 10px', "font-size": '12px' }}
                   onClick={handleDelete}
                   disabled={loading()}
                 >

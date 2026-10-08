@@ -1,3 +1,4 @@
+import { focusScope } from './focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, Show, For } from 'solid-js';
 import { X, Trash2, CheckSquare } from 'lucide-solid';
@@ -25,7 +26,7 @@ const PRIORITY_OPTIONS: { value: Task['priority']; label: string; color: string 
   { value: 'low', label: 'Low', color: 'var(--text-muted)' },
   { value: 'medium', label: 'Medium', color: 'var(--primary)' },
   { value: 'high', label: 'High', color: 'var(--tertiary)' },
-  { value: 'urgent', label: 'Urgent', color: '#f87171' },
+  { value: 'urgent', label: 'Urgent', color: 'var(--status-error)' },
 ];
 
 export const TaskModal: Component<TaskModalProps> = (props) => {
@@ -125,7 +126,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
         class="modal-backdrop"
         onClick={(e) => { if (e.target === e.currentTarget) props.onClose(); }}
       >
-        <div class="modal-card" style={{ "max-width": '540px' }}>
+        <div class="modal-card" ref={el => focusScope(el, props.onClose)} style={{ "max-width": '540px' }}>
           {/* Header */}
           <div class="modal-header">
             <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
@@ -145,7 +146,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
           </div>
 
           <Show when={error()}>
-            <div class="modal-error-badge">
+            <div class="modal-error-badge" role="alert">
               {error()}
             </div>
           </Show>
@@ -155,8 +156,8 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
             <div style={{
               padding: '16px',
               "border-radius": '8px',
-              "background-color": 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
+              "background-color": 'var(--error-surface)',
+              border: '1px solid var(--error-surface)',
               display: 'flex',
               "flex-direction": 'column',
               gap: '12px'
@@ -176,7 +177,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
                 <button
                   type="button"
                   class="btn-primary"
-                  style={{ "background-color": '#ef4444', color: '#fff' }}
+                  style={{ "background-color": 'var(--status-error)', color: '#fff' }}
                   onClick={handleDelete}
                   disabled={loading()}
                 >

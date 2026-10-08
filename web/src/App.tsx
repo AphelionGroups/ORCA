@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, onMount, onCleanup, Switch, Match, Show } from 'solid-js';
+import { createSignal, createEffect, onMount, onCleanup, Switch, Match, Show } from 'solid-js';
 import { PanelLeftOpen } from 'lucide-solid';
 import { Sidebar } from './components/Sidebar';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
@@ -19,9 +19,28 @@ export const App: Component = () => {
   const [activeSpaceId, setActiveSpaceId] = createSignal<string | null>(null);
   const [activeProjectId, setActiveProjectId] = createSignal<string | null>(null);
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = createSignal<boolean>(false);
-  const [isSidebarOpen, setIsSidebarOpen] = createSignal<boolean>(true);
+  const [isMobile, setIsMobile] = createSignal(window.matchMedia('(max-width: 767px)').matches);
+  const [isSidebarOpen, setIsSidebarOpen] = createSignal<boolean>(!isMobile());
+  createEffect(() => {
+    if (!isMobile() || !isSidebarOpen() || !isAuthenticated()) return;
+    queueMicrotask(() => document.querySelector<HTMLElement>('#workspace-navigation button')?.focus());
+    const keyboard = (event: KeyboardEvent) => {
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      if (event.key === 'Escape') { event.preventDefault(); setIsSidebarOpen(false); }
+      if (event.key === 'Tab') {
+        const sidebar = document.getElementById('workspace-navigation');
+        const items = Array.from(sidebar?.querySelectorAll<HTMLElement>('button:not(:disabled), [tabindex="0"]') || []).filter(el => el.getClientRects().length);
+        const first = items[0], last = items.at(-1);
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener('keydown', keyboard);
+    onCleanup(() => { document.removeEventListener('keydown', keyboard); requestAnimationFrame(() => document.querySelector<HTMLElement>('.sidebar-toggle-floating-btn')?.focus()); });
+  });
 
   const handleNavigate = (route: string, spaceId?: string | null, projectId?: string | null) => {
+    if (isMobile()) setIsSidebarOpen(false);
     setCurrentRoute(route);
     if (route === 'inbox' || route === 'calendar') {
       setActiveSpaceId(null);
@@ -46,6 +65,10 @@ export const App: Component = () => {
   };
 
   onMount(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const resize = (event: MediaQueryListEvent) => { setIsMobile(event.matches); setIsSidebarOpen(!event.matches); };
+    media.addEventListener('change', resize);
+    onCleanup(() => media.removeEventListener('change', resize));
     window.addEventListener('keydown', handleKeyDown);
 
     const handleAuthRevoked = () => {
@@ -100,12 +123,15 @@ export const App: Component = () => {
             type="button"
             class="sidebar-toggle-floating-btn" 
             onClick={() => setIsSidebarOpen(true)}
-            title="Buka Sidebar"
+            title="Buka Sidebar" aria-label="Buka Sidebar" aria-expanded={isSidebarOpen()} aria-controls="workspace-navigation"
           >
             <PanelLeftOpen size={16} />
           </button>
         </Show>
 
+        <Show when={isMobile() && isSidebarOpen()}>
+          <button class="sidebar-drawer-backdrop" aria-label="Tutup Sidebar" tabIndex={-1} onClick={() => setIsSidebarOpen(false)} />
+        </Show>
         {/* Sidebar Navigation */}
         <Sidebar 
           isOpen={isSidebarOpen()}
@@ -121,7 +147,7 @@ export const App: Component = () => {
         />
 
         {/* Main View Area */}
-        <div class={`orca-main-viewport ${isSidebarOpen() ? '' : 'sidebar-collapsed'}`}>
+        <main id="main-content" aria-label="Workspace" inert={isMobile() && isSidebarOpen()} class={`orca-main-viewport ${isSidebarOpen() ? '' : 'sidebar-collapsed'}`}>
           <Switch>
             <Match when={currentRoute() === 'inbox'}>
               <InboxView 
@@ -143,7 +169,7 @@ export const App: Component = () => {
               />
             </Match>
           </Switch>
-        </div>
+        </main>
 
         {/* Rapid Action Modal */}
         <QuickCaptureModal 

@@ -8,7 +8,6 @@ import {
   User, 
   Loader2, 
   AlertCircle,
-  Layers,
   Eye,
   EyeOff,
   CheckCircle2,
@@ -35,6 +34,7 @@ export const LoginView: Component<LoginViewProps> = (props) => {
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
+    if (loading()) return;
     setErrorMsg(null);
 
     const cleanEmail = email().trim();
@@ -97,13 +97,13 @@ export const LoginView: Component<LoginViewProps> = (props) => {
   };
 
   return (
-    <div style={{
+    <div class="auth-page" style={{
       width: '100vw',
       "min-height": '100vh',
       display: 'flex',
       "align-items": 'center',
       "justify-content": 'center',
-      background: 'radial-gradient(circle at 50% 10%, #171b26 0%, #0a0c10 100%)',
+      background: 'var(--background)',
       color: 'var(--text-main)',
       padding: '24px 16px',
       "box-sizing": 'border-box',
@@ -111,74 +111,22 @@ export const LoginView: Component<LoginViewProps> = (props) => {
       overflow: 'hidden',
       "font-family": 'var(--font-sans)'
     }}>
-      {/* Background Dot Matrix Grid */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        "background-image": 'radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px)',
-        "background-size": '28px 28px',
-        "pointer-events": 'none',
-        opacity: 0.8
-      }} />
-
-      {/* Atmospheric Ambient Glows */}
-      <div style={{
-        position: 'absolute',
-        top: '10%',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '600px',
-        height: '350px',
-        background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.18) 0%, rgba(59, 130, 246, 0.08) 50%, transparent 80%)',
-        filter: 'blur(50px)',
-        "pointer-events": 'none'
-      }} />
-
-      <div style={{
-        position: 'absolute',
-        bottom: '5%',
-        right: '10%',
-        width: '300px',
-        height: '300px',
-        background: 'radial-gradient(circle, rgba(68, 225, 222, 0.08) 0%, transparent 70%)',
-        filter: 'blur(40px)',
-        "pointer-events": 'none'
-      }} />
-
       {/* Main Container Card */}
-      <div style={{
+      <div class="auth-card" style={{
         width: '460px',
         "max-width": '100%',
-        background: 'rgba(26, 28, 34, 0.85)',
-        "backdrop-filter": 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.09)',
-        "border-radius": '18px',
+        background: 'var(--surface-panel)',
+        "backdrop-filter": 'none',
+        border: '1px solid var(--surface-muted)',
+        "border-radius": '4px',
         padding: '36px 32px',
-        "box-shadow": '0 0 0 1px rgba(255, 255, 255, 0.03), 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 80px -20px rgba(99, 102, 241, 0.15)',
+        "box-shadow": 'none',
         position: 'relative',
         "z-index": 1,
         "box-sizing": 'border-box'
       }}>
         {/* Top Header & Branding */}
         <div style={{ "text-align": 'center', "margin-bottom": '26px' }}>
-          <div style={{
-            display: 'inline-flex',
-            "align-items": 'center',
-            "justify-content": 'center',
-            width: '44px',
-            height: '44px',
-            "border-radius": '12px',
-            background: 'linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)',
-            color: '#fff',
-            "margin-bottom": '12px',
-            "box-shadow": '0 6px 20px rgba(99, 102, 241, 0.4)'
-          }}>
-            <Layers size={24} />
-          </div>
-
           <h1 style={{ 
             margin: '0 0 6px 0', 
             "font-size": '22px', 
@@ -201,11 +149,11 @@ export const LoginView: Component<LoginViewProps> = (props) => {
           style={{
             display: 'grid',
             "grid-template-columns": '1fr 1fr',
-            background: 'rgba(12, 14, 18, 0.75)',
+            background: 'var(--surface-muted)',
             padding: '4px',
-            "border-radius": '10px',
+            "border-radius": '4px',
             "margin-bottom": '22px',
-            border: '1px solid rgba(255, 255, 255, 0.08)'
+            border: '1px solid var(--surface-muted)'
           }}
         >
           <button
@@ -224,7 +172,7 @@ export const LoginView: Component<LoginViewProps> = (props) => {
               "justify-content": 'center',
               gap: '6px',
               background: tab() === 'login' ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-              color: tab() === 'login' ? '#ffffff' : 'var(--text-dim)',
+              color: tab() === 'login' ? 'var(--text-main)' : 'var(--text-dim)',
               "box-shadow": tab() === 'login' ? '0 2px 8px rgba(0, 0, 0, 0.4)' : 'none',
               transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
@@ -249,7 +197,7 @@ export const LoginView: Component<LoginViewProps> = (props) => {
               "justify-content": 'center',
               gap: '6px',
               background: tab() === 'register' ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-              color: tab() === 'register' ? '#ffffff' : 'var(--text-dim)',
+              color: tab() === 'register' ? 'var(--text-main)' : 'var(--text-dim)',
               "box-shadow": tab() === 'register' ? '0 2px 8px rgba(0, 0, 0, 0.4)' : 'none',
               transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
@@ -262,12 +210,12 @@ export const LoginView: Component<LoginViewProps> = (props) => {
 
         {/* Error Alert Box */}
         <Show when={errorMsg()}>
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            color: '#fca5a5',
+          <div id="auth-error" role="alert" style={{
+            background: 'var(--error-surface)',
+            border: '1px solid var(--error-surface)',
+            color: 'var(--status-error)',
             padding: '11px 14px',
-            "border-radius": '10px',
+            "border-radius": '4px',
             "font-size": '12px',
             display: 'flex',
             "align-items": 'flex-start',
@@ -276,7 +224,7 @@ export const LoginView: Component<LoginViewProps> = (props) => {
             "line-height": 1.45,
             animation: 'fadeIn 0.2s ease-out'
           }}>
-            <AlertCircle size={16} style={{ "flex-shrink": 0, "margin-top": '1px', color: '#f87171' }} />
+            <AlertCircle size={16} style={{ "flex-shrink": 0, "margin-top": '1px', color: 'var(--status-error)' }} />
             <span>{errorMsg()}</span>
           </div>
         </Show>
@@ -300,7 +248,7 @@ export const LoginView: Component<LoginViewProps> = (props) => {
                     "padding-left": '38px',
                     "padding-right": '12px',
                     height: '42px',
-                    "border-radius": '9px',
+                    "border-radius": '4px',
                     background: 'var(--surface-container-low)',
                     border: '1px solid var(--border-default)',
                     color: 'var(--text-main)',
@@ -325,7 +273,7 @@ export const LoginView: Component<LoginViewProps> = (props) => {
             </label>
             <div style={{ position: 'relative' }}>
               <input
-                id="auth-email"
+                id="auth-email" aria-describedby={errorMsg() ? 'auth-error' : undefined}
                 type="email"
                 class="form-input"
                 autocomplete="email"
@@ -334,7 +282,7 @@ export const LoginView: Component<LoginViewProps> = (props) => {
                   "padding-left": '38px',
                   "padding-right": '12px',
                   height: '42px',
-                  "border-radius": '9px',
+                  "border-radius": '4px',
                   background: 'var(--surface-container-low)',
                   border: '1px solid var(--border-default)',
                   color: 'var(--text-main)',
@@ -358,14 +306,14 @@ export const LoginView: Component<LoginViewProps> = (props) => {
                 Kata Sandi
               </label>
               <Show when={tab() === 'register'}>
-                <span style={{ "font-size": '11px', color: 'var(--text-dim)' }}>
+                <span style={{ "font-size": '12px', color: 'var(--text-dim)' }}>
                   Minimal 6 karakter
                 </span>
               </Show>
             </div>
             <div style={{ position: 'relative' }}>
               <input
-                id="auth-password"
+                id="auth-password" aria-describedby={errorMsg() ? 'auth-error' : undefined}
                 type={showPassword() ? 'text' : 'password'}
                 class="form-input"
                 autocomplete={tab() === 'login' ? 'current-password' : 'new-password'}
@@ -374,7 +322,7 @@ export const LoginView: Component<LoginViewProps> = (props) => {
                   "padding-left": '38px',
                   "padding-right": '40px',
                   height: '42px',
-                  "border-radius": '9px',
+                  "border-radius": '4px',
                   background: 'var(--surface-container-low)',
                   border: '1px solid var(--border-default)',
                   color: 'var(--text-main)',
@@ -434,7 +382,7 @@ export const LoginView: Component<LoginViewProps> = (props) => {
                     "padding-left": '38px',
                     "padding-right": '40px',
                     height: '42px',
-                    "border-radius": '9px',
+                    "border-radius": '4px',
                     background: 'var(--surface-container-low)',
                     border: '1px solid var(--border-default)',
                     color: 'var(--text-main)',
@@ -476,7 +424,7 @@ export const LoginView: Component<LoginViewProps> = (props) => {
                 </button>
               </div>
               <Show when={confirmPassword().length > 0 && confirmPassword() === password()}>
-                <div style={{ display: 'flex', "align-items": 'center', gap: '5px', "font-size": '11px', color: '#4ade80', "margin-top": '4px' }}>
+                <div style={{ display: 'flex', "align-items": 'center', gap: '5px', "font-size": '12px', color: 'var(--status-success)', "margin-top": '4px' }}>
                   <CheckCircle2 size={12} />
                   <span>Kata sandi cocok</span>
                 </div>
@@ -497,11 +445,11 @@ export const LoginView: Component<LoginViewProps> = (props) => {
               "align-items": 'center',
               "justify-content": 'center',
               gap: '8px',
-              "border-radius": '10px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              "border-radius": '4px',
+              background: 'var(--action-primary)',
               border: 'none',
-              color: '#ffffff',
-              "box-shadow": '0 4px 16px rgba(79, 70, 229, 0.4)',
+              color: 'var(--action-primary-text)',
+              "box-shadow": 'none',
               cursor: loading() ? 'not-allowed' : 'pointer',
               "margin-top": '6px',
               transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
@@ -510,12 +458,12 @@ export const LoginView: Component<LoginViewProps> = (props) => {
           >
             <Show when={loading()} fallback={
               <>
-                <span>{tab() === 'login' ? 'Masuk ke Workspace' : 'Buat Akun & Inisialisasi'}</span>
+                <span>{tab() === 'login' ? 'Masuk ke Workspace' : 'Buat Akun'}</span>
                 <ArrowRight size={15} />
               </>
             }>
               <Loader2 size={16} class="spin" />
-              <span>Memproses autentikasi...</span>
+              <span>Memproses...</span>
             </Show>
           </button>
         </form>

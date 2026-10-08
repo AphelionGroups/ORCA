@@ -132,12 +132,12 @@ export const Sidebar: Component<SidebarProps> = (props) => {
   };
 
   return (
-    <aside class={`orca-sidebar ${props.isOpen ? '' : 'collapsed'}`}>
+    <aside id="workspace-navigation" aria-label="Workspace navigation" inert={!props.isOpen} class={`orca-sidebar ${props.isOpen ? '' : 'collapsed'}`}>
       {/* 1. Fixed Header */}
       <div class="sidebar-brand-row">
-        <div class="brand-logo" onClick={() => props.onNavigate('projects', null, null)}>
+        <button type="button" class="brand-logo" onClick={() => props.onNavigate('projects', null, null)}>
           <span class="brand-text">ORCA</span>
-        </div>
+        </button>
         <button 
           type="button"
           aria-label="Collapse sidebar" 
@@ -158,7 +158,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           <nav style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
             {/* 1. Inbox */}
             <div 
-              class={`sidebar-nav-item ${props.currentRoute === 'inbox' ? 'active' : ''}`}
+              role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click(); } }} aria-current={props.currentRoute === 'inbox' ? 'page' : undefined} class={`sidebar-nav-item ${props.currentRoute === 'inbox' ? 'active' : ''}`}
               onClick={() => props.onNavigate('inbox', null, null)}
             >
               <Inbox size={15} color={props.currentRoute === 'inbox' ? 'var(--secondary)' : 'var(--text-dim)'} />
@@ -167,7 +167,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
 
             {/* 2. Calendar */}
             <div 
-              class={`sidebar-nav-item ${props.currentRoute === 'calendar' ? 'active' : ''}`}
+              role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click(); } }} aria-current={props.currentRoute === 'calendar' ? 'page' : undefined} class={`sidebar-nav-item ${props.currentRoute === 'calendar' ? 'active' : ''}`}
               onClick={() => props.onNavigate('calendar', null, null)}
             >
               <Calendar size={15} color={props.currentRoute === 'calendar' ? 'var(--tertiary)' : 'var(--text-dim)'} />
@@ -195,7 +195,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           <div style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
             {/* All Spaces Entry */}
             <div
-              class={`sidebar-space-row ${props.currentRoute === 'projects' && props.activeSpaceId === null && !props.activeProjectId ? 'active' : ''}`}
+              role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click(); } }} class={`sidebar-space-row ${props.currentRoute === 'projects' && props.activeSpaceId === null && !props.activeProjectId ? 'active' : ''}`}
               onClick={() => props.onNavigate('projects', null, null)}
             >
               <div class="sidebar-space-left">
@@ -217,7 +217,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                   <div class="sidebar-space-group">
                     {/* Space Row: Clicking opens the space and ensures its tree is expanded */}
                     <div 
-                      class={`sidebar-space-row ${isSpaceActive() ? 'active' : ''}`}
+                      role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click(); } }} class={`sidebar-space-row ${isSpaceActive() ? 'active' : ''}`}
                       onClick={() => {
                         setCollapsedSpaces(prev => ({
                           ...prev,
@@ -281,7 +281,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                             const isProjectActive = () => props.activeProjectId === project.id;
                             return (
                               <div
-                                class={`sidebar-project-item ${isProjectActive() ? 'active' : ''}`}
+                                role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click(); } }} aria-current={isProjectActive() ? 'page' : undefined} class={`sidebar-project-item ${isProjectActive() ? 'active' : ''}`}
                                 onClick={() => props.onNavigate('projects', space.id, project.id)}
                                 title={project.name}
                               >
