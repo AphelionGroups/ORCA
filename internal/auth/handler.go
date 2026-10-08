@@ -16,14 +16,18 @@ import (
 )
 
 type Handler struct {
-	repo      *Repository
-	jwtSecret string
+	repo                *Repository
+	jwtSecret           string
+	registrationEnabled bool
+	authLimit           func(http.Handler) http.Handler
 }
 
 func NewHandler(repo *Repository, jwtSecret string) *Handler {
 	return &Handler{
-		repo:      repo,
-		jwtSecret: jwtSecret,
+		repo:                repo,
+		jwtSecret:           jwtSecret,
+		registrationEnabled: true,
+		authLimit:           middleware.AuthRateLimit(30, time.Minute),
 	}
 }
 
@@ -31,8 +35,11 @@ func (h *Handler) Routes(authMiddleware func(http.Handler) http.Handler) chi.Rou
 	r := chi.NewRouter()
 
 	// Public routes
-	r.Post("/login", h.Login)
-	r.Post("/register", h.Register)
+	r.Group(func(public chi.Router) {
+		public.Use(h.authLimit)
+		public.Post("/login", h.Login)
+		public.Post("/register", h.Register)
+	})
 
 	// Protected routes
 	r.Group(func(protected chi.Router) {
@@ -49,8 +56,11 @@ func (h *Handler) Routes(authMiddleware func(http.Handler) http.Handler) chi.Rou
 
 func (h *Handler) PublicRoutes() chi.Router {
 	r := chi.NewRouter()
-	r.Post("/login", h.Login)
-	r.Post("/register", h.Register)
+	r.Group(func(public chi.Router) {
+		public.Use(h.authLimit)
+		public.Post("/login", h.Login)
+		public.Post("/register", h.Register)
+	})
 	return r
 }
 
@@ -63,11 +73,6 @@ func (h *Handler) ProtectedRoutes() chi.Router {
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	if h.repo == nil || h.repo.pool == nil {
-		httputil.RespondError(w, http.StatusServiceUnavailable, "Database is not connected. Please verify PostgreSQL connection.")
-		return
-	}
-
 	var req LoginRequest
 	if err := httputil.ParseJSON(r, &req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
@@ -80,13 +85,18 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.repo == nil || h.repo.pool == nil {
+		httputil.RespondError(w, http.StatusServiceUnavailable, "Database is not connected. Please verify PostgreSQL connection.")
+		return
+	}
+
 	user, err := h.repo.GetByEmail(r.Context(), req.Email)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
 			httputil.RespondError(w, http.StatusUnauthorized, "Invalid email or password")
 			return
 		}
-		httputil.RespondError(w, http.StatusInternalServerError, "Login failed: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -97,7 +107,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := h.generateToken(user)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to generate token: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -111,11 +121,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	if h.repo == nil || h.repo.pool == nil {
-		httputil.RespondError(w, http.StatusServiceUnavailable, "Database is not connected. Please verify PostgreSQL connection.")
+	if !h.registrationEnabled {
+		httputil.RespondError(w, http.StatusForbidden, "Registration is disabled")
 		return
 	}
-
 	var req RegisterRequest
 	if err := httputil.ParseJSON(r, &req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
@@ -134,23 +143,31 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.repo == nil || h.repo.pool == nil {
+		httputil.RespondError(w, http.StatusServiceUnavailable, "Database is not connected. Please verify PostgreSQL connection.")
+		return
+	}
+
 	// Check if user already exists
-	existing, _ := h.repo.GetByEmail(r.Context(), req.Email)
+	existing, lookupErr := h.repo.GetByEmail(r.Context(), req.Email)
+	if lookupErr != nil && !errors.Is(lookupErr, ErrUserNotFound) {
+		httputil.RespondError(w, http.StatusServiceUnavailable, "Registration is temporarily unavailable")
+		return
+	}
 	if existing != nil {
 		httputil.RespondError(w, http.StatusConflict, "Email is already registered")
 		return
 	}
 
-	// Get workspace ID (or default)
-	wsID, err := h.repo.GetDefaultWorkspaceID(r.Context())
+	wsID, err := uuid.NewV7()
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to resolve workspace: "+err.Error())
+		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create workspace ID")
 		return
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to hash password: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -169,14 +186,14 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:    time.Now(),
 	}
 
-	if err := h.repo.Create(r.Context(), user); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create user: "+err.Error())
+	if err := h.repo.CreateWithWorkspace(r.Context(), user); err != nil {
+		httputil.RespondDBError(w, err)
 		return
 	}
 
 	token, err := h.generateToken(user)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to generate token: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -202,7 +219,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 			httputil.RespondError(w, http.StatusNotFound, "User not found")
 			return
 		}
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get user: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -244,7 +261,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 		user, err := h.repo.GetByID(r.Context(), userID)
 		if err != nil {
-			httputil.RespondError(w, http.StatusInternalServerError, "User lookup failed: "+err.Error())
+			httputil.RespondDBError(w, err)
 			return
 		}
 
@@ -255,24 +272,24 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 		newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 		if err != nil {
-			httputil.RespondError(w, http.StatusInternalServerError, "Failed to hash new password: "+err.Error())
+			httputil.RespondDBError(w, err)
 			return
 		}
 
 		if err := h.repo.UpdatePassword(r.Context(), userID, string(newHash)); err != nil {
-			httputil.RespondError(w, http.StatusInternalServerError, "Failed to update password: "+err.Error())
+			httputil.RespondDBError(w, err)
 			return
 		}
 	}
 
 	if err := h.repo.UpdateProfile(r.Context(), userID, req.FullName, req.Email, req.AvatarURL); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update profile: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
 	updated, err := h.repo.GetByID(r.Context(), userID)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to fetch updated profile: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -304,7 +321,7 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.repo.GetByID(r.Context(), userID)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "User lookup failed: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -315,12 +332,12 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to hash new password: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
 	if err := h.repo.UpdatePassword(r.Context(), userID, string(newHash)); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update password: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -344,3 +361,5 @@ func (h *Handler) generateToken(u *User) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(h.jwtSecret))
 }
+
+func (h *Handler) SetRegistrationEnabled(enabled bool) { h.registrationEnabled = enabled }

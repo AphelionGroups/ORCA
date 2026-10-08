@@ -1,3 +1,5 @@
+> **Security update:** Read [Security and deployment upgrade](security-upgrade.md) before following this guide. Production requires a unique `JWT_SECRET`; fresh production databases have no demo user; registration creates isolated workspaces; run all versioned migrations through the API or migration CLI. Redis is currently an optional provisioned service and is not used by the API.
+
 # ORCA Self-Hosting & Deployment Guide
 
 This guide provides comprehensive, step-by-step instructions for installing and running **ORCA** in self-hosted environments—from local home labs to cloud VPS instances and production Kubernetes clusters.
@@ -114,7 +116,7 @@ In production, you want high availability, automated backups, and minimal server
      postgres://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require
      ```
 4. Run the initial database migration:
-   - **Method A (Supabase SQL Editor):** Copy the contents of [`migrations/000001_init_schema.up.sql`](../migrations/000001_init_schema.up.sql) and execute it in Supabase SQL Editor.
+   - **Method A (Supabase SQL Editor):** Apply all migrations in filename order, or preferably use `AUTO_MIGRATE=true` / `go run ./cmd/migrate` so versions are tracked. Applying only the initial schema is insufficient.
    - **Method B (ORCA Migrate CLI):**
      ```bash
      DATABASE_URL="postgres://postgres.[REF]:[PASS]@[HOST]:6543/postgres?sslmode=require" go run ./cmd/migrate/main.go

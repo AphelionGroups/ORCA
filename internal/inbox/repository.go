@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/AphelionGroups/ORCA/internal/platform/httputil"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -105,7 +106,7 @@ func (r *Repository) Update(ctx context.Context, n *Note) error {
 		return fmt.Errorf("inbox.Update: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return fmt.Errorf("inbox.Update: note not found")
+		return httputil.ErrNotFound
 	}
 	return nil
 }
@@ -121,7 +122,7 @@ func (r *Repository) Delete(ctx context.Context, workspaceID, id uuid.UUID) erro
 		return fmt.Errorf("inbox.Delete: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return fmt.Errorf("inbox.Delete: note not found")
+		return httputil.ErrNotFound
 	}
 	return nil
 }

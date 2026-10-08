@@ -1,4 +1,33 @@
 -- =========================================================
+-- DEFAULT SEED DATA (Personal Workspace & Owner)
+-- =========================================================
+INSERT INTO workspaces (id, name, slug, owner_id, created_at, updated_at)
+VALUES (
+    '018f0000-0000-7000-8000-000000000001',
+    'Personal Workspace',
+    'personal',
+    '018f0000-0000-7000-8000-000000000002',
+    NOW(),
+    NOW()
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO users (id, workspace_id, email, password_hash, full_name, avatar_url, created_at, updated_at)
+VALUES (
+    '018f0000-0000-7000-8000-000000000002',
+    '018f0000-0000-7000-8000-000000000001',
+    'user@orca.local',
+    '$2a$10$UgohYx.btGVpR.7JelXLLegkjXM3/HqRuHGP.N6LCJ6iGhIKfi1Ju',
+    'Nurhabib Assolihudin',
+    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=faces',
+    NOW(),
+    NOW()
+)
+ON CONFLICT (id) DO NOTHING;
+
+
+
+-- =========================================================
 -- ORCA Seed Script: Spaces, Projects, Docs, Tasks, Boards, Events
 -- =========================================================
 

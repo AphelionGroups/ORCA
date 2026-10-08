@@ -3,18 +3,17 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/AphelionGroups/ORCA/internal/platform/config"
-	"github.com/AphelionGroups/ORCA/migrations"
+	"github.com/AphelionGroups/ORCA/internal/platform/db"
 )
 
 func main() {
 	cfg := config.Load()
-	log.Printf("[ORCA-MIGRATE] Connecting to PostgreSQL at %s ...", cfg.DatabaseURL)
+	log.Println("[ORCA-MIGRATE] Connecting to PostgreSQL ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -30,19 +29,8 @@ func main() {
 	}
 	log.Println("[ORCA-MIGRATE] Database connected successfully!")
 
-	sqlQuery := migrations.InitSchemaSQL
-	if sqlQuery == "" {
-		sqlBytes, err := os.ReadFile("migrations/000001_init_schema.up.sql")
-		if err != nil {
-			log.Fatalf("[ORCA-MIGRATE-ERROR] Failed to read migration file: %v", err)
-		}
-		sqlQuery = string(sqlBytes)
+	if err := db.AutoMigrate(ctx, pool); err != nil {
+		log.Fatalf("[ORCA-MIGRATE-ERROR] %v", err)
 	}
-
-	log.Println("[ORCA-MIGRATE] Executing 000001_init_schema.up.sql ...")
-	if _, err := pool.Exec(ctx, sqlQuery); err != nil {
-		log.Fatalf("[ORCA-MIGRATE-ERROR] Failed to execute migration: %v", err)
-	}
-
-	log.Println("[ORCA-MIGRATE-SUCCESS] All database tables, indexes, and default seed data have been successfully migrated!")
+	log.Println("[ORCA-MIGRATE-SUCCESS] All versioned migrations applied.")
 }

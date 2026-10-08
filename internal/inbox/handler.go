@@ -37,7 +37,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	notes, err := h.repo.List(r.Context(), wsID, includeArchived)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": notes})
@@ -64,7 +64,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Create(r.Context(), &note); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -82,7 +82,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	note, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if note == nil {
@@ -104,7 +104,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if existing == nil {
@@ -129,7 +129,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Update(r.Context(), existing); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -146,7 +146,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Delete(r.Context(), wsID, id); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -175,7 +175,7 @@ func (h *Handler) ConvertToTask(w http.ResponseWriter, r *http.Request) {
 
 	taskID, err := h.repo.ConvertToTask(r.Context(), wsID, id, req)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -207,7 +207,7 @@ func (h *Handler) ConvertToDoc(w http.ResponseWriter, r *http.Request) {
 
 	docID, err := h.repo.ConvertToDoc(r.Context(), wsID, id, req)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 

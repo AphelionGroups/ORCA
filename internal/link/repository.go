@@ -3,10 +3,10 @@ package link
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
+	"github.com/AphelionGroups/ORCA/internal/platform/httputil"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -88,7 +88,7 @@ func (r *Repository) Delete(ctx context.Context, workspaceID, id uuid.UUID) erro
 		return fmt.Errorf("link.Delete exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return errors.New("link not found")
+		return httputil.ErrNotFound
 	}
 	return nil
 }

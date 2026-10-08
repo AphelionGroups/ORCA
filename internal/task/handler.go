@@ -59,7 +59,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	tasks, err := h.repo.List(r.Context(), wsID, filter)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to retrieve tasks: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": tasks})
@@ -76,7 +76,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	task, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get task: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if task == nil {
@@ -119,7 +119,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Create(r.Context(), &task); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create task: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -143,7 +143,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get task: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if existing == nil {
@@ -177,7 +177,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	existing.EstimatedMinutes = req.EstimatedMinutes
 
 	if err := h.repo.Update(r.Context(), existing); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update task: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -205,7 +205,7 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.UpdateStatus(r.Context(), wsID, id, req.Status); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update status: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -222,7 +222,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Delete(r.Context(), wsID, id); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to delete task: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 

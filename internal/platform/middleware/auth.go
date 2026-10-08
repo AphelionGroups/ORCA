@@ -30,8 +30,14 @@ func RequireAuth(jwtSecret string, allowDevWorkspaceHeader bool) func(http.Handl
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-				if allowDevWorkspaceHeader && r.Header.Get("X-Workspace-ID") != "" {
-					next.ServeHTTP(w, r)
+				if allowDevWorkspaceHeader && authHeader == "" && r.Header.Get("X-Workspace-ID") != "" {
+					wsID, err := uuid.Parse(r.Header.Get("X-Workspace-ID"))
+					if err != nil || wsID == uuid.Nil {
+						httputil.RespondError(w, http.StatusBadRequest, "Invalid workspace header")
+						return
+					}
+					ctx := context.WithValue(r.Context(), WorkspaceIDKey, wsID)
+					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}
 				httputil.RespondError(w, http.StatusUnauthorized, "Missing or invalid authorization token")
@@ -46,9 +52,9 @@ func RequireAuth(jwtSecret string, allowDevWorkspaceHeader bool) func(http.Handl
 					return nil, jwt.ErrSignatureInvalid
 				}
 				return []byte(jwtSecret), nil
-			})
+			}, jwt.WithValidMethods([]string{"HS256"}), jwt.WithIssuer("orca-os"), jwt.WithExpirationRequired())
 
-			if err != nil || !token.Valid {
+			if err != nil || !token.Valid || claims.UserID == uuid.Nil || claims.WorkspaceID == uuid.Nil {
 				httputil.RespondError(w, http.StatusUnauthorized, "Unauthorized: token expired or invalid")
 				return
 			}

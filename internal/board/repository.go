@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/AphelionGroups/ORCA/internal/platform/httputil"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -131,7 +132,7 @@ func (r *Repository) UpdateBoard(ctx context.Context, b *NoteBoard) error {
 		return fmt.Errorf("board.UpdateBoard exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return errors.New("board not found or already deleted")
+		return httputil.ErrNotFound
 	}
 	return nil
 }
@@ -148,7 +149,7 @@ func (r *Repository) DeleteBoard(ctx context.Context, workspaceID, id uuid.UUID)
 		return fmt.Errorf("board.DeleteBoard exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return errors.New("board not found or already deleted")
+		return httputil.ErrNotFound
 	}
 	return nil
 }
@@ -246,7 +247,7 @@ func (r *Repository) UpdateBlock(ctx context.Context, nb *NoteBlock) error {
 		return fmt.Errorf("board.UpdateBlock exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return errors.New("note block not found or already deleted")
+		return httputil.ErrNotFound
 	}
 	return nil
 }
@@ -263,7 +264,7 @@ func (r *Repository) DeleteBlock(ctx context.Context, workspaceID, id uuid.UUID)
 		return fmt.Errorf("board.DeleteBlock exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return errors.New("note block not found or already deleted")
+		return httputil.ErrNotFound
 	}
 	return nil
 }

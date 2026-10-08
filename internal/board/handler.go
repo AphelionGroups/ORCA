@@ -60,7 +60,7 @@ func (h *Handler) ListBoards(w http.ResponseWriter, r *http.Request) {
 
 	boards, err := h.repo.ListBoards(r.Context(), wsID, spaceIDPtr, projectIDPtr)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to retrieve boards: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": boards})
@@ -77,7 +77,7 @@ func (h *Handler) GetBoardByID(w http.ResponseWriter, r *http.Request) {
 
 	board, err := h.repo.GetBoardByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get board: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if board == nil {
@@ -109,7 +109,7 @@ func (h *Handler) CreateBoard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.CreateBoard(r.Context(), &board); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create board: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -133,7 +133,7 @@ func (h *Handler) UpdateBoard(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.repo.GetBoardByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get board: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if existing == nil {
@@ -150,7 +150,7 @@ func (h *Handler) UpdateBoard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.UpdateBoard(r.Context(), existing); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update board: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -167,7 +167,7 @@ func (h *Handler) DeleteBoard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.DeleteBoard(r.Context(), wsID, id); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to delete board: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -187,7 +187,7 @@ func (h *Handler) ListBlocks(w http.ResponseWriter, r *http.Request) {
 
 	blocks, err := h.repo.ListBlocksByBoard(r.Context(), wsID, boardID)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to retrieve blocks: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": blocks})
@@ -204,7 +204,7 @@ func (h *Handler) GetBlockByID(w http.ResponseWriter, r *http.Request) {
 
 	block, err := h.repo.GetBlockByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get block: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if block == nil {
@@ -248,7 +248,7 @@ func (h *Handler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.CreateBlock(r.Context(), &block); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create block: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -272,7 +272,7 @@ func (h *Handler) UpdateBlock(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.repo.GetBlockByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get block: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if existing == nil {
@@ -308,7 +308,7 @@ func (h *Handler) UpdateBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.UpdateBlock(r.Context(), existing); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update block: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *Handler) DeleteBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.DeleteBlock(r.Context(), wsID, id); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to delete block: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 

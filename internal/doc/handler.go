@@ -47,7 +47,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	docs, err := h.repo.List(r.Context(), wsID, spaceIDPtr, projectIDPtr)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to retrieve documents: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": docs})
@@ -64,7 +64,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	doc, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get document: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if doc == nil {
@@ -98,7 +98,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Create(r.Context(), &doc); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create document: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get document: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if existing == nil {
@@ -141,7 +141,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	existing.IsPinned = req.IsPinned
 
 	if err := h.repo.Update(r.Context(), existing); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update document: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -158,7 +158,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Delete(r.Context(), wsID, id); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to delete document: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 

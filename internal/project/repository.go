@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/AphelionGroups/ORCA/internal/platform/httputil"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -121,7 +122,7 @@ func (r *Repository) Update(ctx context.Context, p *Project) error {
 		return fmt.Errorf("project.Update exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return errors.New("project not found or already deleted")
+		return httputil.ErrNotFound
 	}
 	return nil
 }
@@ -138,7 +139,7 @@ func (r *Repository) Delete(ctx context.Context, workspaceID, id uuid.UUID) erro
 		return fmt.Errorf("project.Delete exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return errors.New("project not found or already deleted")
+		return httputil.ErrNotFound
 	}
 	return nil
 }

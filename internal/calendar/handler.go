@@ -61,7 +61,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	events, err := h.repo.List(r.Context(), wsID, startAtPtr, endAtPtr, spaceIDPtr)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to retrieve events: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": events})
@@ -78,7 +78,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	event, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get event: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if event == nil {
@@ -119,7 +119,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Create(r.Context(), &event); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create event: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -143,7 +143,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get event: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if existing == nil {
@@ -168,7 +168,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	existing.ExternalEventID = req.ExternalEventID
 
 	if err := h.repo.Update(r.Context(), existing); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update event: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -185,7 +185,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Delete(r.Context(), wsID, id); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to delete event: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 

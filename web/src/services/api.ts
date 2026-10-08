@@ -4,7 +4,6 @@
 // =========================================================
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
-const DEFAULT_WORKSPACE_ID = '018f0000-0000-7000-8000-000000000001';
 
 export interface Space {
   id: string;
@@ -168,9 +167,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.set('Content-Type', 'application/json');
   }
   
-  if (!headers.has('X-Workspace-ID')) {
-    headers.set('X-Workspace-ID', DEFAULT_WORKSPACE_ID);
-  }
 
   const token = getAuthToken();
   if (token && !headers.has('Authorization')) {

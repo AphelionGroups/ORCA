@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -139,16 +140,23 @@ func (r *Repository) UpdatePassword(ctx context.Context, id uuid.UUID, passwordH
 	return nil
 }
 
-func (r *Repository) GetDefaultWorkspaceID(ctx context.Context) (uuid.UUID, error) {
-	query := `SELECT id FROM workspaces ORDER BY created_at ASC LIMIT 1;`
-	var id uuid.UUID
-	err := r.pool.QueryRow(ctx, query).Scan(&id)
+// CreateWithWorkspace atomically provisions an isolated workspace for a new owner.
+func (r *Repository) CreateWithWorkspace(ctx context.Context, u *User) error {
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			// Fallback to default personal workspace
-			return uuid.MustParse("018f0000-0000-7000-8000-000000000001"), nil
-		}
-		return uuid.Nil, fmt.Errorf("auth.repo.GetDefaultWorkspaceID: %w", err)
+		return err
 	}
-	return id, nil
+	defer tx.Rollback(ctx)
+	_, err = tx.Exec(ctx, `INSERT INTO workspaces (id,name,slug,owner_id) VALUES ($1,$2,$3,$4)`, u.WorkspaceID, u.FullName+"'s workspace", u.WorkspaceID.String(), u.ID)
+	if err != nil {
+		return fmt.Errorf("create workspace: %w", err)
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO users (id,workspace_id,email,password_hash,full_name,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`, u.ID, u.WorkspaceID, strings.ToLower(u.Email), u.PasswordHash, u.FullName, u.CreatedAt, u.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("create owner: %w", err)
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return err
+	}
+	return nil
 }

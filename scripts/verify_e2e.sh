@@ -7,6 +7,9 @@ API_BASE=${API_BASE:-"http://localhost:8080"}
 WEB_BASE=${WEB_BASE:-"http://localhost:3000"}
 WORKSPACE_ID=${WORKSPACE_ID:-"018f0000-0000-7000-8000-000000000001"}
 
+AUTH_HEADERS=(-H "X-Workspace-ID: $WORKSPACE_ID")
+if [ -n "${ORCA_TOKEN:-}" ]; then AUTH_HEADERS=(-H "Authorization: Bearer $ORCA_TOKEN"); fi
+
 PASSED=0
 FAILED=0
 
@@ -25,7 +28,7 @@ assert_test() {
 
     printf "Testing: %s ... " "$name"
     local response
-    response=$(curl -s -m 5 -H "X-Workspace-ID: $WORKSPACE_ID" -H "Content-Type: application/json" "$url")
+    response=$(curl -s -m 5 "${AUTH_HEADERS[@]}" -H "Content-Type: application/json" "$url")
     
     if echo "$response" | grep -q "$expected_pattern"; then
         echo -e "\033[0;32mPASS\033[0m"

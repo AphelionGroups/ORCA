@@ -2,6 +2,8 @@ package link
 
 import (
 	"bytes"
+	"context"
+	"github.com/google/uuid"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,6 +18,7 @@ func TestHandler_ListByEntity_MissingQueryParams(t *testing.T) {
 	req := httptest.NewRequest("GET", "/", nil)
 	rec := httptest.NewRecorder()
 
+	req = req.WithContext(context.WithValue(req.Context(), middleware.WorkspaceIDKey, uuid.MustParse(middleware.DefaultPersonalWorkspaceID)))
 	handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
@@ -31,6 +34,7 @@ func TestHandler_Create_Validation(t *testing.T) {
 	req := httptest.NewRequest("POST", "/", body)
 	rec := httptest.NewRecorder()
 
+	req = req.WithContext(context.WithValue(req.Context(), middleware.WorkspaceIDKey, uuid.MustParse(middleware.DefaultPersonalWorkspaceID)))
 	handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
@@ -45,6 +49,7 @@ func TestHandler_Delete_InvalidUUID(t *testing.T) {
 	req := httptest.NewRequest("DELETE", "/invalid-link-id", nil)
 	rec := httptest.NewRecorder()
 
+	req = req.WithContext(context.WithValue(req.Context(), middleware.WorkspaceIDKey, uuid.MustParse(middleware.DefaultPersonalWorkspaceID)))
 	handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {

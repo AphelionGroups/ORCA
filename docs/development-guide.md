@@ -1,3 +1,5 @@
+> **Current validation:** See [Security and deployment upgrade](security-upgrade.md) for migration/API tests, frontend smoke testing, and the opt-in development workspace-header bypass. Test request contexts must include an authenticated workspace.
+
 # Development & Contribution Guide
 
 This document establishes the engineering standards, directory organization, Git workflows, and local environment setup for **ORCA**.

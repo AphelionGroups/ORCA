@@ -19,7 +19,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-s -w" \
-    -o /build/bin/server ./cmd/server/main.go
+    -o /build/bin/server ./cmd/server
 
 # --- Stage 2: Minimal Runtime ---
 FROM docker.io/library/alpine:3.20
@@ -32,7 +32,7 @@ WORKDIR /app
 COPY --from=builder /build/bin/server /app/server
 COPY --from=builder /build/migrations /app/migrations
 
-RUN chown -R orca:orca /app
+RUN mkdir -p /app/uploads && chown -R orca:orca /app
 
 USER orca
 

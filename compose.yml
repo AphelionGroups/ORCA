@@ -31,7 +31,9 @@ services:
       # Database Auto-Migration upon setup
       AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
       # Security & JWT Secret
-      JWT_SECRET: ${JWT_SECRET:-orca_super_secret_jwt_key_2026_change_in_production}
+      JWT_SECRET: ${JWT_SECRET:-}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+      ALLOW_DEV_WORKSPACE_HEADER: ${ALLOW_DEV_WORKSPACE_HEADER:-false}
       # Object Storage for Images (Supabase, R2, AWS, MinIO, or Local)
       STORAGE_DRIVER: ${STORAGE_DRIVER:-auto}
       STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT:-}
@@ -40,7 +42,9 @@ services:
       STORAGE_S3_ACCESS_KEY: ${STORAGE_S3_ACCESS_KEY:-}
       STORAGE_S3_SECRET_KEY: ${STORAGE_S3_SECRET_KEY:-}
       STORAGE_S3_PUBLIC_URL_BASE: ${STORAGE_S3_PUBLIC_URL_BASE:-}
-      STORAGE_LOCAL_DIR: ${STORAGE_LOCAL_DIR:-./uploads}
+      STORAGE_LOCAL_DIR: /app/uploads
+    volumes:
+      - orca_uploads:/app/uploads
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
       interval: 10s
@@ -72,3 +76,6 @@ services:
 networks:
   orca-net:
     driver: bridge
+
+volumes:
+  orca_uploads:
