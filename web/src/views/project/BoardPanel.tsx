@@ -23,7 +23,7 @@ import { DynamicShapeIcon, SHAPE_OPTIONS, UnifiedMarkdownBlock, formatRelativeTi
 import type { ProjectController } from './useProjectController';
 export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
   const ctx = props.ctx; return (<Show when={ctx.activeTab() === 'board'}>
-    <Show when={ctx.isBoardCanvasOpen()} fallback={<div style={{
+    <Show when={ctx.isBoardCanvasOpen()} fallback={<div class="board-gallery" style={{
       width: '100%',
       height: '100%',
       overflow: 'auto',
@@ -48,9 +48,9 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
               Boards
             </h2>
             <span style={{
-              "font-size": '11px',
+              "font-size": '12px',
               padding: '2px 8px',
-              "border-radius": '12px',
+              "border-radius": '4px',
               background: 'var(--surface-container-high)',
               color: 'var(--text-muted)',
               "font-family": 'var(--font-mono)'
@@ -87,10 +87,10 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           "align-items": 'center',
           gap: '12px',
           padding: '14px 20px',
-          "border-radius": '10px',
+          "border-radius": '4px',
           background: 'var(--surface-container-low)',
           border: '1px solid var(--primary)',
-          "box-shadow": '0 4px 16px rgba(0,0,0,0.12)'
+          "box-shadow": 'none'
         }}>
           <LayoutGrid size={16} color="var(--primary)" />
           <span style={{ "font-size": '13px', "font-weight": 500, color: 'var(--text-main)' }}>Nama Board:</span>
@@ -143,7 +143,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
               "flex-direction": 'column',
               background: 'var(--surface-container)',
               border: isCardHovered() ? '1px solid var(--secondary)' : '1px solid var(--border-default)',
-              "border-radius": '12px',
+              "border-radius": '4px',
               overflow: 'hidden',
               cursor: 'pointer',
               transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
@@ -157,7 +157,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                 width: '100%',
                 height: '150px',
                 background: 'var(--surface-container-lowest, #0e1217)',
-                "background-image": 'radial-gradient(var(--canvas-dot, rgba(255, 255, 255, 0.16)) 1.2px, transparent 1.2px)',
+                "background-image": 'var(--surface-muted)',
                 "background-size": '16px 16px',
                 overflow: 'hidden',
                 display: 'flex',
@@ -174,7 +174,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                   color: 'var(--text-muted)'
                 }}>
                   <LayoutGrid size={22} />
-                  <span style={{ "font-size": '11px', "letter-spacing": '0.3px' }}>Kanvas Kosong</span>
+                  <span style={{ "font-size": '12px', "letter-spacing": '0.3px' }}>Kanvas Kosong</span>
                 </div>}>
                   {/* Simulated miniature spatial elements */}
                   <div style={{
@@ -190,18 +190,18 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                       left: '12px',
                       width: '68px',
                       height: '56px',
-                      background: '#fef08a',
+                      background: 'var(--surface-muted)',
                       "border-radius": '4px',
-                      "box-shadow": '0 3px 8px rgba(0,0,0,0.25)',
+                      "box-shadow": 'none',
                       transform: 'rotate(-4deg)',
                       padding: '6px',
                       display: 'flex',
                       "flex-direction": 'column',
                       gap: '3px'
                     }}>
-                      <div style={{ width: '40px', height: '3px', background: '#854d0e', opacity: 0.7, "border-radius": '2px' }} />
-                      <div style={{ width: '52px', height: '2px', background: '#a16207', opacity: 0.4, "border-radius": '1px' }} />
-                      <div style={{ width: '34px', height: '2px', background: '#a16207', opacity: 0.4, "border-radius": '1px' }} />
+                      <div style={{ width: '40px', height: '3px', background: 'var(--text-primary)', opacity: 0.7, "border-radius": '2px' }} />
+                      <div style={{ width: '52px', height: '2px', background: 'var(--text-secondary)', opacity: 0.4, "border-radius": '1px' }} />
+                      <div style={{ width: '34px', height: '2px', background: 'var(--text-secondary)', opacity: 0.4, "border-radius": '1px' }} />
                     </div>
 
                     {/* Miniature Card Node */}
@@ -214,7 +214,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                       background: 'var(--surface-container-high)',
                       border: '1px solid var(--primary)',
                       "border-radius": '6px',
-                      "box-shadow": '0 4px 10px rgba(0,0,0,0.3)',
+                      "box-shadow": 'none',
                       padding: '6px',
                       display: 'flex',
                       "flex-direction": 'column',
@@ -241,11 +241,11 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                   top: '10px',
                   right: '10px',
                   padding: '2px 8px',
-                  "border-radius": '10px',
+                  "border-radius": '4px',
                   background: 'rgba(0,0,0,0.5)',
-                  "backdrop-filter": 'blur(4px)',
+                  "backdrop-filter": 'none',
                   color: 'var(--text-muted)',
-                  "font-size": '10px',
+                  "font-size": '12px',
                   "font-family": 'var(--font-mono)',
                   display: 'flex',
                   "align-items": 'center',
@@ -260,7 +260,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                   position: 'absolute',
                   inset: 0,
                   background: 'rgba(0, 0, 0, 0.48)',
-                  "backdrop-filter": 'blur(2px)',
+                  "backdrop-filter": 'none',
                   display: 'flex',
                   "align-items": 'center',
                   "justify-content": 'center',
@@ -270,12 +270,12 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                 }}>
                   <span style={{
                     padding: '6px 14px',
-                    "border-radius": '20px',
+                    "border-radius": '4px',
                     background: 'var(--secondary)',
-                    color: '#0b0f17',
+                    color: 'var(--action-primary-text)',
                     "font-size": '12px',
                     "font-weight": 600,
-                    "box-shadow": '0 4px 12px rgba(68, 225, 222, 0.35)',
+                    "box-shadow": 'none',
                     display: 'flex',
                     "align-items": 'center',
                     gap: '6px'
@@ -381,7 +381,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                   display: 'flex',
                   "align-items": 'center',
                   "justify-content": 'space-between',
-                  "font-size": '11px',
+                  "font-size": '12px',
                   color: 'var(--text-dim)'
                 }}>
                   <span>Diperbarui {formatRelativeTime(b.updated_at)}</span>
@@ -403,7 +403,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           gap: '10px',
           "min-height": '220px',
           border: '1.5px dashed var(--border-default)',
-          "border-radius": '12px',
+          "border-radius": '4px',
           background: 'transparent',
           cursor: 'pointer',
           transition: 'all 0.18s ease',
@@ -484,7 +484,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           "border-radius": '8px',
           "background-color": 'var(--surface-container-low)',
           border: '1px solid var(--border-default)',
-          "box-shadow": '0 4px 16px rgba(0,0,0,0.18)'
+          "box-shadow": 'none'
         }}>
           {/* Back to All Boards Button */}
           <button type="button" onClick={ctx.handleCloseBoardCanvas} style={{
@@ -525,7 +525,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
 
           {/* Item count badge */}
           <span style={{
-            "font-size": '11px',
+            "font-size": '12px',
             color: 'var(--text-dim)',
             "font-family": 'var(--font-mono)',
             padding: '2px 6px',
@@ -540,7 +540,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
         <div style={{
           position: 'absolute',
           inset: 0,
-          "background-image": 'radial-gradient(var(--canvas-dot) 1px, transparent 1px)',
+          "background-image": 'var(--surface-muted)',
           "background-size": '24px 24px',
           "background-position": `${ctx.pan().x}px ${ctx.pan().y}px`,
           "pointer-events": 'none'
@@ -567,10 +567,10 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           }}>
             <defs>
               <marker id="orca-arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6" />
+                <path d="M0,0 L0,6 L8,3 z" fill="var(--focus-ring)" />
               </marker>
               <marker id="orca-arrowhead-selected" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6" />
+                <path d="M0,0 L0,6 L8,3 z" fill="var(--focus-ring)" />
               </marker>
             </defs>
             {ctx.renderConnectorCurves()}
@@ -617,10 +617,10 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
               return (<svg class="canvas-arrow-preview" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 'pointer-events': 'none', 'z-index': 60, overflow: 'visible' }}>
                 <defs>
                   <marker id="arrow-preview-head" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                    <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6" />
+                    <path d="M0,0 L0,6 L8,3 z" fill="var(--focus-ring)" />
                   </marker>
                 </defs>
-                <path d={`M ${s.x} ${s.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tipX} ${tipY}`} fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6 4" opacity="0.9" marker-end="url(#arrow-preview-head)" />
+                <path d={`M ${s.x} ${s.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tipX} ${tipY}`} fill="none" stroke="var(--focus-ring)" stroke-width="2" stroke-dasharray="6 4" opacity="0.9" marker-end="url(#arrow-preview-head)" />
               </svg>);
             })()}
           </Show>
@@ -693,7 +693,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                       ? '50,2 98,50 50,98 2,50'
                       : shapeKind === 'triangle'
                         ? '50,2 98,98 2,98'
-                        : '25,2 75,2 98,50 75,98 25,98 2,50'} fill="rgba(59, 130, 246, 0.08)" stroke="#3b82f6" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                        : '25,2 75,2 98,50 75,98 25,98 2,50'} fill="rgba(59, 130, 246, 0.08)" stroke="var(--focus-ring)" stroke-width="1.5" vector-effect="non-scaling-stroke" />
                   </svg>
                 </div>);
               }
@@ -703,12 +703,12 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                 width: `${width}px`,
                 height: `${height}px`,
                 border: isSticky
-                  ? '2px dashed #3b82f6'
+                  ? '2px dashed var(--focus-ring)'
                   : isShape
-                    ? '1.5px solid #3b82f6'
+                    ? '1.5px solid var(--focus-ring)'
                     : isText
                       ? '1px dashed rgba(255,255,255,0.6)'
-                      : '2px dashed #3b82f6',
+                      : '2px dashed var(--focus-ring)',
                 background: isSticky
                   ? 'var(--surface-sticky)'
                   : isShape
@@ -718,7 +718,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                       : 'var(--surface-card)',
                 "border-radius": isShape ? (shapeKind === 'circle' ? '9999px' : '8px') : isSticky ? '4px' : '8px',
                 "clip-path": isSticky ? 'polygon(0px 0px, calc(100% - 16px) 0px, 100% 16px, 100% 100%, 0px 100%)' : undefined,
-                "box-shadow": '0 8px 24px rgba(0, 0, 0, 0.4)'
+                "box-shadow": 'none'
               }} />);
             })()}
           </Show>
@@ -783,7 +783,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                   ? (fillStyle() === 'transparent' ? 'transparent' : (blockColor() || (block.type === 'sticky' ? 'var(--surface-sticky)' : 'var(--surface-card)')))
                   : undefined,
                 color: computedTextColor(),
-                outline: isConnectingSource() && !isSvgShape() ? '2px dashed #3b82f6' : undefined
+                outline: isConnectingSource() && !isSvgShape() ? '2px dashed var(--focus-ring)' : undefined
               }}>
                 {/* Lock Badge */}
                 <Show when={isLocked()}>
@@ -804,7 +804,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                         ? '50,2 98,98 2,98'
                         : '25,2 75,2 98,50 75,98 25,98 2,50'} fill={fillStyle() === 'transparent'
                           ? 'transparent'
-                          : (blockColor() || 'var(--surface-card)')} stroke={isSelected() || isConnectingSource() ? '#3b82f6' : (blockColor() || 'var(--border-medium)')} stroke-width={isSelected() || isConnectingSource() ? '2' : '1.5'} stroke-dasharray={borderStyle() === 'dashed' ? '6,4' : undefined} vector-effect="non-scaling-stroke" />
+                          : (blockColor() || 'var(--surface-card)')} stroke={isSelected() || isConnectingSource() ? 'var(--focus-ring)' : (blockColor() || 'var(--border-medium)')} stroke-width={isSelected() || isConnectingSource() ? '2' : '1.5'} stroke-dasharray={borderStyle() === 'dashed' ? '6,4' : undefined} vector-effect="non-scaling-stroke" />
                   </svg>
                 </Show>
 
@@ -999,7 +999,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           <div class="tool-divider"></div>
 
           {/* Zoom Controls */}
-          <div style={{ display: 'flex', "align-items": 'center', gap: '2px', "font-size": '11px', "font-family": 'var(--font-mono)' }}>
+          <div style={{ display: 'flex', "align-items": 'center', gap: '2px', "font-size": '12px', "font-family": 'var(--font-mono)' }}>
             <button onClick={() => ctx.setZoom(z => Math.max(50, z - 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
               -
               <span class="tool-tooltip">

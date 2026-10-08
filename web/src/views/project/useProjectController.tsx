@@ -1589,7 +1589,7 @@ export function useProjectController(props: ProjectsViewProps) {
     const defaultContent = type === 'shape'
       ? { text: '', shape_kind: srcBlock.content?.shape_kind || 'rectangle' }
       : type === 'sticky'
-        ? { text: '', color: '#44e1de', author: authorData }
+        ? { text: '', color: 'var(--text-main)', author: authorData }
         : { text: '' };
     try {
       const created = await api.createNoteBlock(board.id, {
@@ -1642,7 +1642,7 @@ export function useProjectController(props: ProjectsViewProps) {
     const defaultShapeKind = selectedShapeKind();
     const defaultContent = {
       card: { text: '' },
-      sticky: { text: '', color: '#44e1de', author: authorData },
+      sticky: { text: '', color: 'var(--text-main)', author: authorData },
       text: { text: '' },
       shape: { text: '', shape_kind: defaultShapeKind },
       image: { text: '' },
@@ -2223,7 +2223,7 @@ export function useProjectController(props: ProjectsViewProps) {
             <path
               d={pathData}
               fill="none"
-              stroke="#3b82f6"
+              stroke="var(--focus-ring)"
               stroke-width="10"
               stroke-linecap="round"
               opacity="0.25"
@@ -2232,7 +2232,7 @@ export function useProjectController(props: ProjectsViewProps) {
             <path
               d={pathData}
               fill="none"
-              stroke="#60a5fa"
+              stroke="var(--focus-ring)"
               stroke-width="5"
               stroke-linecap="round"
               opacity="0.4"
@@ -2243,7 +2243,7 @@ export function useProjectController(props: ProjectsViewProps) {
           <path
             d={pathData}
             fill="none"
-            stroke="#3b82f6"
+            stroke="var(--focus-ring)"
             stroke-width={isSelected ? '2.4' : '1.8'}
             opacity="1"
             marker-end="url(#orca-arrowhead)"
@@ -2264,8 +2264,8 @@ export function useProjectController(props: ProjectsViewProps) {
                 cx={p1.x}
                 cy={p1.y}
                 r={isDraggingThisStart ? '6.5' : '5'}
-                fill={isDraggingThisStart ? '#3b82f6' : '#ffffff'}
-                stroke={isDraggingThisStart ? '#ffffff' : '#3b82f6'}
+                fill={isDraggingThisStart ? 'var(--focus-ring)' : 'var(--surface-panel)'}
+                stroke={isDraggingThisStart ? 'var(--surface-panel)' : 'var(--focus-ring)'}
                 stroke-width="2.5"
                 style={{ filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.45))' }}
               />
@@ -2283,8 +2283,8 @@ export function useProjectController(props: ProjectsViewProps) {
                 cx={p2.x}
                 cy={p2.y}
                 r={isDraggingThisEnd ? '6.5' : '5'}
-                fill={isDraggingThisEnd ? '#3b82f6' : '#ffffff'}
-                stroke={isDraggingThisEnd ? '#ffffff' : '#3b82f6'}
+                fill={isDraggingThisEnd ? 'var(--focus-ring)' : 'var(--surface-panel)'}
+                stroke={isDraggingThisEnd ? 'var(--surface-panel)' : 'var(--focus-ring)'}
                 stroke-width="2.5"
                 style={{ filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.45))' }}
               />
@@ -2313,7 +2313,7 @@ export function useProjectController(props: ProjectsViewProps) {
                       width: '22px',
                       height: '22px',
                       "border-radius": '50%',
-                      background: '#ef4444',
+                      background: 'var(--status-error)',
                       border: '2px solid var(--surface)',
                       color: '#ffffff',
                       display: 'flex',
@@ -2321,9 +2321,9 @@ export function useProjectController(props: ProjectsViewProps) {
                       "justify-content": 'center',
                       cursor: 'pointer',
                       padding: 0,
-                      "font-size": '11px',
+                      "font-size": '12px',
                       "font-weight": 'bold',
-                      "box-shadow": '0 2px 6px rgba(0,0,0,0.35)'
+                      "box-shadow": 'none'
                     }}
                   >
                     ✕
@@ -2480,7 +2480,7 @@ export function useProjectController(props: ProjectsViewProps) {
                 height: '13px',
                 "border-radius": '50%',
                 background: currentColor,
-                border: '1.5px solid rgba(255,255,255,0.4)',
+                border: '1.5px solid var(--surface-muted)',
               }}
             />
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -2508,11 +2508,11 @@ export function useProjectController(props: ProjectsViewProps) {
                 class="ctx-color-swatch"
                 style={{
                   background: 'transparent',
-                  border: '1.5px dashed rgba(255,255,255,0.4)',
+                  border: '1.5px dashed var(--surface-muted)',
                   display: 'flex',
                   "align-items": 'center',
                   "justify-content": 'center',
-                  "font-size": '10px',
+                  "font-size": '12px',
                   color: '#94a3b8'
                 }}
                 title="Reset color"
@@ -2589,7 +2589,7 @@ export function useProjectController(props: ProjectsViewProps) {
           class={`ctx-btn ${isLocked ? 'active' : ''}`}
           title={isLocked ? "Unlock object" : "Lock object"}
           onClick={() => handleUpdateBlockContent(block.id, { locked: !isLocked })}
-          style={isLocked ? { color: '#fbbf24', 'background-color': 'rgba(251, 191, 36, 0.15)', 'border-color': 'rgba(251, 191, 36, 0.3)' } : {}}
+          style={isLocked ? { color: 'var(--status-warning)', 'background-color': 'rgba(251, 191, 36, 0.15)', 'border-color': 'rgba(251, 191, 36, 0.3)' } : {}}
         >
           <Show when={isLocked} fallback={
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2678,7 +2678,7 @@ export function useProjectController(props: ProjectsViewProps) {
                 </span>
               </button>
 
-              <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', margin: '2px 0' }} />
+              <div style={{ height: '1px', background: 'var(--surface-muted)', margin: '2px 0' }} />
 
               <button
                 class="ctx-menu-item danger"

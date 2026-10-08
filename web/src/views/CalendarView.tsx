@@ -1,3 +1,4 @@
+import { focusScope } from '../components/focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, onMount, For, Show, createEffect } from 'solid-js';
 import { 
@@ -150,11 +151,11 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
       </header>
 
       {/* Ribbon Controls */}
-      <div style={{ padding: '24px 32px 16px 32px', display: 'flex', "flex-wrap": 'wrap', "align-items": 'center', "justify-content": 'space-between', gap: '16px' }}>
+      <div class="calendar-ribbon" style={{ padding: '24px 32px 16px 32px', display: 'flex', "flex-wrap": 'wrap', "align-items": 'center', "justify-content": 'space-between', gap: '16px' }}>
         <div style={{ display: 'flex', "align-items": 'center', gap: '24px' }}>
           <div style={{ display: 'flex', "align-items": 'baseline', gap: '8px' }}>
-            <span style={{ "font-size": '22px', color: 'var(--text-main)', "font-weight": 600, "letter-spacing": '-0.02em' }}>Current Sprint</span>
-            <span style={{ "font-size": '16px', color: 'var(--text-muted)', "font-weight": 300 }}>2026</span>
+            <span style={{ "font-size": '22px', color: 'var(--text-main)', "font-weight": 600, "letter-spacing": '-0.02em' }}>Schedule</span>
+
           </div>
           <div style={{ display: 'flex', "align-items": 'center', padding: '2px', "border-radius": '4px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)' }}>
             <button style={{ width: '28px', height: '28px', display: 'flex', "align-items": 'center', "justify-content": 'center', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -167,12 +168,12 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
           </div>
 
           {/* Space Filters */}
-          <div style={{ display: 'flex', "align-items": 'center', gap: '4px', padding: '3px', "border-radius": '9999px', "background-color": 'var(--surface-container-lowest)', border: '1px solid var(--border-default)' }}>
+          <div style={{ display: 'flex', "align-items": 'center', gap: '4px', padding: '3px', "border-radius": '4px', "background-color": 'var(--surface-container-lowest)', border: '1px solid var(--border-default)' }}>
             <button
               onClick={() => setSpaceFilter('all')}
               style={{
                 padding: '4px 12px',
-                "border-radius": '9999px',
+                "border-radius": '4px',
                 "font-size": '12px',
                 border: 'none',
                 "background-color": spaceFilter() === 'all' ? 'var(--surface-container-high)' : 'transparent',
@@ -189,7 +190,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                   onClick={() => setSpaceFilter(sp.id)}
                   style={{
                     padding: '4px 12px',
-                    "border-radius": '9999px',
+                    "border-radius": '4px',
                     "font-size": '12px',
                     border: 'none',
                     "background-color": spaceFilter() === sp.id ? 'var(--surface-container-high)' : 'transparent',
@@ -231,13 +232,13 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
       </div>
 
       {/* Matrix & Backlog */}
-      <div style={{ padding: '0 32px 48px 32px', display: 'flex', gap: '24px', "align-items": 'flex-start' }}>
+      <div class="calendar-layout" style={{ padding: '0 32px 48px 32px', display: 'flex', gap: '24px', "align-items": 'flex-start' }}>
         {/* Left Unscheduled Backlog */}
         <div style={{ width: '280px', "flex-shrink": 0, display: 'flex', "flex-direction": 'column', gap: '12px' }}>
           <div style={{ padding: '16px', "border-radius": '8px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', gap: '4px' }}>
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-              <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', "letter-spacing": '0.1em', color: 'var(--text-dim)' }}>Unscheduled Nodes</span>
-              <span style={{ padding: '2px 6px', "border-radius": '4px', "background-color": 'var(--surface-container-high)', "font-size": '10px', color: 'var(--text-main)' }}>
+              <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', "letter-spacing": '0.1em', color: 'var(--text-dim)' }}>Unscheduled Nodes</span>
+              <span style={{ padding: '2px 6px', "border-radius": '4px', "background-color": 'var(--surface-container-high)', "font-size": '12px', color: 'var(--text-main)' }}>
                 {backlogTasks().length}
               </span>
             </div>
@@ -247,7 +248,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
           </div>
 
           <Show when={backlogTasks().length > 0} fallback={
-            <div style={{ padding: '24px', "text-align": 'center', color: 'var(--text-dim)', "font-size": '11px' }}>
+            <div style={{ padding: '24px', "text-align": 'center', color: 'var(--text-dim)', "font-size": '12px' }}>
               No unscheduled inbox tasks.
             </div>
           }>
@@ -268,10 +269,10 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                       <span style={{
                         padding: '2px 6px',
                         "border-radius": '4px',
-                        "font-size": '10px',
+                        "font-size": '12px',
                         "font-family": 'var(--font-mono)',
                         "text-transform": 'uppercase',
-                        "background-color": 'rgba(68,225,222,0.1)',
+                        "background-color": 'var(--surface-muted)',
                         color: sp.color
                       }}>
                         {sp.name}
@@ -281,7 +282,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                     <h4 style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)', margin: 0, "line-height": 1.4 }}>
                       {task.title}
                     </h4>
-                    <div style={{ "margin-top": '8px', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '11px', color: 'var(--text-dim)' }}>
+                    <div style={{ "margin-top": '8px', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '12px', color: 'var(--text-dim)' }}>
                       <div style={{ display: 'flex', "align-items": 'center', gap: '4px' }}>
                         <Box size={12} color="var(--secondary)" />
                         <span>Task node</span>
@@ -296,15 +297,15 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
         </div>
 
         {/* Main Weekly Architectural Grid */}
-        <div style={{ flex: 1, "min-width": 0, "border-radius": '8px', "background-color": 'var(--surface-container-lowest)', border: '1px solid var(--border-default)', overflow: 'hidden', display: 'flex', "flex-direction": 'column' }}>
+        <div class="calendar-grid" tabIndex={0} role="region" aria-label="Calendar grid, scroll horizontally" style={{ flex: 1, "min-width": 0, "border-radius": '8px', "background-color": 'var(--surface-container-lowest)', border: '1px solid var(--border-default)', overflow: 'hidden', display: 'flex', "flex-direction": 'column' }}>
           {/* Day Columns Header */}
           <div style={{ display: 'grid', "grid-template-columns": '60px repeat(5, 1fr)', "background-color": 'var(--surface-container-low)', "border-bottom": '1px solid var(--border-default)', "text-align": 'center' }}>
-            <div style={{ padding: '12px 0', "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>Time</div>
+            <div style={{ padding: '12px 0', "font-size": '12px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>Time</div>
             <div style={{ padding: '12px 0', "border-left": '1px solid var(--border-default)' }}><span style={{ "font-size": '12px', color: 'var(--text-dim)', "font-weight": 500 }}>Mon</span></div>
             <div style={{ padding: '12px 0', "border-left": '1px solid var(--border-default)' }}><span style={{ "font-size": '12px', color: 'var(--text-dim)', "font-weight": 500 }}>Tue</span></div>
             <div style={{ padding: '12px 0', "border-left": '1px solid var(--border-default)', "background-color": 'var(--surface-container-high)', position: 'relative' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', "background-color": 'var(--secondary)' }}></div>
-              <span style={{ "font-size": '12px', color: 'var(--secondary)', "font-weight": 600 }}>Wed (Today)</span>
+              <span style={{ "font-size": '12px', color: 'var(--secondary)', "font-weight": 600 }}>Wed</span>
             </div>
             <div style={{ padding: '12px 0', "border-left": '1px solid var(--border-default)' }}><span style={{ "font-size": '12px', color: 'var(--text-dim)', "font-weight": 500 }}>Thu</span></div>
             <div style={{ padding: '12px 0', "border-left": '1px solid var(--border-default)' }}><span style={{ "font-size": '12px', color: 'var(--text-dim)', "font-weight": 500 }}>Fri</span></div>
@@ -313,7 +314,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
           {/* Time Slots Area */}
           <div style={{ position: 'relative', display: 'grid', "grid-template-columns": '60px repeat(5, 1fr)', height: '620px', "overflow-y": 'auto' }}>
             {/* Time labels column */}
-            <div style={{ display: 'flex', "flex-direction": 'column', "text-align": 'right', "font-family": 'var(--font-mono)', "font-size": '10px', color: 'rgba(100,116,139,0.6)', "padding-right": '8px', "padding-top": '8px', "border-right": '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'flex', "flex-direction": 'column', "text-align": 'right', "font-family": 'var(--font-mono)', "font-size": '12px', color: 'var(--text-secondary)', "padding-right": '8px', "padding-top": '8px', "border-right": '1px solid rgba(255,255,255,0.05)' }}>
               <div style={{ height: '64px' }}>08:00</div>
               <div style={{ height: '64px' }}>10:00</div>
               <div style={{ height: '64px' }}>12:00</div>
@@ -322,37 +323,14 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
               <div style={{ height: '64px' }}>18:00</div>
             </div>
 
-            {/* Col Mon */}
-            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }}>
-              <div style={{ position: 'absolute', top: '16px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
-                <div>
-                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0, overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>Brand Visual Alignment</h5>
-                </div>
-                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>08:30 - 10:15</span>
-              </div>
-            </div>
+            {/* Mon column */}
+            <div style={{ "border-right": "1px solid var(--border-subtle)" }} />
 
-            {/* Col Tue */}
-            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }}>
-              <div style={{ position: 'absolute', top: '112px', left: '6px', right: '6px', height: '112px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
-                <div>
-                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--primary)', "text-transform": 'uppercase' }}>Kantor</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>Sprint Architecture Sync</h5>
-                </div>
-                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>10:00 - 12:30</span>
-              </div>
-            </div>
+            {/* Tue column */}
+            <div style={{ "border-right": "1px solid var(--border-subtle)" }} />
 
             {/* Col Wed (Today Active with Live events from PostgreSQL) */}
-            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)', "background-color": 'rgba(68,225,222,0.02)' }}>
-              {/* Current line pulse */}
-              <div style={{ position: 'absolute', top: '160px', left: 0, right: 0, "z-index": 30, display: 'flex', "align-items": 'center', "pointer-events": 'none' }}>
-                <div style={{ width: '8px', height: '8px', "border-radius": '50%', "background-color": 'var(--secondary)', "margin-left": '-4px' }}></div>
-                <div style={{ height: '1px', flex: 1, "background-color": 'var(--secondary)', "box-shadow": '0 0 8px rgba(68,225,222,0.8)' }}></div>
-                <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', "background-color": 'var(--secondary)', color: '#000', padding: '0 4px', "border-radius": '2px', "margin-right": '4px' }}>Now</span>
-              </div>
-
+            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)', "background-color": 'var(--surface-muted)' }}>
               {/* Dynamic Events from PostgreSQL */}
               <For each={events()}>
                 {(ev, index) => {
@@ -369,20 +347,20 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                       "border-radius": '6px',
                       padding: '10px',
                       "background-color": index() === 0 ? 'var(--surface-container-high)' : 'var(--surface-container-low)',
-                      border: index() === 0 ? '1px solid rgba(68,225,222,0.4)' : '1px solid var(--border-default)',
+                      border: '1px solid var(--border-control)',
                       display: 'flex',
                       "flex-direction": 'column',
                       "justify-content": 'space-between'
                     }}>
                       <div>
-                        <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: sp.color, "text-transform": 'uppercase' }}>
-                          {sp.name} {index() === 0 ? '• Live' : ''}
+                        <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: sp.color, "text-transform": 'uppercase' }}>
+                          {sp.name}
                         </span>
                         <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>
                           {ev.title}
                         </h5>
                       </div>
-                      <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: index() === 0 ? 'var(--secondary)' : 'var(--text-dim)' }}>
+                      <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: index() === 0 ? 'var(--secondary)' : 'var(--text-dim)' }}>
                         {new Date(ev.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(ev.end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -391,27 +369,11 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
               </For>
             </div>
 
-            {/* Col Thu */}
-            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }}>
-              <div style={{ position: 'absolute', top: '80px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
-                <div>
-                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--primary)', "text-transform": 'uppercase' }}>Kantor</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>Quarterly Budget Modeling</h5>
-                </div>
-                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>09:30 - 11:30</span>
-              </div>
-            </div>
+            {/* Thu column */}
+            <div style={{ "border-right": "1px solid var(--border-subtle)" }} />
 
-            {/* Col Fri */}
-            <div style={{ position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '144px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
-                <div>
-                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>Launch Campaign Review</h5>
-                </div>
-                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>11:00 - 12:30</span>
-              </div>
-            </div>
+            {/* Friday column */}
+            <div />
           </div>
         </div>
       </div>
@@ -426,19 +388,19 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
             display: 'flex',
             "align-items": 'center',
             "justify-content": 'center',
-            "background-color": 'rgba(0, 0, 0, 0.6)',
-            "backdrop-filter": 'blur(4px)',
+            "background-color": 'var(--overlay)',
+            "backdrop-filter": 'none',
             padding: '16px'
           }}
           onClick={(e) => { if (e.target === e.currentTarget) setIsEventModalOpen(false); }}
         >
-          <div style={{
+          <div class="modal-card" ref={el => focusScope(el, () => setIsEventModalOpen(false))} style={{
             position: 'relative',
             width: '100%',
             "max-width": '420px',
             "background-color": 'var(--surface-card)',
             border: '1px solid var(--border-default)',
-            "box-shadow": 'var(--shadow-elevation)',
+            "box-shadow": 'none',
             "border-radius": '8px',
             padding: '20px'
           }}>
@@ -447,7 +409,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                 <Calendar size={16} color="var(--primary)" />
                 <h3 style={{ "font-size": '13px', "font-weight": 600, color: 'var(--text-main)', margin: 0 }}>Schedule Event</h3>
               </div>
-              <button 
+              <button aria-label="Close schedule dialog"
                 onClick={() => setIsEventModalOpen(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}
               >
@@ -457,7 +419,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
 
             <form onSubmit={handleCreateEvent} style={{ display: 'flex', "flex-direction": 'column', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>EVENT TITLE</label>
+                <label style={{ display: 'block', "font-size": '12px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>EVENT TITLE</label>
                 <input 
                   type="text"
                   autofocus
@@ -470,7 +432,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
 
               <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>SPACE</label>
+                  <label style={{ display: 'block', "font-size": '12px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>SPACE</label>
                   <select
                     value={eventSpaceId()}
                     onChange={e => setEventSpaceId(e.currentTarget.value)}
@@ -483,7 +445,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>DAY</label>
+                  <label style={{ display: 'block', "font-size": '12px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>DAY</label>
                   <select
                     value={eventDayOffset()}
                     onChange={e => setEventDayOffset(Number(e.currentTarget.value))}
@@ -500,7 +462,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
 
               <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>START TIME</label>
+                  <label style={{ display: 'block', "font-size": '12px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>START TIME</label>
                   <input 
                     type="time" 
                     value={eventStartHour()}
@@ -509,7 +471,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>END TIME</label>
+                  <label style={{ display: 'block', "font-size": '12px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>END TIME</label>
                   <input 
                     type="time" 
                     value={eventEndHour()}

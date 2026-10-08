@@ -13,7 +13,7 @@ import { api } from '../../services/api';
 import type { ProjectController } from './useProjectController';
 export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
   const ctx = props.ctx; return (<Show when={ctx.activeTab() === 'tasks'}>
-    <div style={{ height: '100%', "overflow-y": 'auto', padding: '24px 32px', "background-color": 'var(--surface)' }}>
+    <div class="tasks-workspace" style={{ height: '100%', "overflow-y": 'auto', padding: '24px 32px', "background-color": 'var(--surface)' }}>
       {/* Task View Mode Switcher & Actions Header */}
       <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '20px' }}>
         <div class="segmented-control">
@@ -37,7 +37,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
 
       {/* View 1: KANBAN BOARD */}
       <Show when={ctx.taskViewMode() === 'kanban'}>
-        <div style={{ display: 'grid', "grid-template-columns": 'repeat(4, minmax(260px, 1fr))', gap: '16px', "align-items": 'flex-start' }}>
+        <div class="kanban-grid" tabIndex={0} role="region" aria-label="Task columns, scroll horizontally" style={{ display: 'grid', "grid-template-columns": 'repeat(4, minmax(260px, 1fr))', gap: '16px', "align-items": 'flex-start' }}>
           {[
             { key: 'todo' as const, title: 'Backlog', color: 'var(--outline-variant)' },
             { key: 'in_progress' as const, title: 'In Progress', color: 'var(--primary)' },
@@ -64,7 +64,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                   <span style={{ "font-size": '13px', "font-weight": 600, color: 'var(--text-main)' }}>{col.title}</span>
                 </div>
                 <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-                  <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 6px', "border-radius": '4px', "background-color": 'var(--surface-container-high)' }}>
+                  <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 6px', "border-radius": '4px', "background-color": 'var(--surface-container-high)' }}>
                     {colTasks().length}
                   </span>
                   <button onClick={() => ctx.handleOpenNewTaskModal(col.key)} title={`Add task in ${col.title}`} style={{
@@ -98,11 +98,11 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                     transition: 'box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease'
                   }}>
                     <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', gap: '8px' }}>
-                      <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                      <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
                         #{t.id.slice(-4)}
                       </span>
                       <span style={{
-                        "font-size": '10px',
+                        "font-size": '12px',
                         "font-family": 'var(--font-mono)',
                         "text-transform": 'uppercase',
                         padding: '2px 6px',
@@ -117,7 +117,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                       {t.title}
                     </h4>
                     <Show when={t.due_date}>
-                      <div style={{ display: 'flex', "align-items": 'center', "font-size": '11px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
+                      <div style={{ display: 'flex', "align-items": 'center', "font-size": '12px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
                         <span>Due {new Date(t.due_date!).toLocaleDateString()}</span>
                       </div>
                     </Show>
@@ -202,7 +202,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                         }}>
                           {t.title}
                         </span>
-                        <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                        <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
                           #{t.id.slice(-4)} {t.due_date ? `• Due ${new Date(t.due_date).toLocaleDateString()}` : ''}
                         </span>
                       </div>
@@ -210,7 +210,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
 
                     <div style={{ display: 'flex', "align-items": 'center', gap: '10px', "flex-shrink": 0 }}>
                       <span style={{
-                        "font-size": '10px',
+                        "font-size": '12px',
                         "font-family": 'var(--font-mono)',
                         "text-transform": 'uppercase',
                         padding: '2px 7px',
@@ -223,7 +223,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
 
                       <span style={{
                         padding: '3px 8px',
-                        "font-size": '11px',
+                        "font-size": '12px',
                         "border-radius": '4px',
                         background: 'var(--surface-container-high)',
                         color: 'var(--text-muted)',
@@ -232,7 +232,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                         {t.status.replace('_', ' ')}
                       </span>
 
-                      <button type="button" onClick={() => ctx.handleOpenEditTaskModal(t)} class="btn-secondary" style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center', gap: '4px' }} title="Edit Task">
+                      <button type="button" onClick={() => ctx.handleOpenEditTaskModal(t)} class="btn-secondary" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }} title="Edit Task">
                         <Edit3 size={12} />
                         <span>Edit</span>
                       </button>
@@ -248,7 +248,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                             console.error('Failed to delete task:', err);
                           }
                         }
-                      }} class="btn-ghost-danger" style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center' }} title="Delete Task">
+                      }} class="btn-ghost-danger" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center' }} title="Delete Task">
                         <Trash2 size={13} />
                       </button>
                     </div>

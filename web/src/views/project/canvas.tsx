@@ -224,7 +224,7 @@ export const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props
           draggable={false}
         />
         <Show when={props.block.content?.caption}>
-          <div style={{ "font-size": '11px', color: props.textColor || 'var(--text-dim)', padding: '6px 2px 2px 2px', "text-align": 'center' }}>
+          <div style={{ "font-size": '12px', color: props.textColor || 'var(--text-dim)', padding: '6px 2px 2px 2px', "text-align": 'center' }}>
             {props.block.content?.caption}
           </div>
         </Show>

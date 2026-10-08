@@ -29,18 +29,18 @@ const profile={id:'018f0000-0000-7000-8000-000000000002',workspace_id:ws,full_na
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.locator('.sidebar-project-item').filter({hasText:'Project A'}).click();
   await page.getByText('Board A',{exact:true}).waitFor();
-  await page.getByRole('button',{name:/Docs & Plans/}).click();
+  await page.getByRole('tab',{name:/Docs & Plans/}).click();
   await page.getByPlaceholder('Document Title...').waitFor();assert.equal(await page.getByPlaceholder('Document Title...').inputValue(),'Document A');
-  await page.getByRole('button',{name:/Tasks/}).first().click();await page.getByText('Task A',{exact:true}).first().waitFor();
-  await page.getByRole('button',{name:/Board/}).first().click();await page.getByText('Board A',{exact:true}).click();await page.getByText('Canvas note',{exact:true}).waitFor();
+  await page.getByRole('tab',{name:/Tasks/}).first().click();await page.getByText('Task A',{exact:true}).first().waitFor();
+  await page.getByRole('tab',{name:/Board/}).first().click();await page.getByText('Board A',{exact:true}).click();await page.getByText('Canvas note',{exact:true}).waitFor();
   await page.locator('.sidebar-project-item').filter({hasText:'Project B'}).click();await page.getByText('Board B',{exact:true}).waitFor();
   assert.equal(await page.getByText('Canvas note',{exact:true}).count(),0);
-  await page.getByRole('button',{name:/Docs & Plans/}).click();assert.equal(await page.getByPlaceholder('Document Title...').inputValue(),'Document B');
+  await page.getByRole('tab',{name:/Docs & Plans/}).click();assert.equal(await page.getByPlaceholder('Document Title...').inputValue(),'Document B');
   pauseOldDocs=true;oldDocsResponse=new Promise(resolve=>{releaseOldDocs=resolve;});oldDocsSignal=new Promise(resolve=>{oldDocsStarted=resolve;});
   await page.locator('.sidebar-project-item').filter({hasText:'Project A'}).click();await oldDocsSignal;
   await page.locator('.sidebar-project-item').filter({hasText:'Project B'}).click();await page.getByText('Board B',{exact:true}).waitFor();
   const oldReturned=page.waitForResponse(response=>response.url().includes('/documents')&&response.url().includes(projects[0].id));releaseOldDocs();await oldReturned;
-  await page.getByRole('button',{name:/Docs & Plans/}).click();assert.equal(await page.getByPlaceholder('Document Title...').inputValue(),'Document B');
+  await page.getByRole('tab',{name:/Docs & Plans/}).click();assert.equal(await page.getByPlaceholder('Document Title...').inputValue(),'Document B');
   assert.deepEqual(errors,[]);console.log('Frontend smoke passed: authenticated shell, docs, tasks, canvas, project switching, and delayed stale responses.');
  }finally{await browser.close();server.close();}
 })().catch(err=>{console.error(err);server.close();process.exitCode=1;});
