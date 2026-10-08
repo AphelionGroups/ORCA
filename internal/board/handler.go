@@ -28,6 +28,9 @@ func (h *Handler) BoardRoutes() chi.Router {
 
 	r.Get("/{id}/blocks", h.ListBlocks)
 	r.Post("/{id}/blocks", h.CreateBlock)
+	r.Get("/{id}/connections", h.Connections)
+	r.Post("/{id}/operations", h.Operation)
+	r.Put("/{id}/viewport", h.Viewport)
 	return r
 }
 
@@ -141,6 +144,10 @@ func (h *Handler) UpdateBoard(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, http.StatusNotFound, "Board not found")
 		return
 	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
 
 	if req.ProjectID.Set {
 		existing.ProjectID = req.ProjectID.Value
@@ -236,6 +243,10 @@ func (h *Handler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 		req.Type = "sticky"
 	}
 
+	if err := ValidateContent(req.Type, req.Content); err != nil {
+		respondOperationError(w, err)
+		return
+	}
 	block := NoteBlock{
 		WorkspaceID: wsID,
 		BoardID:     boardID,
@@ -282,6 +293,10 @@ func (h *Handler) UpdateBlock(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, http.StatusNotFound, "Block not found")
 		return
 	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
 
 	if req.Type != "" {
 		existing.Type = req.Type
@@ -310,6 +325,10 @@ func (h *Handler) UpdateBlock(w http.ResponseWriter, r *http.Request) {
 		existing.Content = req.Content
 	}
 
+	if err := ValidateContent(existing.Type, existing.Content); err != nil {
+		respondOperationError(w, err)
+		return
+	}
 	if err := h.repo.UpdateBlock(r.Context(), existing); err != nil {
 		httputil.RespondDBError(w, err)
 		return

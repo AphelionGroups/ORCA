@@ -8,6 +8,9 @@ const projects=['A','B'].map((name,i)=>({id:`018f0000-0000-7000-8000-00000000002
 const boards=projects.map((p,i)=>({id:`018f0000-0000-7000-8000-00000000003${i}`,project_id:p.id,workspace_id:ws,space_id:space,title:`Board ${i===0?'A':'B'}`,viewport_state:{x:0,y:0,zoom:1},block_count:1}));
 let pauseOldDocs=false, releaseOldDocs, oldDocsStarted;
 let oldDocsResponse, oldDocsSignal;
+const fixtureEvents=[];
+const graphs=new Map(),receipts=new Map();
+const graphFor=id=>{if(!graphs.has(id))graphs.set(id,{blocks:[{id:'block-'+id,board_id:id,workspace_id:ws,type:'sticky',pos_x:100,pos_y:100,width:220,height:150,content:{text:'Canvas note'},updated_at:'2026-10-09T00:00:00Z'}],connections:[]});return graphs.get(id);};
 const profile={id:'018f0000-0000-7000-8000-000000000002',workspace_id:ws,full_name:'Smoke Owner',email:'smoke@example.test',role:'Owner'};
 (async()=>{
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -18,6 +21,17 @@ const profile={id:'018f0000-0000-7000-8000-000000000002',workspace_id:ws,full_na
   await page.route('**/api/v1/**',async route=>{
    const url=new URL(route.request().url()),endpoint=url.pathname.replace('/api/v1','');let data=[];const method=route.request().method();if(method!=='GET')writes.push({endpoint,method,body:route.request().postDataJSON()});
    if(endpoint==='/auth/me')data=profile;
+   else if(endpoint==='/auth/preferences')data={calendar_timezone:'Asia/Jakarta'};
+   else if(endpoint==='/events'){
+    if(method==='POST'){data={id:'fixture-event-'+fixtureEvents.length,workspace_id:ws,...route.request().postDataJSON(),updated_at:new Date().toISOString()};fixtureEvents.push(data);}
+    else data=fixtureEvents.filter(event=>(!url.searchParams.get('space_id')||event.space_id===url.searchParams.get('space_id'))&&Date.parse(event.end_at)>Date.parse(url.searchParams.get('start'))&&Date.parse(event.start_at)<Date.parse(url.searchParams.get('end')));
+   }
+   else if(endpoint.startsWith('/events/')){
+    const id=endpoint.split('/').at(-1),index=fixtureEvents.findIndex(event=>event.id===id);
+    assert(index>=0,'unknown event');
+    if(method==='PUT'){const body=route.request().postDataJSON();assert.equal(body.expected_updated_at,fixtureEvents[index].updated_at);data={...fixtureEvents[index],...body,updated_at:new Date().toISOString()};fixtureEvents[index]=data;}
+    if(method==='DELETE'){fixtureEvents.splice(index,1);data={};}
+   }
    else if(endpoint.startsWith('/documents/') && method==='PUT')data={id:endpoint.split('/').at(-1),...route.request().postDataJSON()};
    else if(endpoint==='/tasks' && method==='POST')data={id:'created-fixture-task',workspace_id:ws,...route.request().postDataJSON()};
    else if(endpoint==='/inbox'){if(method==='POST'){data={id:'fixture-note',content:route.request().postDataJSON().content,created_at:new Date().toISOString()};fixtureNotes.push(data);}else data=fixtureNotes;}
@@ -26,7 +40,25 @@ const profile={id:'018f0000-0000-7000-8000-000000000002',workspace_id:ws,full_na
    else if(endpoint==='/boards')data=boards.filter(b=>!url.searchParams.get('project_id')||b.project_id===url.searchParams.get('project_id'));
    else if(endpoint==='/documents'){const p=url.searchParams.get('project_id')||projects[0].id;data=[{id:'doc-'+p,project_id:p,space_id:space,workspace_id:ws,title:p===projects[0].id?'Document A':'Document B',content:'**Safe markdown**',doc_type:'general',is_pinned:false}];}
    else if(endpoint==='/tasks'){const p=url.searchParams.get('project_id')||projects[0].id;data=[{id:'task-'+p,project_id:p,space_id:space,workspace_id:ws,title:p===projects[0].id?'Task A':'Task B',status:'todo',priority:'medium'}];}
-   else if(endpoint.includes('/blocks')){const boardId=url.searchParams.get('board_id')||endpoint.split('/')[2];data=[{id:'block-'+boardId,board_id:boardId,workspace_id:ws,type:'sticky',pos_x:100,pos_y:100,width:220,height:150,content:{text:'Canvas note'}}];}
+   else if(endpoint.endsWith('/operations')){
+    const boardId=endpoint.split('/')[2],body=route.request().postDataJSON();let graph=graphFor(boardId);
+    if(body.mode==='apply'){
+     if(!receipts.has(body.id)){
+      const before=structuredClone(graph);
+      for(const mutation of body.blocks||[]){
+       if(mutation.action==='delete'){graph.blocks=graph.blocks.filter(b=>b.id!==mutation.id);graph.connections=graph.connections.filter(c=>c.fromId!==mutation.id&&c.toId!==mutation.id);}
+       else if(mutation.action==='create')graph.blocks.push({id:mutation.id,board_id:boardId,workspace_id:ws,...mutation.create,updated_at:new Date().toISOString()});
+       else if(mutation.action==='update')graph.blocks=graph.blocks.map(b=>b.id===mutation.id?{...b,...mutation.patch,updated_at:new Date().toISOString()}:b);
+      }
+      for(const mutation of body.connections||[]){const c=mutation.connection;if(mutation.action==='create')graph.connections.push({...c,id:c.id||'fixture-link'});else if(mutation.action==='delete')graph.connections=graph.connections.filter(item=>item.id!==c.id);else graph.connections=graph.connections.map(item=>item.id===c.id?c:item);}
+      receipts.set(body.id,{before,after:structuredClone(graph)});
+     }
+    }else{const receipt=receipts.get(body.id);assert.ok(receipt,'unknown operation');graph=structuredClone(body.mode==='undo'?receipt.before:receipt.after);graphs.set(boardId,graph);}
+    data={id:body.id,...graph};
+   }
+   else if(endpoint.endsWith('/connections'))data=graphFor(endpoint.split('/')[2]).connections;
+   else if(endpoint.endsWith('/viewport'))data=route.request().postDataJSON();
+   else if(endpoint.includes('/blocks'))data=graphFor(url.searchParams.get('board_id')||endpoint.split('/')[2]).blocks;
    if(endpoint==='/documents' && url.searchParams.get('project_id')===projects[0].id && pauseOldDocs){oldDocsStarted();await oldDocsResponse;}
    await route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify({data})});
   });
@@ -41,7 +73,7 @@ const profile={id:'018f0000-0000-7000-8000-000000000002',workspace_id:ws,full_na
   await page.getByText('Canvas note',{exact:true}).click();await page.locator('.canvas-context-toolbar').waitFor();
   await page.keyboard.press('Delete');await page.getByText('Canvas note',{exact:true}).waitFor({state:'hidden'});
   await page.keyboard.press('Control+z');await page.getByText('Canvas note',{exact:true}).waitFor();
-  assert(writes.some(w=>w.method==='POST'&&w.endpoint.endsWith('/restore')));
+  assert(writes.some(w=>w.method==='POST'&&w.endpoint.endsWith('/operations')&&w.body.mode==='undo'));
   await page.keyboard.press('Control+y');await page.getByText('Canvas note',{exact:true}).waitFor({state:'hidden'});
   await page.keyboard.press('Control+z');await page.getByText('Canvas note',{exact:true}).waitFor();
   await page.locator('.sidebar-project-item').filter({hasText:'Project B'}).click();await page.getByText('Board B',{exact:true}).waitFor();
@@ -73,7 +105,21 @@ const profile={id:'018f0000-0000-7000-8000-000000000002',workspace_id:ws,full_na
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`page overflow ${tab} ${width}`);
     }
     await nav('Inbox');await page.evaluate(async()=>{await Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{})))});await page.screenshot({path:path.join(output,`after-inbox-${width}.png`)});
-    await nav('Calendar');await page.evaluate(async()=>{await Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{})))});await page.screenshot({path:path.join(output,`after-calendar-${width}.png`)});
+    await nav('Calendar');
+    if(width===1440){
+      await page.getByRole('button',{name:'Schedule task',exact:true}).first().click();
+      await page.getByRole('dialog').waitFor();
+      await page.getByLabel('Event title',{exact:true}).fill('Persisted task session');
+      await page.getByLabel('Start time',{exact:true}).fill('09:15');await page.getByLabel('End time',{exact:true}).fill('10:30');
+      await page.getByRole('button',{name:'Save event',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+      assert(fixtureEvents[0].linked_task_id,'scheduled session lost task link');
+      await page.locator('.calendar-event-card').filter({hasText:'Persisted task session'}).click();
+      await page.getByLabel('Event title',{exact:true}).fill('Edited task session');await page.getByRole('button',{name:'Save event',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+      await page.getByRole('button',{name:'Month',exact:true}).click();await page.locator('.calendar-event-card').filter({hasText:'Edited task session'}).waitFor();
+      await page.getByRole('button',{name:'Timeline',exact:true}).click();await page.locator('.calendar-event-card').filter({hasText:'Edited task session'}).click();await page.getByRole('button',{name:'Delete event',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+      assert.equal(fixtureEvents.length,0);await page.getByRole('button',{name:'Week',exact:true}).click();
+    }
+    await page.evaluate(async()=>{await Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{})))});await page.screenshot({path:path.join(output,`after-calendar-${width}.png`)});
     if(width<768){
       const trigger=page.getByRole('button',{name:'Buka Sidebar',exact:true});await trigger.click();
       await page.evaluate(async()=>{await Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{})))});await page.screenshot({path:path.join(output,'after-drawer-mobile.png')});
@@ -98,7 +144,7 @@ const profile={id:'018f0000-0000-7000-8000-000000000002',workspace_id:ws,full_na
   await page.getByText('Canvas note',{exact:true}).click();await page.locator('.canvas-context-toolbar').waitFor();
   await page.keyboard.press('Delete');await page.getByText('Canvas note',{exact:true}).waitFor({state:'hidden'});
   await page.keyboard.press('Control+z');await page.getByText('Canvas note',{exact:true}).waitFor();
-  assert(writes.some(w=>w.method==='POST'&&w.endpoint.endsWith('/restore')));
+  assert(writes.some(w=>w.method==='POST'&&w.endpoint.endsWith('/operations')&&w.body.mode==='undo'));
   await page.keyboard.press('Control+y');await page.getByText('Canvas note',{exact:true}).waitFor({state:'hidden'});
   await page.keyboard.press('Control+z');await page.getByText('Canvas note',{exact:true}).waitFor();
   await page.getByRole('button',{name:/Zoom Out/}).click();assert.equal(await page.locator('.tool-zoom-badge').textContent().then(t=>t.includes('90%')),true);

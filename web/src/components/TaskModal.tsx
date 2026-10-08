@@ -1,3 +1,4 @@
+import { TASK_STATUS_OPTIONS as STATUS_OPTIONS } from '../services/taskContract';
 import { focusScope } from './focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, Show, For } from 'solid-js';
@@ -15,12 +16,6 @@ interface TaskModalProps {
   onDeleted?: (taskId: string) => void;
 }
 
-const STATUS_OPTIONS: { value: Task['status']; label: string }[] = [
-  { value: 'todo', label: 'Backlog' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'in_review', label: 'In Review' },
-  { value: 'done', label: 'Done' },
-];
 
 const PRIORITY_OPTIONS: { value: Task['priority']; label: string; color: string }[] = [
   { value: 'low', label: 'Low', color: 'var(--text-muted)' },
@@ -73,6 +68,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
     try {
       if (props.taskToEdit) {
         const updated = await api.updateTask(props.taskToEdit.id, {
+          expected_updated_at: props.taskToEdit.updated_at,
           title: trimmedTitle,
           description: description().trim() || null,
           status: status(),

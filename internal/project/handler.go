@@ -123,6 +123,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, http.StatusNotFound, "Project not found")
 		return
 	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
 
 	if req.Name != "" {
 		existing.Name = req.Name

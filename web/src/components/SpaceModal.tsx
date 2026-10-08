@@ -71,6 +71,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
     try {
       if (props.spaceToEdit) {
         const updated = await api.updateSpace(props.spaceToEdit.id, {
+          expected_updated_at: props.spaceToEdit.updated_at,
           name: trimmed,
           color: color(),
           icon: icon(),

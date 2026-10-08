@@ -44,9 +44,10 @@ type CreateBoardRequest struct {
 }
 
 type UpdateBoardRequest struct {
-	ProjectID     httputil.Optional[uuid.UUID] `json:"project_id,omitempty"`
-	Title         string                       `json:"title"`
-	ViewportState json.RawMessage              `json:"viewport_state,omitempty"`
+	ExpectedUpdatedAt *time.Time                   `json:"expected_updated_at,omitempty"`
+	ProjectID         httputil.Optional[uuid.UUID] `json:"project_id,omitempty"`
+	Title             string                       `json:"title"`
+	ViewportState     json.RawMessage              `json:"viewport_state,omitempty"`
 }
 
 type CreateBlockRequest struct {
@@ -61,10 +62,11 @@ type CreateBlockRequest struct {
 }
 
 type UpdateBlockRequest struct {
-	Type    string          `json:"type,omitempty"`
-	PosX    *float64        `json:"pos_x,omitempty"`
-	PosY    *float64        `json:"pos_y,omitempty"`
-	Width   *float64        `json:"width,omitempty"`
-	Height  *float64        `json:"height,omitempty"`
-	Content json.RawMessage `json:"content,omitempty"`
+	ExpectedUpdatedAt *time.Time      `json:"expected_updated_at,omitempty"`
+	Type              string          `json:"type,omitempty"`
+	PosX              *float64        `json:"pos_x,omitempty"`
+	PosY              *float64        `json:"pos_y,omitempty"`
+	Width             *float64        `json:"width,omitempty"`
+	Height            *float64        `json:"height,omitempty"`
+	Content           json.RawMessage `json:"content,omitempty"`
 }

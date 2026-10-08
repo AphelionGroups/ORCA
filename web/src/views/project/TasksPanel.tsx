@@ -171,11 +171,12 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                       <button type="button" onClick={async (e) => {
                         e.stopPropagation();
                         const nextStatus = t.status === 'done' ? 'todo' : 'done';
+                        const projectId = ctx.selectedProjectId();
                         try {
-                          await api.updateTaskStatus(t.id, nextStatus);
-                          ctx.setTasks(ctx.tasks().map(item => item.id === t.id ? { ...item, status: nextStatus } : item));
+                          const updated = await api.updateTaskStatus(t.id, nextStatus, t.updated_at);
+                          if (ctx.selectedProjectId() === projectId) ctx.setTasks(ctx.tasks().map(item => item.id === t.id ? updated : item));
                         }
-                        catch (_) { }
+                        catch (failure) { if (ctx.selectedProjectId() === projectId) ctx.setOperationError(failure instanceof Error ? failure.message : 'Could not update task'); }
                       }} style={{
                         background: 'none',
                         border: 'none',

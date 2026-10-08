@@ -118,6 +118,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
+
 	if req.Content != nil {
 		existing.Content = *req.Content
 	}

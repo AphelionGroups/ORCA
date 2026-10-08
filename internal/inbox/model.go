@@ -22,9 +22,10 @@ type CreateNoteRequest struct {
 }
 
 type UpdateNoteRequest struct {
-	Content    *string `json:"content"`
-	Color      *string `json:"color"`
-	IsArchived *bool   `json:"is_archived"`
+	ExpectedUpdatedAt *time.Time `json:"expected_updated_at,omitempty"`
+	Content           *string    `json:"content"`
+	Color             *string    `json:"color"`
+	IsArchived        *bool      `json:"is_archived"`
 }
 
 type ConvertToTaskRequest struct {

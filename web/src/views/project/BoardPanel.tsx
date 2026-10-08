@@ -1001,7 +1001,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
 
           {/* Zoom Controls */}
           <div style={{ display: 'flex', "align-items": 'center', gap: '2px', "font-size": '12px', "font-family": 'var(--font-mono)' }}>
-            <button onClick={() => ctx.setZoom(z => Math.max(50, z - 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
+            <button onClick={() => ctx.setZoom(z => Math.max(20, z - 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
               -
               <span class="tool-tooltip">
                 Zoom Out <span class="tool-tooltip-kbd">-</span>
@@ -1013,7 +1013,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                 Reset View <span class="tool-tooltip-kbd">100%</span>
               </span>
             </span>
-            <button onClick={() => ctx.setZoom(z => Math.min(150, z + 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
+            <button onClick={() => ctx.setZoom(z => Math.min(200, z + 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
               +
               <span class="tool-tooltip">
                 Zoom In <span class="tool-tooltip-kbd">+</span>

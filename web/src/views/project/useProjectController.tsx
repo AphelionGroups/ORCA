@@ -1,4 +1,5 @@
-import { persistCanvasAction } from './canvasHistory';
+import { actionOperation } from './canvasHistory';
+import { newOperationID } from '../../services/identity';
 import { createRequestGate } from '../../services/requestGate';
 import { For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 import type { NoteBlock, NoteBoard, Document as OrcaDoc, Project, Space, Task } from '../../services/api';
@@ -123,9 +124,45 @@ export function useProjectController(props: ProjectsViewProps) {
 
   const [redoStack, setRedoStack] = createSignal<CanvasAction[]>([]);
 
-  const pushUndoAction = (action: CanvasAction) => {
+  let mutationQueue: Promise<void> = Promise.resolve();
+  let pendingMutations = 0;
+  const recordAction = (action: CanvasAction) => {
     setUndoStack(prev => [...prev.slice(-49), action]);
     setRedoStack([]);
+  };
+  const pushUndoAction = (action: CanvasAction): Promise<void> => {
+    if (action.type === 'create_block') {
+      action.operationId = action.block.operation_id;
+      recordAction(action);
+      return Promise.resolve();
+    }
+    const board = currentBoard();
+    if (!board) return Promise.resolve();
+    const isCurrent = captureBoardSelection();
+    const capturedBlocks = blocks();
+    action.operationId = newOperationID();
+    pendingMutations++;
+    setHistoryBusy(true);
+    mutationQueue = mutationQueue.then(async () => {
+      try {
+        const graph = await api.applyBoardOperation(board.id, actionOperation(action, action.operationId!, isCurrent() ? blocks() : capturedBlocks));
+        if (!isCurrent()) return;
+        setBlocks(graph.blocks);
+        setConnections(graph.connections);
+        recordAction(action);
+      } catch (error) {
+        if (!isCurrent()) return;
+        setOperationError(error instanceof Error ? error.message : 'Could not save board changes');
+        try {
+          const [confirmedBlocks, confirmedConnections] = await Promise.all([api.getBoardBlocks(board.id), api.getBoardConnections(board.id)]);
+          if (isCurrent()) { setBlocks(confirmedBlocks); setConnections(confirmedConnections); }
+        } catch { /* Preserve the visible error if recovery also fails. */ }
+      } finally {
+        pendingMutations--;
+        setHistoryBusy(pendingMutations > 0);
+      }
+    });
+    return mutationQueue;
   };
 
   // Mouse interaction states
@@ -518,10 +555,10 @@ export function useProjectController(props: ProjectsViewProps) {
       setTasks(fetchedTasks || []);
       if (activeBoard) {
         const initialBoardRequest = boardRequests.begin();
-        const fetchedBlocks = await api.getBoardBlocks(activeBoard.id);
+        const [fetchedBlocks, fetchedConnections] = await Promise.all([api.getBoardBlocks(activeBoard.id), api.getBoardConnections(activeBoard.id)]);
         if (!detailRequests.isCurrent(reqId) || !boardRequests.isCurrent(initialBoardRequest) || selectedBoardId() !== activeBoard.id) return;
         setBlocks(fetchedBlocks || []);
-        setConnections([]);
+        setConnections(fetchedConnections);
       } else {
         setBlocks([]);
         setConnections([]);
@@ -554,7 +591,31 @@ export function useProjectController(props: ProjectsViewProps) {
     return boards()[0] || null;
   };
 
+  let viewportTimer: ReturnType<typeof setTimeout> | undefined;
+  let viewportQueue: Promise<void> = Promise.resolve();
+  let pendingViewport: { boardId: string; viewport: NoteBoard['viewport_state'] } | undefined;
+  const flushViewport = () => {
+    if (!pendingViewport) return;
+    const pending = pendingViewport;
+    pendingViewport = undefined;
+    viewportQueue = viewportQueue.then(async () => {
+      try { await api.saveBoardViewport(pending.boardId, pending.viewport); }
+      catch (error) { if (currentBoard()?.id === pending.boardId) setOperationError(error instanceof Error ? error.message : 'Could not save viewport'); }
+    });
+  };
+  createEffect(() => {
+    if (!isBoardCanvasOpen() || loadingSubData()) return;
+    const board = currentBoard();
+    if (!board) return;
+    const position = pan();
+    pendingViewport = { boardId: board.id, viewport: { ...position, zoom: zoom() / 100 } };
+    clearTimeout(viewportTimer);
+    viewportTimer = setTimeout(flushViewport, 250);
+  });
+  onCleanup(() => { clearTimeout(viewportTimer); flushViewport(); });
+
   const handleSelectBoard = async (boardId: string) => {
+    flushViewport();
     const requestId = boardRequests.begin();
     const projectId = selectedProjectId();
     const isCurrent = () => boardRequests.isCurrent(requestId) && selectedProjectId() === projectId && selectedBoardId() === boardId;
@@ -563,7 +624,7 @@ export function useProjectController(props: ProjectsViewProps) {
     setConnections([]);
     setLoadingSubData(true);
     try {
-      const fetchedBlocks = await api.getBoardBlocks(boardId);
+      const [fetchedBlocks, fetchedConnections] = await Promise.all([api.getBoardBlocks(boardId), api.getBoardConnections(boardId)]);
       if (!isCurrent()) return false;
       setBlocks(fetchedBlocks || []);
       setSelectedBlockId(null);
@@ -571,11 +632,16 @@ export function useProjectController(props: ProjectsViewProps) {
       setSelectedConnection(null);
       setUndoStack([]);
       setRedoStack([]);
-      setConnections([]);
+      setConnections(fetchedConnections);
+      const viewport = currentBoard()?.viewport_state;
+      setPan({ x: viewport?.x ?? 0, y: viewport?.y ?? 0 });
+      setZoom(Math.max(20, Math.min(200, (viewport?.zoom ?? 1) * 100)));
       return true;
     } catch (err) {
-      if (isCurrent()) console.error('Failed to switch board:', err);
- setOperationError(err instanceof Error ? err.message : 'Operation failed');
+      if (isCurrent()) {
+        console.error('Failed to switch board:', err);
+        setOperationError(err instanceof Error ? err.message : 'Operation failed');
+      }
       return false;
     } finally {
       if (isCurrent()) setLoadingSubData(false);
@@ -587,10 +653,12 @@ export function useProjectController(props: ProjectsViewProps) {
   };
 
   const handleCloseBoardCanvas = () => {
+    clearTimeout(viewportTimer);
+    flushViewport();
     boardRequests.invalidate();
     const curId = selectedBoardId();
     if (curId) {
-      setBoards(boards().map(b => b.id === curId ? { ...b, block_count: blocks().length } : b));
+      setBoards(boards().map(b => b.id === curId ? { ...b, block_count: blocks().length, viewport_state: { ...pan(), zoom: zoom() / 100 } } : b));
     }
     setIsBoardCanvasOpen(false);
   };
@@ -608,11 +676,14 @@ export function useProjectController(props: ProjectsViewProps) {
       });
       if (!isCurrent()) return;
       const newBoard: NoteBoard = { ...created, block_count: 0 };
+	  flushViewport();
       setBoards([...boards(), newBoard]);
       boardRequests.invalidate();
       setSelectedBoardId(newBoard.id);
       setBlocks([]);
       setConnections([]);
+      setPan({ x: 0, y: 0 });
+      setZoom(100);
       setIsCreatingBoard(false);
       setNewBoardTitle('');
       setIsBoardCanvasOpen(true);
@@ -627,9 +698,9 @@ export function useProjectController(props: ProjectsViewProps) {
     const trimmed = newTitle.trim();
     if (!trimmed) return;
     try {
-      await api.updateBoard(boardId, { title: trimmed });
+      const updated = await api.updateBoard(boardId, { title: trimmed, expected_updated_at: boards().find(board => board.id === boardId)?.updated_at });
       if (!isCurrent()) return;
-      setBoards(boards().map(b => b.id === boardId ? { ...b, title: trimmed } : b));
+      setBoards(boards().map(b => b.id === boardId ? { ...b, ...updated } : b));
     } catch (err) {
       console.error('Failed to rename board:', err);
       setOperationError(err instanceof Error ? err.message : 'Operation failed');
@@ -967,12 +1038,7 @@ export function useProjectController(props: ProjectsViewProps) {
       newWidth: getBlockWidth(prevBlock),
       newHeight: undefined,
     });
-    try {
-      await api.updateNoteBlock(block.id, { height: 0 });
-    } catch (err) {
-      console.error('Failed to reset block height:', err);
-      setOperationError(err instanceof Error ? err.message : 'Operation failed');
-    }
+
   };
 
   // Global mouse move for Dragging & Panning & Marquee
@@ -1343,17 +1409,7 @@ export function useProjectController(props: ProjectsViewProps) {
             newWidth: finalBlock.width || r.initialWidth,
             newHeight: finalBlock.height,
           });
-          try {
-            await api.updateNoteBlock(finalBlock.id, {
-              pos_x: finalBlock.pos_x,
-              pos_y: finalBlock.pos_y,
-              width: finalBlock.width,
-              height: finalBlock.height,
-            });
-          } catch (err) {
-            console.error('Failed to persist resized block:', err);
-            setOperationError(err instanceof Error ? err.message : 'Operation failed');
-          }
+
         }
       }
       return;
@@ -1485,15 +1541,7 @@ export function useProjectController(props: ProjectsViewProps) {
             toX: b.pos_x,
             toY: b.pos_y
           });
-          try {
-            await api.updateNoteBlock(b.id, {
-              pos_x: b.pos_x,
-              pos_y: b.pos_y
-            });
-          } catch (err) {
-            console.error('Failed to persist block position:', err);
-            setOperationError(err instanceof Error ? err.message : 'Operation failed');
-          }
+
         }
       }
 
@@ -1524,7 +1572,7 @@ export function useProjectController(props: ProjectsViewProps) {
       // Pinch-to-zoom on trackpad or Ctrl + MouseWheel
       const zoomFactor = -e.deltaY * 0.01;
       const currentZoom = zoom();
-      const newZoom = Math.min(250, Math.max(25, Math.round(currentZoom * (1 + zoomFactor))));
+      const newZoom = Math.min(200, Math.max(20, Math.round(currentZoom * (1 + zoomFactor))));
 
       if (canvasContainerRef) {
         const rect = canvasContainerRef.getBoundingClientRect();
@@ -1776,12 +1824,7 @@ export function useProjectController(props: ProjectsViewProps) {
 
     setBlocks(blocks().map(b => b.id === block.id ? { ...b, content: updatedContent } : b));
 
-    try {
-      await api.updateNoteBlock(block.id, { content: updatedContent });
-    } catch (err) {
-      console.error('Failed to save block text:', err);
-      setOperationError(err instanceof Error ? err.message : 'Operation failed');
-    }
+
   };
 
   // Update arbitrary properties in block.content (color, border_style, fill_style, locked, etc.)
@@ -1802,12 +1845,7 @@ export function useProjectController(props: ProjectsViewProps) {
 
     setBlocks(blocks().map(b => b.id === blockId ? { ...b, content: newContent } : b));
 
-    try {
-      await api.updateNoteBlock(blockId, { content: newContent });
-    } catch (err) {
-      console.error('Failed to update block content:', err);
-      setOperationError(err instanceof Error ? err.message : 'Operation failed');
-    }
+
   };
 
   // Duplicate block with offset and full undo history support
@@ -1896,208 +1934,44 @@ export function useProjectController(props: ProjectsViewProps) {
     }
   };
 
-  // Delete multiple blocks with full undo history support
   const handleDeleteBlocks = async (blockIds: string[]) => {
     if (historyBusy()) return;
-    const toDelete = blocks().filter(b => blockIds.includes(b.id));
-    const board = currentBoard();
-    if (!board || !toDelete.length) return;
-    const isCurrent = captureProjectSelection();
+    const toDelete = blocks().filter(block => blockIds.includes(block.id));
+    if (!toDelete.length) return;
     const idSet = new Set(blockIds);
-    const action: CanvasAction = {
-      type: 'delete_blocks', blocks: toDelete,
-      connections: connections().filter(c => idSet.has(c.fromId) || idSet.has(c.toId)),
-    };
-    setHistoryBusy(true);
-    try {
-      await persistCanvasAction(api, action, 'redo');
-      if (!isCurrent() || currentBoard()?.id !== board.id) return;
-      pushUndoAction(action);
-      setBlocks(prev => prev.filter(b => !idSet.has(b.id)));
-      setConnections(prev => prev.filter(c => !idSet.has(c.fromId) && !idSet.has(c.toId)));
-      if (selectedBlockId() && idSet.has(selectedBlockId()!)) setSelectedBlockId(null);
-      setSelectedBlockIds(prev => prev.filter(id => !idSet.has(id)));
-    } catch (error) {
-      if (!isCurrent() || currentBoard()?.id !== board.id) return;
-      setOperationError(error instanceof Error ? error.message : 'Could not delete blocks');
-      // A partially completed multi-block operation remains undoable.
-      pushUndoAction(action);
-      try {
-        const confirmed = await api.getBoardBlocks(board.id);
-        if (isCurrent() && currentBoard()?.id === board.id) setBlocks(confirmed);
-      } catch { /* Error remains visible and the original action remains undoable. */ }
-    } finally { setHistoryBusy(false); }
+    await pushUndoAction({ type: 'delete_blocks', blocks: toDelete, connections: connections().filter(connection => idSet.has(connection.fromId) || idSet.has(connection.toId)) });
+    setSelectedBlockId(null);
+    setSelectedBlockIds([]);
   };
 
-  // Canvas Undo Handler (Ctrl+Z)
-  const handleUndo = async () => {
-    const stack = undoStack();
-    if (stack.length === 0 || historyBusy()) return;
+  const applyHistory = async (direction: 'undo' | 'redo') => {
+    const stack = direction === 'undo' ? undoStack() : redoStack();
     const action = stack[stack.length - 1];
     const board = currentBoard();
-    const isCurrent = captureProjectSelection();
+    if (!board || !action?.operationId || historyBusy()) return;
+    const isCurrent = captureBoardSelection();
     setHistoryBusy(true);
     try {
-      await persistCanvasAction(api, action, 'undo');
-      if (!isCurrent() || currentBoard()?.id !== board?.id) return;
+      const graph = await api.applyBoardOperation(board.id, { id: action.operationId, mode: direction });
+      if (!isCurrent()) return;
+      setBlocks(graph.blocks);
+      setConnections(graph.connections);
+      setSelectedBlockId(null);
+      setSelectedBlockIds([]);
+      setSelectedConnection(null);
+      if (direction === 'undo') {
+        setUndoStack(prev => prev.slice(0, -1));
+        setRedoStack(prev => [...prev, action]);
+      } else {
+        setRedoStack(prev => prev.slice(0, -1));
+        setUndoStack(prev => [...prev, action]);
+      }
     } catch (error) {
-      if (isCurrent() && currentBoard()?.id === board?.id) {
-        setOperationError(error instanceof Error ? error.message : 'Could not update board history');
-        if (board) {
-          try {
-            const confirmed = await api.getBoardBlocks(board.id);
-            if (isCurrent() && currentBoard()?.id === board.id) setBlocks(confirmed);
-          } catch { /* Retain last confirmed state. */ }
-        }
-      }
-      return;
-    } finally { setHistoryBusy(false); }
-    setUndoStack(prev => prev.slice(0, -1));
-
-    switch (action.type) {
-      case 'create_block': {
-        setBlocks(prev => prev.filter(b => b.id !== action.block.id));
-        setConnections(prev => prev.filter(c => c.fromId !== action.block.id && c.toId !== action.block.id));
-        if (selectedBlockId() === action.block.id) setSelectedBlockId(null);
-        setSelectedBlockIds(prev => prev.filter(id => id !== action.block.id));
-        break;
-      }
-      case 'delete_blocks': {
-        setBlocks(prev => [...prev.filter(b => !action.blocks.some(restored => restored.id === b.id)), ...action.blocks]);
-        if (action.connections && action.connections.length > 0) {
-          setConnections(prev => [...prev.filter(c => !action.connections.some(restored => restored.fromId === c.fromId && restored.toId === c.toId)), ...action.connections]);
-        }
-        break;
-      }
-      case 'move_blocks': {
-        const moveMap = new Map(action.moves.map(m => [m.id, { x: m.fromX, y: m.fromY }]));
-        setBlocks(prev => prev.map(b => {
-          const p = moveMap.get(b.id);
-          return p ? { ...b, pos_x: p.x, pos_y: p.y } : b;
-        }));
-
-        break;
-      }
-      case 'update_text': {
-        setBlocks(prev => prev.map(b => b.id === action.blockId ? { ...b, content: action.prevContent } : b));
-        break;
-      }
-      case 'create_connection': {
-        setConnections(prev => prev.filter(c => !(c.fromId === action.connection.fromId && c.toId === action.connection.toId)));
-        break;
-      }
-      case 'delete_connection': {
-        setConnections(prev => [...prev, action.connection]);
-        break;
-      }
-      case 'update_connection': {
-        setConnections(prev => prev.map(c =>
-          (c.fromId === action.newConnection.fromId && c.toId === action.newConnection.toId)
-            ? action.prevConnection
-            : c
-        ));
-        setSelectedConnection(action.prevConnection);
-        break;
-      }
-      case 'resize_block': {
-        setBlocks(prev => prev.map(b => b.id === action.blockId ? {
-          ...b,
-          pos_x: action.prevX,
-          pos_y: action.prevY,
-          width: action.prevWidth,
-          height: action.prevHeight,
-        } : b));
-        break;
-      }
-    }
-
-    setRedoStack(prev => [...prev, action]);
+      if (isCurrent()) setOperationError(error instanceof Error ? error.message : 'Could not update board history');
+    } finally { setHistoryBusy(pendingMutations > 0); }
   };
-
-  // Canvas Redo Handler (Ctrl+Y or Ctrl+Shift+Z)
-  const handleRedo = async () => {
-    const stack = redoStack();
-    if (stack.length === 0 || historyBusy()) return;
-    const action = stack[stack.length - 1];
-    const board = currentBoard();
-    const isCurrent = captureProjectSelection();
-    setHistoryBusy(true);
-    try {
-      await persistCanvasAction(api, action, 'redo');
-      if (!isCurrent() || currentBoard()?.id !== board?.id) return;
-    } catch (error) {
-      if (isCurrent() && currentBoard()?.id === board?.id) {
-        setOperationError(error instanceof Error ? error.message : 'Could not update board history');
-        if (board) {
-          try {
-            const confirmed = await api.getBoardBlocks(board.id);
-            if (isCurrent() && currentBoard()?.id === board.id) setBlocks(confirmed);
-          } catch { /* Retain last confirmed state. */ }
-        }
-      }
-      return;
-    } finally { setHistoryBusy(false); }
-    setRedoStack(prev => prev.slice(0, -1));
-
-    switch (action.type) {
-      case 'create_block': {
-        setBlocks(prev => [...prev.filter(b => b.id !== action.block.id), action.block]);
-
-        break;
-      }
-      case 'delete_blocks': {
-        const idSet = new Set(action.blocks.map(b => b.id));
-        setBlocks(prev => prev.filter(b => !idSet.has(b.id)));
-        setConnections(prev => prev.filter(c => !idSet.has(c.fromId) && !idSet.has(c.toId)));
-        if (selectedBlockId() && idSet.has(selectedBlockId()!)) setSelectedBlockId(null);
-        setSelectedBlockIds(prev => prev.filter(id => !idSet.has(id)));
-
-        break;
-      }
-      case 'move_blocks': {
-        const moveMap = new Map(action.moves.map(m => [m.id, { x: m.toX, y: m.toY }]));
-        setBlocks(prev => prev.map(b => {
-          const p = moveMap.get(b.id);
-          return p ? { ...b, pos_x: p.x, pos_y: p.y } : b;
-        }));
-
-        break;
-      }
-      case 'update_text': {
-        setBlocks(prev => prev.map(b => b.id === action.blockId ? { ...b, content: action.newContent } : b));
-        break;
-      }
-      case 'create_connection': {
-        setConnections(prev => [...prev, action.connection]);
-        break;
-      }
-      case 'delete_connection': {
-        setConnections(prev => prev.filter(c => !(c.fromId === action.connection.fromId && c.toId === action.connection.toId)));
-        break;
-      }
-      case 'update_connection': {
-        setConnections(prev => prev.map(c =>
-          (c.fromId === action.prevConnection.fromId && c.toId === action.prevConnection.toId)
-            ? action.newConnection
-            : c
-        ));
-        setSelectedConnection(action.newConnection);
-        break;
-      }
-      case 'resize_block': {
-        setBlocks(prev => prev.map(b => b.id === action.blockId ? {
-          ...b,
-          pos_x: action.newX,
-          pos_y: action.newY,
-          width: action.newWidth,
-          height: action.newHeight,
-        } : b));
-        break;
-      }
-    }
-
-    setUndoStack(prev => [...prev, action]);
-  };
+  const handleUndo = () => applyHistory('undo');
+  const handleRedo = () => applyHistory('redo');
 
   const handleDeleteConnection = (conn: Connection) => {
     setConnections(prev => prev.filter(c => !(c.fromId === conn.fromId && c.toId === conn.toId)));
@@ -2457,11 +2331,14 @@ export function useProjectController(props: ProjectsViewProps) {
     const currentTask = tasks().find(t => t.id === taskId);
     if (!currentTask || currentTask.status === colKey) return;
 
+    const isCurrent = captureProjectSelection();
     // Optimistic update
     setTasks(tasks().map(t => t.id === taskId ? { ...t, status: colKey } : t));
     try {
-      await api.updateTaskStatus(taskId, colKey);
+      const updated = await api.updateTaskStatus(taskId, colKey, currentTask.updated_at);
+      if (isCurrent()) setTasks(prev => prev.map(task => task.id === taskId ? updated : task));
     } catch (err) {
+      if (!isCurrent()) return;
       console.error('Failed to update task status:', err);
       setOperationError(err instanceof Error ? err.message : 'Operation failed');
       // Revert on error

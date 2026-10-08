@@ -39,18 +39,20 @@ type CreateTaskRequest struct {
 }
 
 type UpdateTaskRequest struct {
-	SpaceID          *uuid.UUID                   `json:"space_id,omitempty"`
-	ProjectID        httputil.Optional[uuid.UUID] `json:"project_id,omitempty"`
-	ParentTaskID     httputil.Optional[uuid.UUID] `json:"parent_task_id,omitempty"`
-	Title            string                       `json:"title"`
-	Description      httputil.Optional[string]    `json:"description,omitempty"`
-	Status           string                       `json:"status"`
-	Priority         string                       `json:"priority"`
-	DueDate          httputil.Optional[time.Time] `json:"due_date,omitempty"`
-	PlannedDate      httputil.Optional[string]    `json:"planned_date,omitempty"` // format: "2006-01-02"
-	EstimatedMinutes httputil.Optional[int]       `json:"estimated_minutes,omitempty"`
+	ExpectedUpdatedAt *time.Time                   `json:"expected_updated_at,omitempty"`
+	SpaceID           *uuid.UUID                   `json:"space_id,omitempty"`
+	ProjectID         httputil.Optional[uuid.UUID] `json:"project_id,omitempty"`
+	ParentTaskID      httputil.Optional[uuid.UUID] `json:"parent_task_id,omitempty"`
+	Title             string                       `json:"title"`
+	Description       httputil.Optional[string]    `json:"description,omitempty"`
+	Status            string                       `json:"status"`
+	Priority          string                       `json:"priority"`
+	DueDate           httputil.Optional[time.Time] `json:"due_date,omitempty"`
+	PlannedDate       httputil.Optional[string]    `json:"planned_date,omitempty"` // format: "2006-01-02"
+	EstimatedMinutes  httputil.Optional[int]       `json:"estimated_minutes,omitempty"`
 }
 
 type UpdateTaskStatusRequest struct {
-	Status string `json:"status"`
+	ExpectedUpdatedAt *time.Time `json:"expected_updated_at,omitempty"`
+	Status            string     `json:"status"`
 }

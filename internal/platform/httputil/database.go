@@ -27,6 +27,9 @@ func RespondDBError(w http.ResponseWriter, err error) {
 		case "23503", "23514", "22P02":
 			RespondError(w, http.StatusBadRequest, "Invalid or unavailable related data")
 			return
+		case "40001", "40P01":
+			RespondError(w, http.StatusConflict, "Concurrent change. Retry the operation.")
+			return
 		case "23505":
 			RespondError(w, http.StatusConflict, "Data already exists")
 			return

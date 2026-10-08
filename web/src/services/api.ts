@@ -1,4 +1,6 @@
-type UpdateFields<T, Nullable extends keyof T> = Omit<Partial<T>, Nullable> & { [Key in Nullable]?: T[Key] | null };
+import { newOperationID } from './identity';
+import type { TaskStatus } from './taskContract';
+type UpdateFields<T, Nullable extends keyof T> = Omit<Partial<T>, Nullable> & { [Key in Nullable]?: T[Key] | null } & { expected_updated_at?: string };
 
 // =========================================================
 // ORCA Frontend API Client Service
@@ -40,7 +42,7 @@ export interface Task {
   parent_task_id?: string;
   title: string;
   description?: string;
-  status: 'todo' | 'in_progress' | 'in_review' | 'done' | 'cancelled';
+  status: TaskStatus;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   due_date?: string;
   planned_date?: string;
@@ -100,7 +102,22 @@ export interface NoteBoard {
   updated_at: string;
 }
 
+export interface BoardConnection {
+  id?: string;
+  updated_at?: string;
+  fromId: string; toId: string;
+  fromSide?: 'top' | 'right' | 'bottom' | 'left';
+  toSide?: 'top' | 'right' | 'bottom' | 'left';
+}
+export interface BoardOperation {
+  id: string; mode: 'apply' | 'undo' | 'redo';
+  blocks?: { id?: string; action: 'create' | 'update' | 'delete' | 'restore'; patch?: Partial<NoteBlock> & { expected_updated_at?: string }; create?: Partial<NoteBlock> }[];
+  connections?: { action: 'create' | 'update' | 'delete'; connection: BoardConnection }[];
+}
+export interface BoardGraph { id: string; blocks: NoteBlock[]; connections: BoardConnection[]; }
+
 export interface NoteBlock {
+  operation_id?: string;
   id: string;
   board_id: string;
   workspace_id: string;
@@ -161,6 +178,11 @@ export interface UploadResponseData {
   driver: string;
 }
 
+export class ApiError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number) { super(message); this.name = 'ApiError'; this.status = status; }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers || {});
   
@@ -192,7 +214,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       const errJson = await res.json();
       if (errJson.error) errorMsg = errJson.error;
     } catch (_) {}
-    throw new Error(errorMsg);
+    throw new ApiError(errorMsg, res.status);
   }
 
   return res.json();
@@ -224,6 +246,12 @@ export const api = {
     return res.data;
   },
 
+  getPreferences: async (): Promise<{ calendar_timezone: string | null }> => {
+    const res = await request<{ data: { calendar_timezone: string | null } }>('/auth/preferences'); return res.data;
+  },
+  updatePreferences: async (calendar_timezone: string): Promise<void> => {
+    await request('/auth/preferences', { method: 'PUT', body: JSON.stringify({ calendar_timezone }) });
+  },
   updateProfile: async (data: {
     full_name: string;
     email: string;
@@ -267,7 +295,7 @@ export const api = {
     });
     return res.data;
   },
-  updateSpace: async (id: string, data: Partial<Space>): Promise<Space> => {
+  updateSpace: async (id: string, data: Partial<Space> & { expected_updated_at?: string }): Promise<Space> => {
     const res = await request<{ data: Space }>(`/spaces/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -326,11 +354,8 @@ export const api = {
     });
     return res.data;
   },
-  updateTaskStatus: async (id: string, status: string): Promise<void> => {
-    await request(`/tasks/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
+  updateTaskStatus: async (id: string, status: TaskStatus, expected_updated_at?: string): Promise<Task> => {
+    return api.updateTask(id, { status, expected_updated_at });
   },
   updateTask: async (id: string, data: UpdateFields<Task, 'project_id' | 'parent_task_id' | 'description' | 'due_date' | 'planned_date' | 'estimated_minutes'>): Promise<Task> => {
     const res = await request<{ data: Task }>(`/tasks/${id}`, {
@@ -394,6 +419,12 @@ export const api = {
     return res.data;
   },
 
+  updateEvent: async (id: string, data: UpdateFields<CalendarEvent, 'space_id' | 'linked_task_id' | 'description'>): Promise<CalendarEvent> => {
+    const res = await request<{ data: CalendarEvent }>(`/events/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    return res.data;
+  },
+  deleteEvent: async (id: string): Promise<void> => { await request(`/events/${id}`, { method: 'DELETE' }); },
+
   createBoard: async (data: UpdateFields<NoteBoard, 'project_id'>): Promise<NoteBoard> => {
     const res = await request<{ data: NoteBoard }>('/boards', {
       method: 'POST',
@@ -426,12 +457,27 @@ export const api = {
     const res = await request<{ data: NoteBlock[] }>(`/boards/${boardId}/blocks`);
     return res.data;
   },
-  createNoteBlock: async (boardId: string, data: Partial<NoteBlock>): Promise<NoteBlock> => {
-    const res = await request<{ data: NoteBlock }>(`/boards/${boardId}/blocks`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+  applyBoardOperation: async (boardId: string, operation: BoardOperation): Promise<BoardGraph> => {
+    const res = await request<{ data: BoardGraph }>(`/boards/${boardId}/operations`, { method: 'POST', body: JSON.stringify(operation) });
     return res.data;
+  },
+  getBoardConnections: async (boardId: string): Promise<BoardConnection[]> => {
+    const res = await request<{ data: BoardConnection[] }>(`/boards/${boardId}/connections`);
+    return res.data;
+  },
+  saveBoardViewport: async (boardId: string, viewport: NoteBoard['viewport_state']): Promise<void> => {
+    await request(`/boards/${boardId}/viewport`, { method: 'PUT', body: JSON.stringify(viewport) });
+  },
+  createNoteBlock: async (boardId: string, data: Partial<NoteBlock>): Promise<NoteBlock> => {
+    const id = newOperationID();
+    const operationID = newOperationID();
+    const content = typeof data.content === 'object' && data.content !== null ? { ...data.content, schema_version: 1 } : data.content;
+    const res = await request<{ data: BoardGraph }>(`/boards/${boardId}/operations`, {
+      method: 'POST', body: JSON.stringify({ id: operationID, mode: 'apply', blocks: [{ id, action: 'create', create: { ...data, id, content } }] }),
+    });
+    const created = res.data.blocks.find(block => block.id === id);
+    if (!created) throw new Error('Created block was missing from the confirmed board');
+    return { ...created, operation_id: operationID };
   },
   updateNoteBlock: async (id: string, data: Partial<NoteBlock>): Promise<NoteBlock> => {
     const res = await request<{ data: NoteBlock }>(`/blocks/${id}`, {
@@ -462,7 +508,7 @@ export const api = {
     });
     return res.data;
   },
-  updateInboxNote: async (id: string, data: Partial<InboxNote>): Promise<InboxNote> => {
+  updateInboxNote: async (id: string, data: Partial<InboxNote> & { expected_updated_at?: string }): Promise<InboxNote> => {
     const res = await request<{ data: InboxNote }>(`/inbox/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

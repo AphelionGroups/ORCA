@@ -32,9 +32,10 @@ type CreateProjectRequest struct {
 }
 
 type UpdateProjectRequest struct {
-	Name          string                       `json:"name"`
-	Description   httputil.Optional[string]    `json:"description,omitempty"`
-	Status        string                       `json:"status"`
-	TargetDate    httputil.Optional[time.Time] `json:"target_date,omitempty"`
-	KanbanColumns json.RawMessage              `json:"kanban_columns,omitempty"`
+	ExpectedUpdatedAt *time.Time                   `json:"expected_updated_at,omitempty"`
+	Name              string                       `json:"name"`
+	Description       httputil.Optional[string]    `json:"description,omitempty"`
+	Status            string                       `json:"status"`
+	TargetDate        httputil.Optional[time.Time] `json:"target_date,omitempty"`
+	KanbanColumns     json.RawMessage              `json:"kanban_columns,omitempty"`
 }

@@ -154,6 +154,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, http.StatusNotFound, "Event not found")
 		return
 	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
 
 	if req.SpaceID.Set {
 		existing.SpaceID = req.SpaceID.Value

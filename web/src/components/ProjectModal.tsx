@@ -67,6 +67,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
     try {
       if (props.projectToEdit) {
         const updated = await api.updateProject(props.projectToEdit.id, {
+          expected_updated_at: props.projectToEdit.updated_at,
           name: trimmedName,
           description: description().trim() || null,
           status: status(),

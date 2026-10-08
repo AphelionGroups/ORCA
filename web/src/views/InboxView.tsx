@@ -153,7 +153,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
     const trimmed = editContent().trim();
     if (!trimmed) return;
     try {
-      const updated = await api.updateInboxNote(id, { content: trimmed });
+      const updated = await api.updateInboxNote(id, { content: trimmed, expected_updated_at: notes().find(note => note.id === id)?.updated_at });
       requests.invalidate();
       setLoading(false);
       setNotes(notes().map(n => n.id === id ? updated : n));

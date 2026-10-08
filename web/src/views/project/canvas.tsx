@@ -29,13 +29,15 @@ export const DynamicShapeIcon: Component<{ kind: ShapeKind; size?: number; class
 };
 
 export interface Connection {
+  id?: string;
+  updated_at?: string;
   fromId: string;
   toId: string;
   fromSide?: 'top' | 'right' | 'bottom' | 'left';
   toSide?: 'top' | 'right' | 'bottom' | 'left';
 }
 
-export type CanvasAction =
+export type CanvasAction = { operationId?: string } & (
   | {
     type: 'create_block';
     block: NoteBlock;
@@ -79,7 +81,7 @@ export type CanvasAction =
     newY: number;
     newWidth: number;
     newHeight?: number;
-  };
+  });
 
 export function formatInlineMarkdown(text: string): string {
   let html = text

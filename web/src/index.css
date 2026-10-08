@@ -2527,6 +2527,43 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--focus-ring); }
 .calendar-layout { padding: 0 24px 24px !important; gap: 16px !important; }
 .calendar-grid { overflow-x: auto !important; }
 .calendar-grid > div { min-width: 620px; }
+.calendar-page { height: 100%; overflow: auto; background: var(--surface); }
+.calendar-page .calendar-ribbon { display: flex; flex-wrap: wrap; gap: 16px; padding: 24px; align-items: center; justify-content: space-between; }
+.calendar-nav, .calendar-day-heading { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.calendar-nav button[aria-pressed="true"] { border-color: var(--secondary); background: var(--surface-container-high); color: var(--text-main); }
+.calendar-day-heading { justify-content: space-between; }
+.calendar-page .calendar-layout { display: flex; align-items: flex-start; }
+.calendar-backlog { width: 240px; flex-shrink: 0; }
+.calendar-backlog p, .calendar-task-card small { color: var(--text-muted); font-size: 12px; }
+.calendar-task-card { padding: 12px; margin-bottom: 12px; background: var(--surface-container-low); border: 1px solid var(--border-default); border-radius: 8px; display: grid; gap: 8px; }
+.calendar-page .calendar-grid { flex: 1; min-width: 0; border: 1px solid var(--border-default); border-radius: 8px; background: var(--surface-container-lowest); }
+.calendar-days { display: grid; }
+.calendar-day { border-right: 1px solid var(--border-default); min-width: 0; }
+.calendar-day-heading { padding: 10px; border-bottom: 1px solid var(--border-default); font-size: 12px; }
+.calendar-all-day { min-height: 28px; padding: 4px; border-bottom: 1px solid var(--border-default); }
+.calendar-hours { max-height: 680px; overflow-y: auto; }
+.calendar-time-track { height: 1440px; position: relative; }
+.calendar-hour { position: absolute; left: 0; right: 0; height: 60px; padding: 6px; border-bottom: 1px solid var(--border-subtle); box-sizing: border-box; }
+.calendar-positioned-event { position: absolute; padding: 1px 2px; box-sizing: border-box; }
+.calendar-positioned-event .calendar-event-card { height: 100%; overflow: auto; }
+.calendar-hour time { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); }
+.calendar-hour-events { display: grid; gap: 4px; }
+.calendar-event-card { width: 100%; text-align: left; display: grid; gap: 4px; padding: 8px; color: var(--text-main); background: var(--surface-container-high); border: 1px solid var(--border-control); border-left: 3px solid var(--secondary); border-radius: 6px; font-size: 12px; cursor: pointer; overflow-wrap: anywhere; }
+.calendar-event-card span, .calendar-event-card small { color: var(--text-muted); font-size: 11px; }
+.calendar-month { display: grid; grid-template-columns: repeat(7, minmax(125px, 1fr)); }
+.calendar-month-day { min-height: 140px; border-right: 1px solid var(--border-default); border-bottom: 1px solid var(--border-default); }
+.calendar-month-day .calendar-event-card { width: calc(100% - 8px); margin: 4px; }
+.calendar-outside-month { background: var(--surface-container-low); }
+.calendar-today { box-shadow: inset 0 2px var(--secondary); }
+.calendar-agenda { padding: 16px; display: grid; gap: 12px; }
+.calendar-modal-overlay { position: fixed; inset: 0; z-index: 60; background: var(--overlay); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.calendar-event-modal { max-width: 480px; width: 100%; padding: 20px; max-height: 90vh; overflow-y: auto; }
+.calendar-event-form { display: grid; gap: 12px; }
+.calendar-event-form label { display: grid; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.calendar-page input, .calendar-page select { background: var(--surface-container); color: var(--text-main); border: 1px solid var(--border-control); border-radius: 4px; padding: 8px; min-width: 0; }
+.calendar-form-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.calendar-event-form .calendar-checkbox { display: flex; align-items: center; }
+@media (max-width: 960px) { .calendar-backlog { width: 100%; } .calendar-page .calendar-grid { width: 100%; flex: none; } }
 .inbox-workspace { padding: 24px !important; }
 .sidebar-drawer-backdrop { position: fixed; inset: 0; z-index: 49; border: 0; background: var(--overlay); }
 .orca-main-viewport.sidebar-collapsed .orca-header { padding-left: 64px; }

@@ -157,6 +157,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, http.StatusNotFound, "Task not found")
 		return
 	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
 
 	if req.SpaceID != nil {
 		existing.SpaceID = *req.SpaceID
@@ -233,12 +237,26 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo.UpdateStatus(r.Context(), wsID, id, req.Status); err != nil {
+	current, err := h.repo.GetByID(r.Context(), wsID, id)
+	if err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
+	if current == nil {
+		httputil.RespondDBError(w, httputil.ErrNotFound)
+		return
+	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, current.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
+	current.Status = req.Status
+	if err := h.repo.Update(r.Context(), current); err != nil {
 		httputil.RespondDBError(w, err)
 		return
 	}
 
-	httputil.RespondJSON(w, http.StatusOK, map[string]any{"status": req.Status})
+	httputil.RespondJSON(w, http.StatusOK, map[string]any{"status": req.Status, "data": current})
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {

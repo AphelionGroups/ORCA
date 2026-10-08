@@ -164,23 +164,6 @@ func (r *Repository) Update(ctx context.Context, t *Task) error {
 	return nil
 }
 
-func (r *Repository) UpdateStatus(ctx context.Context, workspaceID, id uuid.UUID, status string) error {
-	now := time.Now().UTC().Truncate(time.Microsecond)
-	query := `
-		UPDATE tasks
-		SET status = $1, updated_at = $2
-		WHERE workspace_id = $3 AND id = $4 AND deleted_at IS NULL
-	`
-	res, err := r.pool.Exec(ctx, query, status, now, workspaceID, id)
-	if err != nil {
-		return fmt.Errorf("task.UpdateStatus exec: %w", err)
-	}
-	if res.RowsAffected() == 0 {
-		return httputil.ErrNotFound
-	}
-	return nil
-}
-
 func (r *Repository) Delete(ctx context.Context, workspaceID, id uuid.UUID) error {
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	query := `

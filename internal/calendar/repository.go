@@ -32,13 +32,13 @@ func (r *Repository) List(ctx context.Context, workspaceID uuid.UUID, startAt, e
 	argIdx := 2
 
 	if startAt != nil {
-		query += fmt.Sprintf(" AND end_at >= $%d", argIdx)
+		query += fmt.Sprintf(" AND end_at > $%d", argIdx)
 		args = append(args, *startAt)
 		argIdx++
 	}
 
 	if endAt != nil {
-		query += fmt.Sprintf(" AND start_at <= $%d", argIdx)
+		query += fmt.Sprintf(" AND start_at < $%d", argIdx)
 		args = append(args, *endAt)
 		argIdx++
 	}
