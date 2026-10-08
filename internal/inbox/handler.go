@@ -1,7 +1,7 @@
 package inbox
 
 import (
-	"encoding/json"
+	"github.com/AphelionGroups/ORCA/internal/task"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -47,7 +47,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	wsID := middleware.GetWorkspaceID(r.Context())
 
 	var req CreateNoteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httputil.ParseJSON(r, &req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -113,7 +113,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req UpdateNoteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httputil.ParseJSON(r, &req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -163,11 +163,15 @@ func (h *Handler) ConvertToTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req ConvertToTaskRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httputil.ParseJSON(r, &req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
+	if err := task.ValidateAttributes("", req.Priority, nil); err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if req.SpaceID == uuid.Nil {
 		httputil.RespondError(w, http.StatusBadRequest, "space_id is required")
 		return
@@ -181,7 +185,7 @@ func (h *Handler) ConvertToTask(w http.ResponseWriter, r *http.Request) {
 
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{
 		"message": "Note successfully converted to task",
-		"task_id": taskID,
+		"data":    map[string]any{"task_id": taskID},
 	})
 }
 
@@ -195,7 +199,7 @@ func (h *Handler) ConvertToDoc(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req ConvertToDocRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httputil.ParseJSON(r, &req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -212,7 +216,7 @@ func (h *Handler) ConvertToDoc(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{
-		"message":     "Note successfully converted to document",
-		"document_id": docID,
+		"message": "Note successfully converted to document",
+		"data":    map[string]any{"document_id": docID},
 	})
 }

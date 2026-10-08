@@ -7,13 +7,13 @@ import (
 )
 
 type Note struct {
-	ID          uuid.UUID  `json:"id"`
-	WorkspaceID uuid.UUID  `json:"workspace_id"`
-	Content     string     `json:"content"`
-	Color       string     `json:"color"`
-	IsArchived  bool       `json:"is_archived"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          uuid.UUID `json:"id"`
+	WorkspaceID uuid.UUID `json:"workspace_id"`
+	Content     string    `json:"content"`
+	Color       string    `json:"color"`
+	IsArchived  bool      `json:"is_archived"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type CreateNoteRequest struct {

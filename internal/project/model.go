@@ -2,6 +2,7 @@ package project
 
 import (
 	"encoding/json"
+	"github.com/AphelionGroups/ORCA/internal/platform/httputil"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,9 +32,9 @@ type CreateProjectRequest struct {
 }
 
 type UpdateProjectRequest struct {
-	Name          string          `json:"name"`
-	Description   *string         `json:"description,omitempty"`
-	Status        string          `json:"status"`
-	TargetDate    *time.Time      `json:"target_date,omitempty"`
-	KanbanColumns json.RawMessage `json:"kanban_columns,omitempty"`
+	Name          string                       `json:"name"`
+	Description   httputil.Optional[string]    `json:"description,omitempty"`
+	Status        string                       `json:"status"`
+	TargetDate    httputil.Optional[time.Time] `json:"target_date,omitempty"`
+	KanbanColumns json.RawMessage              `json:"kanban_columns,omitempty"`
 }

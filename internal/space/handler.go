@@ -123,7 +123,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Color != "" {
 		existing.Color = req.Color
 	}
-	existing.SortOrder = req.SortOrder
+	if req.SortOrder != nil {
+		existing.SortOrder = *req.SortOrder
+	}
 
 	if err := h.repo.Update(r.Context(), existing); err != nil {
 		httputil.RespondDBError(w, err)

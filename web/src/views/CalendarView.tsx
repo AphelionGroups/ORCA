@@ -1,6 +1,7 @@
+import { createRequestGate } from '../services/requestGate';
 import { focusScope } from '../components/focusScope';
 import type { Component } from 'solid-js';
-import { createSignal, onMount, For, Show, createEffect } from 'solid-js';
+import { createSignal, onCleanup, untrack, For, Show, createEffect } from 'solid-js';
 import { 
   Calendar, 
   Plus, 
@@ -21,6 +22,10 @@ interface CalendarViewProps {
 }
 
 export const CalendarView: Component<CalendarViewProps> = (_props) => {
+  const requests = createRequestGate();
+  onCleanup(() => requests.invalidate());
+  const [operationError, setOperationError] = createSignal('');
+  const [creatingEvent, setCreatingEvent] = createSignal(false);
   const [spaceFilter, setSpaceFilter] = createSignal('all');
   const [scheduleView, setScheduleView] = createSignal('Week');
   const [events, setEvents] = createSignal<CalendarEvent[]>([]);
@@ -36,6 +41,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
   const [eventEndHour, setEventEndHour] = createSignal('11:30');
 
   const loadData = async () => {
+    const request = requests.begin();
     try {
       const selectedSpace = spaceFilter() === 'all' 
         ? undefined 
@@ -47,6 +53,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
         api.getSpaces()
       ]);
 
+      if (!requests.isCurrent(request)) return;
       setEvents(fetchedEvents || []);
       setBacklogTasks(fetchedTasks || []);
       setSpaces(fetchedSpaces || []);
@@ -55,18 +62,14 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
         setEventSpaceId(fetchedSpaces[0].id);
       }
     } catch (err) {
-      console.error('Failed to load calendar data:', err);
+      if (requests.isCurrent(request)) setOperationError(err instanceof Error ? err.message : 'Could not load calendar');
     }
   };
-
-  onMount(() => {
-    loadData();
-  });
 
   createEffect(() => {
     // Re-fetch when spaceFilter changes
     spaceFilter();
-    loadData();
+    untrack(loadData);
   });
 
   const getSpaceInfo = (spaceId?: string) => {
@@ -80,7 +83,9 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
 
   const handleCreateEvent = async (e: Event) => {
     e.preventDefault();
-    if (!eventTitle().trim()) return;
+    if (!eventTitle().trim() || creatingEvent()) return;
+    setCreatingEvent(true);
+    setOperationError('');
 
     try {
       const now = new Date();
@@ -90,12 +95,13 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
       const [endH, endM] = eventEndHour().split(':').map(Number);
 
       const startDate = new Date(targetDate);
-      startDate.setHours(startH || 10, startM || 0, 0, 0);
+      startDate.setHours(startH, startM, 0, 0);
 
       const endDate = new Date(targetDate);
-      endDate.setHours(endH || 11, endM || 30, 0, 0);
+      endDate.setHours(endH, endM, 0, 0);
 
-      const newEv = await api.createEvent({
+      if (endDate <= startDate) throw new Error('End time must be after start time');
+      await api.createEvent({
         title: eventTitle().trim(),
         space_id: eventSpaceId() || spaces()[0]?.id,
         start_at: startDate.toISOString(),
@@ -103,16 +109,19 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
         is_all_day: false
       });
 
-      setEvents([...events(), newEv]);
+      await loadData();
       setEventTitle('');
       setIsEventModalOpen(false);
     } catch (err) {
-      console.error('Failed to create calendar event:', err);
+      setOperationError(err instanceof Error ? err.message : 'Could not create event');
+    } finally {
+      setCreatingEvent(false);
     }
   };
 
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', "flex-direction": 'column', "background-color": 'var(--surface)', "overflow-y": 'auto' }}>
+      <Show when={operationError()}><div role="alert" class="operation-error">{operationError()}<button class="btn-secondary" onClick={() => setOperationError('')}>Dismiss</button></div></Show>
       {/* Calendar Top Header */}
       <header class="orca-header">
         <div class="header-breadcrumbs">

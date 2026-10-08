@@ -437,28 +437,6 @@ select,
   pointer-events: none;
 }
 
-.header-search-input {
-  background-color: var(--surface-container);
-  border: 1px solid var(--border-default);
-  border-radius: 4px;
-  padding: 5px 12px 5px 32px;
-  font-size: 12px;
-  color: var(--text-main);
-  outline: none;
-  width: 170px;
-  font-family: var(--font-sans);
-  transition: all 150ms ease;
-}
-
-.header-search-input:focus {
-  border-color: var(--surface-muted);
-  width: 210px;
-}
-
-.header-search-input::placeholder {
-  color: var(--text-dim);
-}
-
 .btn-pill-white {
   display: flex;
   align-items: center;
@@ -548,119 +526,11 @@ select,
 }
 
 /* Signature Chamfered Cards */
-.chamfered-node {
-  position: absolute;
-  background-color: var(--surface-panel);
-  border: 1px solid var(--surface-muted);
-  box-shadow: none;
-  padding: 24px;
-  cursor: grab;
-  z-index: 20;
-  clip-path: polygon(0px 0px, calc(100% - 14px) 0px, 100% 14px, 100% 100%, 0px 100%);
-  transition: box-shadow 150ms ease, border-color 150ms ease;
-}
-
-.chamfered-node:active {
-  cursor: grabbing;
-}
-
-.chamfered-node:hover {
-  border-color: var(--surface-muted);
-}
-
 /* Protruding handles (+ markers) */
-.node-handle {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--surface-panel);
-  border: 1px solid var(--surface-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: var(--surface-muted);
-  box-shadow: none;
-}
-
-.node-handle-active-primary {
-  border-color: var(--primary);
-  color: #ffffff;
-  font-weight: 700;
-}
-
-.node-handle-active-secondary {
-  border-color: var(--secondary);
-  color: #ffffff;
-  font-weight: 700;
-}
-
 /* Floating Bottom Canvas Toolbar */
-.floating-canvas-toolbar {
-  position: fixed;
-  bottom: 32px;
-  left: calc(50% + 128px);
-  transform: translateX(-50%);
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px;
-  border-radius: 12px;
-  background-color: var(--surface-card);
-  border: 1px solid var(--border-subtle);
-  box-shadow: none;
-  color: var(--text-muted);
-}
-
-.canvas-tool-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all 120ms ease;
-}
-
-.canvas-tool-btn:hover {
-  background: var(--surface-muted);
-  color: var(--text-main);
-}
-
-.canvas-tool-btn.active {
-  background: var(--surface-muted);
-  color: #ffffff;
-  border-color: var(--border-subtle);
-}
-
 /* =========================================================
    Documents Split Screen (Left index, Right editor)
    ========================================================= */
-.docs-viewport {
-  display: flex;
-  width: 100%;
-  height: calc(100vh - 56px);
-  overflow: hidden;
-}
-
-.docs-index-panel {
-  width: 320px;
-  min-width: 320px;
-  background-color: var(--surface-container-lowest);
-  border-right: 1px solid var(--border-subtle);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  overflow-y: auto;
-}
-
 .doc-list-item {
   padding: 12px;
   border-radius: 6px;
@@ -2625,7 +2495,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--focus-ring); }
 .auth-card [role="tab"] { border-radius: 4px !important; box-shadow: none !important; }
 .auth-card [role="tab"][aria-selected="true"] { background: var(--surface-muted) !important; box-shadow: inset 0 -3px var(--accent) !important; }
 .canvas-toolbar, .canvas-context-toolbar { background: var(--surface-panel); border-color: var(--border-control); border-radius: 8px; box-shadow: var(--shadow-popover); }
-.canvas-tool-btn.active { background: var(--surface-muted); color: var(--text-primary); box-shadow: inset 0 -3px var(--accent); }
 .canvas-block-card, .canvas-block-sticky { box-shadow: none; border: 1px solid var(--border-control); }
 .canvas-block.selected { outline-color: var(--focus-ring); }
 .note-author-avatar-wrapper { background: #0D1B1E; }
@@ -2710,12 +2579,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--focus-ring); }
   .documents-list { width: 100% !important; max-height: 180px; border-right: 0 !important; border-bottom: 1px solid var(--border-subtle); }
 }
 .board-gallery > div:nth-child(2) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)) !important; }
-.canvas-tool-btn { color: var(--text-primary); border-radius: 4px; }
-.node-handle-active-primary, .node-handle-active-secondary { color: var(--text-primary); }
 @media (max-width: 767px) {
   .board-canvas-top-bar { max-width: calc(100% - 32px); flex-wrap: wrap; }
-  .canvas-tool-btn { min-width: 44px; min-height: 44px; }
-}
+  }
 
 .modal-card input:not([type="checkbox"]):not([type="radio"]), .modal-card select, .modal-card textarea,
 .profile-modal-card input:not([type="file"]), .profile-modal-card select { border-color: var(--border-control) !important; font-size: 14px !important; border-radius: 4px !important; }
@@ -2727,3 +2593,5 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--focus-ring); }
   .orca-main-viewport .orca-header { padding-left: 64px !important; }
   .orca-header .breadcrumb-title { margin-left: 0; }
 }
+
+.operation-error { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 20px; background:var(--error-surface); color:var(--danger, #b42318); border-bottom:1px solid var(--border); }

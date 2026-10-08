@@ -1,3 +1,4 @@
+import { persistCanvasAction } from './canvasHistory';
 import { createRequestGate } from '../../services/requestGate';
 import { For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 import type { NoteBlock, NoteBoard, Document as OrcaDoc, Project, Space, Task } from '../../services/api';
@@ -6,6 +7,9 @@ import { getCurrentUser } from '../../services/user';
 import type { CanvasAction, Connection, ShapeKind } from './canvas';
 import type { ProjectsViewProps } from './types';
 export function useProjectController(props: ProjectsViewProps) {
+
+  const [operationError, setOperationError] = createSignal('');
+  const [historyBusy, setHistoryBusy] = createSignal(false);
 
   // Projects & Spaces from Backend
   const [projects, setProjects] = createSignal<Project[]>([]);
@@ -272,6 +276,7 @@ export function useProjectController(props: ProjectsViewProps) {
     } catch (err) {
       if (projectRequests.isCurrent(reqId)) {
         console.error('Failed to load projects:', err);
+        setOperationError(err instanceof Error ? err.message : 'Operation failed');
       }
     } finally {
       if (projectRequests.isCurrent(reqId)) {
@@ -425,6 +430,12 @@ export function useProjectController(props: ProjectsViewProps) {
     const request = detailRequests.capture();
     return () => detailRequests.isCurrent(request);
   };
+  const captureBoardSelection = () => {
+    const boardId = currentBoard()?.id;
+    const request = boardRequests.capture();
+    const projectIsCurrent = captureProjectSelection();
+    return () => projectIsCurrent() && boardRequests.isCurrent(request) && currentBoard()?.id === boardId;
+  };
   onCleanup(() => { projectRequests.invalidate(); detailRequests.invalidate(); boardRequests.invalidate(); });
 
   // Load Project Detail sub-entities when selectedProjectId changes
@@ -433,6 +444,7 @@ export function useProjectController(props: ProjectsViewProps) {
     const reqId = detailRequests.begin();
     boardRequests.invalidate();
     setIsSavingDoc(false);
+    setOperationError('');
     setIsBoardCanvasOpen(false);
     setSelectedBlockId(null);
     setSelectedBlockIds([]);
@@ -491,6 +503,7 @@ export function useProjectController(props: ProjectsViewProps) {
           currentBoards = [newBoard];
         } catch (e) {
           console.error('Failed to auto-create board:', e);
+          setOperationError(e instanceof Error ? e.message : 'Operation failed');
         }
         if (!detailRequests.isCurrent(reqId)) return;
       }
@@ -508,16 +521,7 @@ export function useProjectController(props: ProjectsViewProps) {
         const fetchedBlocks = await api.getBoardBlocks(activeBoard.id);
         if (!detailRequests.isCurrent(reqId) || !boardRequests.isCurrent(initialBoardRequest) || selectedBoardId() !== activeBoard.id) return;
         setBlocks(fetchedBlocks || []);
-        if (fetchedBlocks && fetchedBlocks.length >= 2) {
-          const connectable = fetchedBlocks.filter(b => b.type !== 'sticky');
-          if (connectable.length >= 2) {
-            setConnections([{ fromId: connectable[0].id, toId: connectable[1].id }]);
-          } else {
-            setConnections([]);
-          }
-        } else {
-          setConnections([]);
-        }
+        setConnections([]);
       } else {
         setBlocks([]);
         setConnections([]);
@@ -526,6 +530,7 @@ export function useProjectController(props: ProjectsViewProps) {
     } catch (err) {
       if (detailRequests.isCurrent(reqId)) {
         console.error('Failed to load project sub-data:', err);
+        setOperationError(err instanceof Error ? err.message : 'Operation failed');
       }
     } finally {
       if (detailRequests.isCurrent(reqId)) {
@@ -566,19 +571,11 @@ export function useProjectController(props: ProjectsViewProps) {
       setSelectedConnection(null);
       setUndoStack([]);
       setRedoStack([]);
-      if (fetchedBlocks && fetchedBlocks.length >= 2) {
-        const connectable = fetchedBlocks.filter(b => b.type !== 'sticky');
-        if (connectable.length >= 2) {
-          setConnections([{ fromId: connectable[0].id, toId: connectable[1].id }]);
-        } else {
-          setConnections([]);
-        }
-      } else {
-        setConnections([]);
-      }
+      setConnections([]);
       return true;
     } catch (err) {
       if (isCurrent()) console.error('Failed to switch board:', err);
+ setOperationError(err instanceof Error ? err.message : 'Operation failed');
       return false;
     } finally {
       if (isCurrent()) setLoadingSubData(false);
@@ -621,6 +618,7 @@ export function useProjectController(props: ProjectsViewProps) {
       setIsBoardCanvasOpen(true);
     } catch (err) {
       console.error('Failed to create board:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -634,6 +632,7 @@ export function useProjectController(props: ProjectsViewProps) {
       setBoards(boards().map(b => b.id === boardId ? { ...b, title: trimmed } : b));
     } catch (err) {
       console.error('Failed to rename board:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -661,6 +660,7 @@ export function useProjectController(props: ProjectsViewProps) {
       }
     } catch (err) {
       console.error('Failed to delete board:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -671,8 +671,11 @@ export function useProjectController(props: ProjectsViewProps) {
     return spaces().find(s => s.id === spaceId)?.name || 'Space';
   };
 
+  let editingDocumentId: string | null = null;
   createEffect(() => {
     const doc = currentDoc();
+    if ((doc?.id ?? null) === editingDocumentId) return;
+    editingDocumentId = doc?.id ?? null;
     if (doc) {
       setEditingDocTitle(doc.title || '');
       setEditingDocContent(doc.content || '');
@@ -713,6 +716,7 @@ export function useProjectController(props: ProjectsViewProps) {
 
   // Canvas background mouse down (Panning or Drop Block)
   const handleCanvasMouseDown = (e: MouseEvent) => {
+    if (historyBusy()) return;
     // If clicking on toolbar or buttons or inputs, ignore
     const target = e.target as HTMLElement;
     if (target.closest('.canvas-toolbar') || target.closest('button') || target.closest('input') || target.closest('textarea')) {
@@ -783,6 +787,7 @@ export function useProjectController(props: ProjectsViewProps) {
 
   // Block mouse down (Start Dragging or Connection)
   const handleBlockMouseDown = (e: MouseEvent, block: NoteBlock) => {
+    if (historyBusy()) return;
     e.stopPropagation();
     const target = e.target as HTMLElement;
     if (['button', 'input', 'textarea', 'select'].includes(target.tagName.toLowerCase())) {
@@ -966,6 +971,7 @@ export function useProjectController(props: ProjectsViewProps) {
       await api.updateNoteBlock(block.id, { height: 0 });
     } catch (err) {
       console.error('Failed to reset block height:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -1346,6 +1352,7 @@ export function useProjectController(props: ProjectsViewProps) {
             });
           } catch (err) {
             console.error('Failed to persist resized block:', err);
+            setOperationError(err instanceof Error ? err.message : 'Operation failed');
           }
         }
       }
@@ -1485,6 +1492,7 @@ export function useProjectController(props: ProjectsViewProps) {
             });
           } catch (err) {
             console.error('Failed to persist block position:', err);
+            setOperationError(err instanceof Error ? err.message : 'Operation failed');
           }
         }
       }
@@ -1576,6 +1584,8 @@ export function useProjectController(props: ProjectsViewProps) {
     newY: number,
     srcSide?: 'top' | 'right' | 'bottom' | 'left'
   ) => {
+    if (historyBusy()) return;
+    const isCurrent = captureBoardSelection();
     const board = currentBoard();
     if (!board) return;
     const type = srcBlock.type;
@@ -1599,6 +1609,7 @@ export function useProjectController(props: ProjectsViewProps) {
         width,
         content: defaultContent,
       });
+      if (!isCurrent()) return;
       pushUndoAction({ type: 'create_block', block: created });
       const oppSide = srcSide === 'right' ? 'left' : srcSide === 'left' ? 'right' : srcSide === 'top' ? 'bottom' : 'top';
       const newConn: Connection = {
@@ -1614,11 +1625,14 @@ export function useProjectController(props: ProjectsViewProps) {
       setSelectedBlockIds([created.id]);
     } catch (err) {
       console.error('Failed to create connected block:', err);
+      if (isCurrent()) setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
   // Create a new block at coordinates or viewport center
   const handleCreateBlock = async (type: NoteBlock['type'] = 'card', posX?: number, posY?: number) => {
+    if (historyBusy()) return;
+    const isCurrent = captureBoardSelection();
     const board = currentBoard();
     if (!board) {
       console.warn('No active board found to attach block.');
@@ -1672,6 +1686,7 @@ export function useProjectController(props: ProjectsViewProps) {
         width,
         content: defaultContent[type] || { text: '' }
       });
+      if (!isCurrent()) return;
 
       pushUndoAction({
         type: 'create_block',
@@ -1683,6 +1698,7 @@ export function useProjectController(props: ProjectsViewProps) {
       setSelectedBlockIds([created.id]);
     } catch (err) {
       console.error('Failed to create block:', err);
+      if (isCurrent()) setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -1696,6 +1712,8 @@ export function useProjectController(props: ProjectsViewProps) {
       return;
     }
 
+    if (historyBusy()) return;
+    const isCurrent = captureBoardSelection();
     const board = currentBoard();
     if (!board) {
       alert('Papan board tidak ditemukan');
@@ -1705,6 +1723,7 @@ export function useProjectController(props: ProjectsViewProps) {
     setIsUploadingCanvasImage(true);
     try {
       const uploadRes = await api.uploadImage(file);
+      if (!isCurrent()) return;
       const scale = zoom() / 100;
       const x = Math.round((-pan().x + 360) / scale + (blocks().length * 20) % 100);
       const y = Math.round((-pan().y + 180) / scale + (blocks().length * 20) % 100);
@@ -1720,6 +1739,7 @@ export function useProjectController(props: ProjectsViewProps) {
           driver: uploadRes.driver,
         },
       });
+      if (!isCurrent()) return;
 
       pushUndoAction({ type: 'create_block', block: created });
       setBlocks(prev => [...prev, created]);
@@ -1760,6 +1780,7 @@ export function useProjectController(props: ProjectsViewProps) {
       await api.updateNoteBlock(block.id, { content: updatedContent });
     } catch (err) {
       console.error('Failed to save block text:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -1785,11 +1806,14 @@ export function useProjectController(props: ProjectsViewProps) {
       await api.updateNoteBlock(blockId, { content: newContent });
     } catch (err) {
       console.error('Failed to update block content:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
   // Duplicate block with offset and full undo history support
   const handleDuplicateBlock = async (block: NoteBlock) => {
+    if (historyBusy()) return;
+    const isCurrent = captureBoardSelection();
     const board = currentBoard();
     if (!board) return;
 
@@ -1809,12 +1833,14 @@ export function useProjectController(props: ProjectsViewProps) {
         height: block.height,
         content: clonedContent,
       });
+      if (!isCurrent()) return;
       setBlocks(prev => [...prev, created]);
       pushUndoAction({ type: 'create_block', block: created });
       setSelectedBlockId(created.id);
       setSelectedBlockIds([created.id]);
     } catch (err) {
       console.error('Failed to duplicate block:', err);
+      if (isCurrent()) setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -1839,6 +1865,8 @@ export function useProjectController(props: ProjectsViewProps) {
   const handlePasteBlock = async () => {
     const clip = copiedBlock();
     if (!clip) return;
+    if (historyBusy()) return;
+    const isCurrent = captureBoardSelection();
     const board = currentBoard();
     if (!board) return;
 
@@ -1856,6 +1884,7 @@ export function useProjectController(props: ProjectsViewProps) {
         height: clip.height,
         content: clonedContent,
       });
+      if (!isCurrent()) return;
       setBlocks(prev => [...prev, created]);
       pushUndoAction({ type: 'create_block', block: created });
       setSelectedBlockId(created.id);
@@ -1863,43 +1892,66 @@ export function useProjectController(props: ProjectsViewProps) {
       setCopiedBlock({ ...clip, pos_x: clip.pos_x + offset, pos_y: clip.pos_y + offset });
     } catch (err) {
       console.error('Failed to paste block:', err);
+      if (isCurrent()) setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
   // Delete multiple blocks with full undo history support
   const handleDeleteBlocks = async (blockIds: string[]) => {
+    if (historyBusy()) return;
     const toDelete = blocks().filter(b => blockIds.includes(b.id));
-    if (toDelete.length === 0) return;
-
+    const board = currentBoard();
+    if (!board || !toDelete.length) return;
+    const isCurrent = captureProjectSelection();
     const idSet = new Set(blockIds);
-    const affectedConnections = connections().filter(c => idSet.has(c.fromId) || idSet.has(c.toId));
-
-    pushUndoAction({
-      type: 'delete_blocks',
-      blocks: toDelete,
-      connections: affectedConnections
-    });
-
-    setBlocks(blocks().filter(b => !idSet.has(b.id)));
-    setConnections(connections().filter(c => !idSet.has(c.fromId) && !idSet.has(c.toId)));
-    if (selectedBlockId() && idSet.has(selectedBlockId()!)) setSelectedBlockId(null);
-    setSelectedBlockIds(selectedBlockIds().filter(id => !idSet.has(id)));
-
-    for (const id of blockIds) {
+    const action: CanvasAction = {
+      type: 'delete_blocks', blocks: toDelete,
+      connections: connections().filter(c => idSet.has(c.fromId) || idSet.has(c.toId)),
+    };
+    setHistoryBusy(true);
+    try {
+      await persistCanvasAction(api, action, 'redo');
+      if (!isCurrent() || currentBoard()?.id !== board.id) return;
+      pushUndoAction(action);
+      setBlocks(prev => prev.filter(b => !idSet.has(b.id)));
+      setConnections(prev => prev.filter(c => !idSet.has(c.fromId) && !idSet.has(c.toId)));
+      if (selectedBlockId() && idSet.has(selectedBlockId()!)) setSelectedBlockId(null);
+      setSelectedBlockIds(prev => prev.filter(id => !idSet.has(id)));
+    } catch (error) {
+      if (!isCurrent() || currentBoard()?.id !== board.id) return;
+      setOperationError(error instanceof Error ? error.message : 'Could not delete blocks');
+      // A partially completed multi-block operation remains undoable.
+      pushUndoAction(action);
       try {
-        await api.deleteNoteBlock(id);
-      } catch (err) {
-        console.error('Failed to delete block:', err);
-      }
-    }
+        const confirmed = await api.getBoardBlocks(board.id);
+        if (isCurrent() && currentBoard()?.id === board.id) setBlocks(confirmed);
+      } catch { /* Error remains visible and the original action remains undoable. */ }
+    } finally { setHistoryBusy(false); }
   };
-
 
   // Canvas Undo Handler (Ctrl+Z)
   const handleUndo = async () => {
     const stack = undoStack();
-    if (stack.length === 0) return;
+    if (stack.length === 0 || historyBusy()) return;
     const action = stack[stack.length - 1];
+    const board = currentBoard();
+    const isCurrent = captureProjectSelection();
+    setHistoryBusy(true);
+    try {
+      await persistCanvasAction(api, action, 'undo');
+      if (!isCurrent() || currentBoard()?.id !== board?.id) return;
+    } catch (error) {
+      if (isCurrent() && currentBoard()?.id === board?.id) {
+        setOperationError(error instanceof Error ? error.message : 'Could not update board history');
+        if (board) {
+          try {
+            const confirmed = await api.getBoardBlocks(board.id);
+            if (isCurrent() && currentBoard()?.id === board.id) setBlocks(confirmed);
+          } catch { /* Retain last confirmed state. */ }
+        }
+      }
+      return;
+    } finally { setHistoryBusy(false); }
     setUndoStack(prev => prev.slice(0, -1));
 
     switch (action.type) {
@@ -1908,35 +1960,12 @@ export function useProjectController(props: ProjectsViewProps) {
         setConnections(prev => prev.filter(c => c.fromId !== action.block.id && c.toId !== action.block.id));
         if (selectedBlockId() === action.block.id) setSelectedBlockId(null);
         setSelectedBlockIds(prev => prev.filter(id => id !== action.block.id));
-        try {
-          await api.deleteNoteBlock(action.block.id);
-        } catch (e) {
-          console.error('Undo create block failed:', e);
-        }
         break;
       }
       case 'delete_blocks': {
-        setBlocks(prev => [...prev, ...action.blocks]);
+        setBlocks(prev => [...prev.filter(b => !action.blocks.some(restored => restored.id === b.id)), ...action.blocks]);
         if (action.connections && action.connections.length > 0) {
-          setConnections(prev => [...prev, ...action.connections]);
-        }
-        const board = currentBoard();
-        if (board) {
-          for (const b of action.blocks) {
-            try {
-              await api.createNoteBlock(board.id, {
-                id: b.id,
-                type: b.type,
-                pos_x: b.pos_x,
-                pos_y: b.pos_y,
-                width: b.width,
-                height: b.height,
-                content: b.content
-              });
-            } catch (e) {
-              console.error('Undo delete block failed:', e);
-            }
-          }
+          setConnections(prev => [...prev.filter(c => !action.connections.some(restored => restored.fromId === c.fromId && restored.toId === c.toId)), ...action.connections]);
         }
         break;
       }
@@ -1946,22 +1975,11 @@ export function useProjectController(props: ProjectsViewProps) {
           const p = moveMap.get(b.id);
           return p ? { ...b, pos_x: p.x, pos_y: p.y } : b;
         }));
-        for (const m of action.moves) {
-          try {
-            await api.updateNoteBlock(m.id, { pos_x: m.fromX, pos_y: m.fromY });
-          } catch (e) {
-            console.error('Undo move block failed:', e);
-          }
-        }
+
         break;
       }
       case 'update_text': {
         setBlocks(prev => prev.map(b => b.id === action.blockId ? { ...b, content: action.prevContent } : b));
-        try {
-          await api.updateNoteBlock(action.blockId, { content: action.prevContent });
-        } catch (e) {
-          console.error('Undo text update failed:', e);
-        }
         break;
       }
       case 'create_connection': {
@@ -1989,16 +2007,6 @@ export function useProjectController(props: ProjectsViewProps) {
           width: action.prevWidth,
           height: action.prevHeight,
         } : b));
-        try {
-          await api.updateNoteBlock(action.blockId, {
-            pos_x: action.prevX,
-            pos_y: action.prevY,
-            width: action.prevWidth,
-            height: action.prevHeight ?? 0,
-          });
-        } catch (e) {
-          console.error('Undo resize block failed:', e);
-        }
         break;
       }
     }
@@ -2009,29 +2017,32 @@ export function useProjectController(props: ProjectsViewProps) {
   // Canvas Redo Handler (Ctrl+Y or Ctrl+Shift+Z)
   const handleRedo = async () => {
     const stack = redoStack();
-    if (stack.length === 0) return;
+    if (stack.length === 0 || historyBusy()) return;
     const action = stack[stack.length - 1];
+    const board = currentBoard();
+    const isCurrent = captureProjectSelection();
+    setHistoryBusy(true);
+    try {
+      await persistCanvasAction(api, action, 'redo');
+      if (!isCurrent() || currentBoard()?.id !== board?.id) return;
+    } catch (error) {
+      if (isCurrent() && currentBoard()?.id === board?.id) {
+        setOperationError(error instanceof Error ? error.message : 'Could not update board history');
+        if (board) {
+          try {
+            const confirmed = await api.getBoardBlocks(board.id);
+            if (isCurrent() && currentBoard()?.id === board.id) setBlocks(confirmed);
+          } catch { /* Retain last confirmed state. */ }
+        }
+      }
+      return;
+    } finally { setHistoryBusy(false); }
     setRedoStack(prev => prev.slice(0, -1));
 
     switch (action.type) {
       case 'create_block': {
-        setBlocks(prev => [...prev, action.block]);
-        const board = currentBoard();
-        if (board) {
-          try {
-            await api.createNoteBlock(board.id, {
-              id: action.block.id,
-              type: action.block.type,
-              pos_x: action.block.pos_x,
-              pos_y: action.block.pos_y,
-              width: action.block.width,
-              height: action.block.height,
-              content: action.block.content
-            });
-          } catch (e) {
-            console.error('Redo create block failed:', e);
-          }
-        }
+        setBlocks(prev => [...prev.filter(b => b.id !== action.block.id), action.block]);
+
         break;
       }
       case 'delete_blocks': {
@@ -2040,13 +2051,7 @@ export function useProjectController(props: ProjectsViewProps) {
         setConnections(prev => prev.filter(c => !idSet.has(c.fromId) && !idSet.has(c.toId)));
         if (selectedBlockId() && idSet.has(selectedBlockId()!)) setSelectedBlockId(null);
         setSelectedBlockIds(prev => prev.filter(id => !idSet.has(id)));
-        for (const b of action.blocks) {
-          try {
-            await api.deleteNoteBlock(b.id);
-          } catch (e) {
-            console.error('Redo delete block failed:', e);
-          }
-        }
+
         break;
       }
       case 'move_blocks': {
@@ -2055,22 +2060,11 @@ export function useProjectController(props: ProjectsViewProps) {
           const p = moveMap.get(b.id);
           return p ? { ...b, pos_x: p.x, pos_y: p.y } : b;
         }));
-        for (const m of action.moves) {
-          try {
-            await api.updateNoteBlock(m.id, { pos_x: m.toX, pos_y: m.toY });
-          } catch (e) {
-            console.error('Redo move block failed:', e);
-          }
-        }
+
         break;
       }
       case 'update_text': {
         setBlocks(prev => prev.map(b => b.id === action.blockId ? { ...b, content: action.newContent } : b));
-        try {
-          await api.updateNoteBlock(action.blockId, { content: action.newContent });
-        } catch (e) {
-          console.error('Redo text update failed:', e);
-        }
         break;
       }
       case 'create_connection': {
@@ -2098,16 +2092,6 @@ export function useProjectController(props: ProjectsViewProps) {
           width: action.newWidth,
           height: action.newHeight,
         } : b));
-        try {
-          await api.updateNoteBlock(action.blockId, {
-            pos_x: action.newX,
-            pos_y: action.newY,
-            width: action.newWidth,
-            height: action.newHeight ?? 0,
-          });
-        } catch (e) {
-          console.error('Redo resize block failed:', e);
-        }
         break;
       }
     }
@@ -2409,300 +2393,6 @@ export function useProjectController(props: ProjectsViewProps) {
     );
   };
 
-  // Render contextual floating action bar above the selected object
-  const renderContextualToolbar = () => {
-    const block = primarySelectedBlock();
-    if (!block) return null;
-
-    const w = getBlockWidth(block);
-    const posX = block.pos_x + w / 2;
-    const posY = block.pos_y - 12;
-
-    const isLocked = Boolean(block.content?.locked);
-    const currentColor = block.content?.color || '#44e1de';
-    const currentBorderStyle = block.content?.border_style || 'solid';
-    const currentFillStyle = block.content?.fill_style || 'solid';
-
-    const COLOR_PALETTE = [
-      { name: 'Dark (Default)', value: '#1e2025' },
-      { name: 'Pure White', value: '#ffffff' },
-      { name: 'Ocean Blue', value: '#2563eb' },
-      { name: 'Teal', value: '#0d9488' },
-      { name: 'Purple', value: '#7c3aed' },
-      { name: 'Rose Red', value: '#e11d48' },
-      { name: 'Amber Orange', value: '#d97706' },
-      { name: 'Emerald Green', value: '#16a34a' },
-      { name: 'Slate Gray', value: '#475569' },
-    ];
-
-    return (
-      <div
-        class="canvas-context-toolbar"
-        style={{
-          left: `${posX}px`,
-          top: `${posY}px`,
-        }}
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 1. Edit Text Tool */}
-        <button
-          class="ctx-btn"
-          title="Edit text (or double-click block)"
-          onClick={() => {
-            setEditingBlockId(block.id);
-            setShowContextColorPicker(false);
-            setShowContextMoreMenu(false);
-          }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-          <span>Edit</span>
-        </button>
-
-        <div class="ctx-divider" />
-
-        {/* 2. Color Picker Tool */}
-        <div style={{ position: 'relative' }}>
-          <button
-            class={`ctx-btn ${showContextColorPicker() ? 'active' : ''}`}
-            title="Color / Warna"
-            onClick={() => {
-              setShowContextColorPicker(!showContextColorPicker());
-              setShowContextMoreMenu(false);
-            }}
-          >
-            <div
-              style={{
-                width: '13px',
-                height: '13px',
-                "border-radius": '50%',
-                background: currentColor,
-                border: '1.5px solid var(--surface-muted)',
-              }}
-            />
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
-
-          {/* Color Popover */}
-          <Show when={showContextColorPicker()}>
-            <div class="ctx-popover" onClick={(e) => e.stopPropagation()}>
-              <For each={COLOR_PALETTE}>
-                {(c) => (
-                  <div
-                    class={`ctx-color-swatch ${block.content?.color === c.value ? 'active' : ''}`}
-                    style={{ background: c.value }}
-                    title={c.name}
-                    onClick={() => {
-                      handleUpdateBlockContent(block.id, { color: c.value });
-                      setShowContextColorPicker(false);
-                    }}
-                  />
-                )}
-              </For>
-              <div
-                class="ctx-color-swatch"
-                style={{
-                  background: 'transparent',
-                  border: '1.5px dashed var(--surface-muted)',
-                  display: 'flex',
-                  "align-items": 'center',
-                  "justify-content": 'center',
-                  "font-size": '12px',
-                  color: '#94a3b8'
-                }}
-                title="Reset color"
-                onClick={() => {
-                  handleUpdateBlockContent(block.id, { color: undefined });
-                  setShowContextColorPicker(false);
-                }}
-              >
-                ✕
-              </div>
-            </div>
-          </Show>
-        </div>
-
-        {/* 3. Outline Solid atau Dash */}
-        <button
-          class="ctx-btn"
-          title={`Outline style: ${currentBorderStyle === 'dashed' ? 'Dashed' : 'Solid'}`}
-          onClick={() => {
-            const next = currentBorderStyle === 'dashed' ? 'solid' : 'dashed';
-            handleUpdateBlockContent(block.id, { border_style: next });
-          }}
-        >
-          <Show when={currentBorderStyle === 'dashed'} fallback={
-            <svg width="16" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="2" y1="12" x2="22" y2="12" />
-            </svg>
-          }>
-            <svg width="16" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="4,4">
-              <line x1="2" y1="12" x2="22" y2="12" />
-            </svg>
-          </Show>
-          <span>{currentBorderStyle === 'dashed' ? 'Dash' : 'Solid'}</span>
-        </button>
-
-        {/* 4. Fill Tool (Solid vs Transparent) */}
-        <button
-          class="ctx-btn"
-          title={`Fill: ${currentFillStyle === 'transparent' ? 'Transparent' : 'Solid'}`}
-          onClick={() => {
-            const next = currentFillStyle === 'transparent' ? 'solid' : 'transparent';
-            handleUpdateBlockContent(block.id, { fill_style: next });
-          }}
-        >
-          <Show when={currentFillStyle === 'transparent'} fallback={
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-            </svg>
-          }>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="4" y1="20" x2="20" y2="4" stroke-width="1.5" />
-            </svg>
-          </Show>
-          <span>{currentFillStyle === 'transparent' ? 'Transparent' : 'Solid'}</span>
-        </button>
-
-        <div class="ctx-divider" />
-
-        {/* 5. Duplicate Tool */}
-        <button
-          class="ctx-btn"
-          title="Duplicate (Ctrl+D)"
-          onClick={() => handleDuplicateBlock(block)}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-          </svg>
-        </button>
-
-        {/* 6. Lock Tool Toggle */}
-        <button
-          class={`ctx-btn ${isLocked ? 'active' : ''}`}
-          title={isLocked ? "Unlock object" : "Lock object"}
-          onClick={() => handleUpdateBlockContent(block.id, { locked: !isLocked })}
-          style={isLocked ? { color: 'var(--status-warning)', 'background-color': 'rgba(251, 191, 36, 0.15)', 'border-color': 'rgba(251, 191, 36, 0.3)' } : {}}
-        >
-          <Show when={isLocked} fallback={
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-            </svg>
-          }>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
-          </Show>
-        </button>
-
-        {/* 7. Tombol Titik 3 (... More Options) */}
-        <div style={{ position: 'relative' }}>
-          <button
-            class={`ctx-btn ${showContextMoreMenu() ? 'active' : ''}`}
-            title="More options"
-            onClick={() => {
-              setShowContextMoreMenu(!showContextMoreMenu());
-              setShowContextColorPicker(false);
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="19" cy="12" r="1" />
-              <circle cx="5" cy="12" r="1" />
-            </svg>
-          </button>
-
-          {/* More Options Dropdown */}
-          <Show when={showContextMoreMenu()}>
-            <div class="ctx-menu-dropdown" onClick={(e) => e.stopPropagation()}>
-              <button
-                class="ctx-menu-item"
-                onClick={() => handleCopyBlock(block)}
-              >
-                <span style={{ display: 'flex', 'align-items': 'center', gap: '8px' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                  </svg>
-                  Copy
-                </span>
-                <span class="ctx-menu-badge">Ctrl+C</span>
-              </button>
-
-              <button
-                class="ctx-menu-item"
-                onClick={() => handleCutBlock(block)}
-              >
-                <span style={{ display: 'flex', 'align-items': 'center', gap: '8px' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="6" cy="6" r="3" />
-                    <circle cx="6" cy="18" r="3" />
-                    <line x1="20" y1="4" x2="8.12" y2="15.88" />
-                    <line x1="14.47" y1="14.48" x2="20" y2="20" />
-                    <line x1="8.12" y1="8.12" x2="12" y2="12" />
-                  </svg>
-                  Cut
-                </span>
-                <span class="ctx-menu-badge">Ctrl+X</span>
-              </button>
-
-              <button
-                class="ctx-menu-item"
-                onClick={() => {
-                  handleUpdateBlockContent(block.id, { locked: !isLocked });
-                  setShowContextMoreMenu(false);
-                }}
-              >
-                <span style={{ display: 'flex', 'align-items': 'center', gap: '8px' }}>
-                  <Show when={isLocked} fallback={
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                  }>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-                    </svg>
-                  </Show>
-                  {isLocked ? 'Unlock' : 'Lock'}
-                </span>
-              </button>
-
-              <div style={{ height: '1px', background: 'var(--surface-muted)', margin: '2px 0' }} />
-
-              <button
-                class="ctx-menu-item danger"
-                onClick={() => {
-                  setShowContextMoreMenu(false);
-                  handleDeleteBlocks([block.id]);
-                }}
-              >
-                <span style={{ display: 'flex', 'align-items': 'center', gap: '8px' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
-                  Delete
-                </span>
-                <span class="ctx-menu-badge">Del</span>
-              </button>
-            </div>
-          </Show>
-        </div>
-      </div>
-    );
-  };
-
   // -------------------------------------------------------------
   // TASKS & DOCS TAB HANDLERS
   // -------------------------------------------------------------
@@ -2773,6 +2463,7 @@ export function useProjectController(props: ProjectsViewProps) {
       await api.updateTaskStatus(taskId, colKey);
     } catch (err) {
       console.error('Failed to update task status:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
       // Revert on error
       setTasks(tasks().map(t => t.id === taskId ? currentTask : t));
     }
@@ -2800,10 +2491,12 @@ export function useProjectController(props: ProjectsViewProps) {
       setDocViewMode('edit');
     } catch (err) {
       console.error('Failed to create document:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
   const handleSaveDoc = async () => {
+    if (isSavingDoc()) return;
     const isCurrent = captureProjectSelection();
     const doc = currentDoc();
     if (!doc) return;
@@ -2811,11 +2504,12 @@ export function useProjectController(props: ProjectsViewProps) {
     const content = editingDocContent();
     setIsSavingDoc(true);
     try {
-      const updated = await api.updateDocument(doc.id, { title, content });
+      const updated = await api.updateDocument(doc.id, { title, content, expected_updated_at: doc.updated_at });
       if (!isCurrent()) return;
       setDocs(docs().map(d => d.id === doc.id ? updated : d));
     } catch (err) {
       console.error('Failed to save document:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     } finally {
       if (isCurrent()) setIsSavingDoc(false);
     }
@@ -2834,6 +2528,7 @@ export function useProjectController(props: ProjectsViewProps) {
       setSelectedDocId(remaining.length > 0 ? remaining[0].id : null);
     } catch (err) {
       console.error('Failed to delete document:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -2856,12 +2551,14 @@ export function useProjectController(props: ProjectsViewProps) {
     const input = e.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
+    const proj = currentProject();
+    const isCurrent = captureProjectSelection();
+    if (!proj) return;
     const reader = new FileReader();
     reader.onload = async (event) => {
       const text = (event.target?.result as string) || '';
       const rawName = file.name.replace(/\.[^/.]+$/, "");
-      const proj = currentProject();
-      if (!proj) return;
+      if (!isCurrent()) return;
       try {
         const created = await api.createDocument({
           project_id: proj.id,
@@ -2871,18 +2568,21 @@ export function useProjectController(props: ProjectsViewProps) {
           content: text,
           is_pinned: false
         });
+        if (!isCurrent()) return;
         setDocs([created, ...docs()]);
         setSelectedDocId(created.id);
         setEditingDocTitle(created.title);
         setEditingDocContent(created.content);
       } catch (err) {
         console.error('Failed to import document:', err);
+        setOperationError(err instanceof Error ? err.message : 'Operation failed');
       }
     };
     reader.readAsText(file);
     input.value = '';
   };
-  return {    
+  return {
+    operationError, setOperationError, historyBusy,
 setSelectedProjectId,
     selectedProjectId,
     currentProject,
@@ -2958,7 +2658,9 @@ setSelectedProjectId,
     primarySelectedBlock,
     get draggingBlockState() { return draggingBlockState; }, set draggingBlockState(value: typeof draggingBlockState) { draggingBlockState = value; },
     get resizingBlockState() { return resizingBlockState; }, set resizingBlockState(value: typeof resizingBlockState) { resizingBlockState = value; },
-    renderContextualToolbar,
+    handleCopyBlock, handleCutBlock, handleDeleteBlocks, handleDuplicateBlock, handleUpdateBlockContent,
+    showContextColorPicker, setShowContextColorPicker,
+    showContextMoreMenu, setShowContextMoreMenu,
     setActiveCanvasTool,
     undoStack,
     handleUndo,

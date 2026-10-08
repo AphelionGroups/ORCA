@@ -10,8 +10,13 @@ import (
 )
 
 var ErrNotFound = errors.New("resource not found")
+var ErrConflict = errors.New("resource changed since it was read")
 
 func RespondDBError(w http.ResponseWriter, err error) {
+	if errors.Is(err, ErrConflict) {
+		RespondError(w, http.StatusConflict, "Data changed. Refresh before retrying; your edits have not been saved.")
+		return
+	}
 	if errors.Is(err, ErrNotFound) || errors.Is(err, pgx.ErrNoRows) {
 		RespondError(w, http.StatusNotFound, "Resource not found")
 		return

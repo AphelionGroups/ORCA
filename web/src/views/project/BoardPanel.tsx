@@ -1,3 +1,4 @@
+import { CanvasContextToolbar } from './CanvasContextToolbar';
 import {
   ArrowLeft,
   Edit3,
@@ -863,7 +864,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
 
           {/* Contextual Action Bar above Selected Object */}
           <Show when={ctx.primarySelectedBlock() && !ctx.editingBlockId() && !ctx.isSelectingArea && !ctx.draggingBlockState && !ctx.resizingBlockState}>
-            {ctx.renderContextualToolbar()}
+            <CanvasContextToolbar ctx={ctx} />
           </Show>
         </div>
 

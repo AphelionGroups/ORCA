@@ -81,6 +81,12 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       </div>
     </header>
 
+    <Show when={ctx.operationError()}>
+      <div role="alert" class="operation-error">
+        <span>{ctx.operationError()}</span>
+        <button class="btn-secondary" onClick={() => ctx.setOperationError('')}>Dismiss</button>
+      </div>
+    </Show>
     {/* Main Container */}
     <Show when={!ctx.selectedProjectId()} fallback={<div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
 

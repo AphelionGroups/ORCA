@@ -1,3 +1,4 @@
+import { createRequestGate } from '../services/requestGate';
 import { focusScope } from '../components/focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, onMount, onCleanup, For, Show } from 'solid-js';
@@ -23,6 +24,9 @@ interface InboxViewProps {
 }
 
 export const InboxView: Component<InboxViewProps> = (props) => {
+  const requests = createRequestGate();
+  onCleanup(() => requests.invalidate());
+  const [operationError, setOperationError] = createSignal('');
   const [quickInput, setQuickInput] = createSignal('');
   const [notes, setNotes] = createSignal<InboxNote[]>([]);
   const [spaces, setSpaces] = createSignal<Space[]>([]);
@@ -65,6 +69,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
   };
 
   const loadData = async () => {
+    const request = requests.begin();
     setLoading(true);
     try {
       const [fetchedNotes, fetchedSpaces, fetchedProjects] = await Promise.all([
@@ -72,6 +77,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
         api.getSpaces(),
         api.getProjects()
       ]);
+      if (!requests.isCurrent(request)) return;
       setNotes(fetchedNotes || []);
       setSpaces(fetchedSpaces || []);
       setProjects(fetchedProjects || []);
@@ -79,9 +85,9 @@ export const InboxView: Component<InboxViewProps> = (props) => {
         setConvertSpaceId(fetchedSpaces[0].id);
       }
     } catch (err) {
-      console.error('Failed to load inbox data:', err);
+      if (requests.isCurrent(request)) setOperationError(err instanceof Error ? err.message : 'Could not load inbox');
     } finally {
-      setLoading(false);
+      if (requests.isCurrent(request)) setLoading(false);
     }
   };
 
@@ -105,12 +111,14 @@ export const InboxView: Component<InboxViewProps> = (props) => {
   const handleAddNote = async (e?: Event) => {
     if (e) e.preventDefault();
     const val = quickInput().trim();
-    if (!val) return;
+    if (!val || savingNote()) return;
 
     setSavingNote(true);
     try {
       const newNote = await api.createInboxNote({ content: val });
       if (newNote && newNote.id) {
+        requests.invalidate();
+        setLoading(false);
         setNotes([newNote, ...notes().filter(n => n.id !== newNote.id)]);
       } else {
         await loadData();
@@ -118,7 +126,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
       setQuickInput('');
       showToast('Catatan disimpan ke Inbox');
     } catch (err) {
-      console.error('Failed to capture inbox note:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     } finally {
       setSavingNote(false);
     }
@@ -127,10 +135,12 @@ export const InboxView: Component<InboxViewProps> = (props) => {
   const handleDeleteNote = async (id: string) => {
     try {
       await api.deleteInboxNote(id);
+      requests.invalidate();
+      setLoading(false);
       setNotes(notes().filter(n => n.id !== id));
       showToast('Catatan dihapus');
     } catch (err) {
-      console.error('Failed to delete note:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -144,11 +154,13 @@ export const InboxView: Component<InboxViewProps> = (props) => {
     if (!trimmed) return;
     try {
       const updated = await api.updateInboxNote(id, { content: trimmed });
+      requests.invalidate();
+      setLoading(false);
       setNotes(notes().map(n => n.id === id ? updated : n));
       setEditingNoteId(null);
       showToast('Perubahan catatan disimpan');
     } catch (err) {
-      console.error('Failed to update note:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -174,7 +186,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
   const handleExecuteConvert = async (e: Event) => {
     e.preventDefault();
     const note = convertingNote();
-    if (!note) return;
+    if (!note || convertLoading()) return;
 
     const spaceId = convertSpaceId();
     if (!spaceId) {
@@ -199,6 +211,8 @@ export const InboxView: Component<InboxViewProps> = (props) => {
           title: convertTitle().trim() || note.content,
           priority: convertPriority(),
         });
+        requests.invalidate();
+        setLoading(false);
         setNotes(notes().filter(n => n.id !== note.id));
         setConvertModalOpen(false);
         showToast('Catatan berhasil dijadikan Task di Project!');
@@ -209,13 +223,15 @@ export const InboxView: Component<InboxViewProps> = (props) => {
           project_id: projectId,
           title: convertTitle().trim() || note.content,
         });
+        requests.invalidate();
+        setLoading(false);
         setNotes(notes().filter(n => n.id !== note.id));
         setConvertModalOpen(false);
         showToast('Catatan berhasil dijadikan Dokumen di Project!');
         props.onNavigate('projects', spaceId, projectId);
       }
-    } catch (err: any) {
-      setConvertError(err.message || 'Gagal mengubah catatan');
+    } catch (err) {
+      setConvertError(err instanceof Error ? err.message : 'Gagal mengubah catatan');
     } finally {
       setConvertLoading(false);
     }
@@ -223,6 +239,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
 
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', "flex-direction": 'column', "background-color": 'var(--surface)', overflow: 'hidden' }}>
+      <Show when={operationError()}><div role="alert" class="operation-error">{operationError()}<button class="btn-secondary" onClick={() => setOperationError('')}>Dismiss</button></div></Show>
       {/* Header */}
       <header class="orca-header">
         <div class="header-breadcrumbs">

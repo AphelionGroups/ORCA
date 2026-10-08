@@ -65,7 +65,7 @@ func (r *Repository) ListBoards(ctx context.Context, workspaceID uuid.UUID, spac
 		}
 		boards = append(boards, b)
 	}
-	return boards, nil
+	return boards, rows.Err()
 }
 
 func (r *Repository) GetBoardByID(ctx context.Context, workspaceID, id uuid.UUID) (*NoteBoard, error) {
@@ -97,7 +97,7 @@ func (r *Repository) CreateBoard(ctx context.Context, b *NoteBoard) error {
 		}
 		b.ID = newID
 	}
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	b.CreatedAt = now
 	b.UpdatedAt = now
 
@@ -119,26 +119,27 @@ func (r *Repository) CreateBoard(ctx context.Context, b *NoteBoard) error {
 }
 
 func (r *Repository) UpdateBoard(ctx context.Context, b *NoteBoard) error {
-	b.UpdatedAt = time.Now().UTC()
+	previousUpdatedAt := b.UpdatedAt
+	b.UpdatedAt = time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE note_boards
 		SET project_id = $1, title = $2, viewport_state = $3, updated_at = $4
-		WHERE workspace_id = $5 AND id = $6 AND deleted_at IS NULL
+		WHERE workspace_id = $5 AND id = $6 AND deleted_at IS NULL AND updated_at = $7
 	`
 	res, err := r.pool.Exec(ctx, query,
-		b.ProjectID, b.Title, b.ViewportState, b.UpdatedAt, b.WorkspaceID, b.ID,
+		b.ProjectID, b.Title, b.ViewportState, b.UpdatedAt, b.WorkspaceID, b.ID, previousUpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("board.UpdateBoard exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return httputil.ErrNotFound
+		return httputil.ErrConflict
 	}
 	return nil
 }
 
 func (r *Repository) DeleteBoard(ctx context.Context, workspaceID, id uuid.UUID) error {
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE note_boards
 		SET deleted_at = $1, updated_at = $1
@@ -181,7 +182,7 @@ func (r *Repository) ListBlocksByBoard(ctx context.Context, workspaceID, boardID
 		}
 		blocks = append(blocks, nb)
 	}
-	return blocks, nil
+	return blocks, rows.Err()
 }
 
 func (r *Repository) GetBlockByID(ctx context.Context, workspaceID, id uuid.UUID) (*NoteBlock, error) {
@@ -212,7 +213,7 @@ func (r *Repository) CreateBlock(ctx context.Context, nb *NoteBlock) error {
 		}
 		nb.ID = newID
 	}
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	nb.CreatedAt = now
 	nb.UpdatedAt = now
 
@@ -234,30 +235,31 @@ func (r *Repository) CreateBlock(ctx context.Context, nb *NoteBlock) error {
 }
 
 func (r *Repository) UpdateBlock(ctx context.Context, nb *NoteBlock) error {
-	nb.UpdatedAt = time.Now().UTC()
+	previousUpdatedAt := nb.UpdatedAt
+	nb.UpdatedAt = time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE note_blocks
 		SET type = $1, pos_x = $2, pos_y = $3, width = $4, height = $5, content = $6, updated_at = $7
-		WHERE workspace_id = $8 AND id = $9 AND deleted_at IS NULL
+		WHERE workspace_id = $8 AND id = $9 AND deleted_at IS NULL AND updated_at = $10
 	`
 	res, err := r.pool.Exec(ctx, query,
-		nb.Type, nb.PosX, nb.PosY, nb.Width, nb.Height, nb.Content, nb.UpdatedAt, nb.WorkspaceID, nb.ID,
+		nb.Type, nb.PosX, nb.PosY, nb.Width, nb.Height, nb.Content, nb.UpdatedAt, nb.WorkspaceID, nb.ID, previousUpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("board.UpdateBlock exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return httputil.ErrNotFound
+		return httputil.ErrConflict
 	}
 	return nil
 }
 
 func (r *Repository) DeleteBlock(ctx context.Context, workspaceID, id uuid.UUID) error {
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE note_blocks
-		SET deleted_at = $1, updated_at = $1
-		WHERE workspace_id = $2 AND id = $3 AND deleted_at IS NULL
+		SET deleted_at = COALESCE(deleted_at, $1), updated_at = COALESCE(deleted_at, $1)
+		WHERE workspace_id = $2 AND id = $3
 	`
 	res, err := r.pool.Exec(ctx, query, now, workspaceID, id)
 	if err != nil {
@@ -267,4 +269,19 @@ func (r *Repository) DeleteBlock(ctx context.Context, workspaceID, id uuid.UUID)
 		return httputil.ErrNotFound
 	}
 	return nil
+}
+
+func (r *Repository) RestoreBlock(ctx context.Context, workspaceID, id uuid.UUID) (*NoteBlock, error) {
+	var block NoteBlock
+	err := r.pool.QueryRow(ctx, `UPDATE note_blocks SET deleted_at=NULL,updated_at=NOW()
+ WHERE workspace_id=$1 AND id=$2
+ RETURNING id,board_id,workspace_id,type,pos_x,pos_y,width,height,content,created_at,updated_at`, workspaceID, id).Scan(
+		&block.ID, &block.BoardID, &block.WorkspaceID, &block.Type, &block.PosX, &block.PosY, &block.Width, &block.Height, &block.Content, &block.CreatedAt, &block.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, httputil.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &block, nil
 }

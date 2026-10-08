@@ -1,6 +1,7 @@
 package doc
 
 import (
+	"github.com/AphelionGroups/ORCA/internal/platform/httputil"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,9 +31,10 @@ type CreateDocumentRequest struct {
 }
 
 type UpdateDocumentRequest struct {
-	ProjectID *uuid.UUID `json:"project_id,omitempty"`
-	Title     string     `json:"title"`
-	DocType   string     `json:"doc_type"`
-	Content   string     `json:"content"`
-	IsPinned  bool       `json:"is_pinned"`
+	ExpectedUpdatedAt *time.Time                   `json:"expected_updated_at,omitempty"`
+	ProjectID         httputil.Optional[uuid.UUID] `json:"project_id,omitempty"`
+	Title             string                       `json:"title"`
+	DocType           string                       `json:"doc_type"`
+	Content           *string                      `json:"content"`
+	IsPinned          *bool                        `json:"is_pinned"`
 }

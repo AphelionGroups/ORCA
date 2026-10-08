@@ -1,6 +1,7 @@
 package task
 
 import (
+	"github.com/AphelionGroups/ORCA/internal/platform/httputil"
 	"time"
 
 	"github.com/google/uuid"
@@ -38,16 +39,16 @@ type CreateTaskRequest struct {
 }
 
 type UpdateTaskRequest struct {
-	SpaceID          *uuid.UUID `json:"space_id,omitempty"`
-	ProjectID        *uuid.UUID `json:"project_id,omitempty"`
-	ParentTaskID     *uuid.UUID `json:"parent_task_id,omitempty"`
-	Title            string     `json:"title"`
-	Description      *string    `json:"description,omitempty"`
-	Status           string     `json:"status"`
-	Priority         string     `json:"priority"`
-	DueDate          *time.Time `json:"due_date,omitempty"`
-	PlannedDate      *string    `json:"planned_date,omitempty"` // format: "2006-01-02"
-	EstimatedMinutes *int       `json:"estimated_minutes,omitempty"`
+	SpaceID          *uuid.UUID                   `json:"space_id,omitempty"`
+	ProjectID        httputil.Optional[uuid.UUID] `json:"project_id,omitempty"`
+	ParentTaskID     httputil.Optional[uuid.UUID] `json:"parent_task_id,omitempty"`
+	Title            string                       `json:"title"`
+	Description      httputil.Optional[string]    `json:"description,omitempty"`
+	Status           string                       `json:"status"`
+	Priority         string                       `json:"priority"`
+	DueDate          httputil.Optional[time.Time] `json:"due_date,omitempty"`
+	PlannedDate      httputil.Optional[string]    `json:"planned_date,omitempty"` // format: "2006-01-02"
+	EstimatedMinutes httputil.Optional[int]       `json:"estimated_minutes,omitempty"`
 }
 
 type UpdateTaskStatusRequest struct {

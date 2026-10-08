@@ -70,7 +70,7 @@ func (r *Repository) List(ctx context.Context, workspaceID uuid.UUID, startAt, e
 		}
 		events = append(events, e)
 	}
-	return events, nil
+	return events, rows.Err()
 }
 
 func (r *Repository) GetByID(ctx context.Context, workspaceID, id uuid.UUID) (*Event, error) {
@@ -104,7 +104,7 @@ func (r *Repository) Create(ctx context.Context, e *Event) error {
 		}
 		e.ID = newID
 	}
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	e.CreatedAt = now
 	e.UpdatedAt = now
 
@@ -126,30 +126,31 @@ func (r *Repository) Create(ctx context.Context, e *Event) error {
 }
 
 func (r *Repository) Update(ctx context.Context, e *Event) error {
-	e.UpdatedAt = time.Now().UTC()
+	previousUpdatedAt := e.UpdatedAt
+	e.UpdatedAt = time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE events
 		SET space_id = $1, linked_task_id = $2, title = $3, description = $4,
 		    start_at = $5, end_at = $6, is_all_day = $7, external_provider = $8, external_event_id = $9,
 		    updated_at = $10
-		WHERE workspace_id = $11 AND id = $12 AND deleted_at IS NULL
+		WHERE workspace_id = $11 AND id = $12 AND deleted_at IS NULL AND updated_at = $13
 	`
 	res, err := r.pool.Exec(ctx, query,
 		e.SpaceID, e.LinkedTaskID, e.Title, e.Description,
 		e.StartAt, e.EndAt, e.IsAllDay, e.ExternalProvider, e.ExternalEventID,
-		e.UpdatedAt, e.WorkspaceID, e.ID,
+		e.UpdatedAt, e.WorkspaceID, e.ID, previousUpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("calendar.Update exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return httputil.ErrNotFound
+		return httputil.ErrConflict
 	}
 	return nil
 }
 
 func (r *Repository) Delete(ctx context.Context, workspaceID, id uuid.UUID) error {
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE events
 		SET deleted_at = $1, updated_at = $1

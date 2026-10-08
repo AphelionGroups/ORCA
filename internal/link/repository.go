@@ -23,7 +23,7 @@ func (r *Repository) ListByEntity(ctx context.Context, workspaceID uuid.UUID, en
 	query := `
 		SELECT id, workspace_id, from_type, from_id, to_type, to_id, relation_type, metadata, created_at
 		FROM entity_links
-		WHERE workspace_id = $1 AND ((from_type = $2 AND from_id = $3) OR (to_type = $2 AND to_id = $3))
+		WHERE workspace_id = $1 AND deleted_at IS NULL AND ((from_type = $2 AND from_id = $3) OR (to_type = $2 AND to_id = $3))
 		ORDER BY created_at DESC
 	`
 	rows, err := r.pool.Query(ctx, query, workspaceID, entityType, entityID)
@@ -43,7 +43,7 @@ func (r *Repository) ListByEntity(ctx context.Context, workspaceID uuid.UUID, en
 		}
 		links = append(links, l)
 	}
-	return links, nil
+	return links, rows.Err()
 }
 
 func (r *Repository) Create(ctx context.Context, l *EntityLink) error {
@@ -67,11 +67,12 @@ func (r *Repository) Create(ctx context.Context, l *EntityLink) error {
 		INSERT INTO entity_links (id, workspace_id, from_type, from_id, to_type, to_id, relation_type, metadata, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (workspace_id, from_type, from_id, to_type, to_id, relation_type)
-		DO NOTHING
+		DO UPDATE SET metadata=EXCLUDED.metadata, deleted_at=NULL
+        RETURNING id,created_at
 	`
-	_, err := r.pool.Exec(ctx, query,
+	err := r.pool.QueryRow(ctx, query,
 		l.ID, l.WorkspaceID, l.FromType, l.FromID, l.ToType, l.ToID, l.RelationType, l.Metadata, l.CreatedAt,
-	)
+	).Scan(&l.ID, &l.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("link.Create exec: %w", err)
 	}
@@ -80,8 +81,8 @@ func (r *Repository) Create(ctx context.Context, l *EntityLink) error {
 
 func (r *Repository) Delete(ctx context.Context, workspaceID, id uuid.UUID) error {
 	query := `
-		DELETE FROM entity_links
-		WHERE workspace_id = $1 AND id = $2
+		UPDATE entity_links SET deleted_at=NOW()
+		WHERE workspace_id = $1 AND id = $2 AND deleted_at IS NULL
 	`
 	res, err := r.pool.Exec(ctx, query, workspaceID, id)
 	if err != nil {

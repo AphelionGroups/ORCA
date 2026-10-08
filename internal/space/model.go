@@ -31,5 +31,5 @@ type UpdateSpaceRequest struct {
 	Name      string `json:"name"`
 	Icon      string `json:"icon"`
 	Color     string `json:"color"`
-	SortOrder int    `json:"sort_order"`
+	SortOrder *int   `json:"sort_order"`
 }

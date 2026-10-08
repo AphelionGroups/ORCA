@@ -1,3 +1,5 @@
+type UpdateFields<T, Nullable extends keyof T> = Omit<Partial<T>, Nullable> & { [Key in Nullable]?: T[Key] | null };
+
 // =========================================================
 // ORCA Frontend API Client Service
 // Connects to Go Modular Monolith Backend
@@ -284,14 +286,14 @@ export const api = {
     const res = await request<{ data: Project[] }>(`/projects${query}`);
     return res.data;
   },
-  createProject: async (data: Partial<Project>): Promise<Project> => {
+  createProject: async (data: UpdateFields<Project, 'description' | 'target_date'>): Promise<Project> => {
     const res = await request<{ data: Project }>('/projects', {
       method: 'POST',
       body: JSON.stringify(data),
     });
     return res.data;
   },
-  updateProject: async (id: string, data: Partial<Project>): Promise<Project> => {
+  updateProject: async (id: string, data: UpdateFields<Project, 'description' | 'target_date'>): Promise<Project> => {
     const res = await request<{ data: Project }>(`/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -317,7 +319,7 @@ export const api = {
     const res = await request<{ data: Task[] }>(`/tasks${qs}`);
     return res.data;
   },
-  createTask: async (data: Partial<Task>): Promise<Task> => {
+  createTask: async (data: UpdateFields<Task, 'project_id' | 'parent_task_id' | 'description' | 'due_date' | 'planned_date' | 'estimated_minutes'>): Promise<Task> => {
     const res = await request<{ data: Task }>('/tasks', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -330,7 +332,7 @@ export const api = {
       body: JSON.stringify({ status }),
     });
   },
-  updateTask: async (id: string, data: Partial<Task>): Promise<Task> => {
+  updateTask: async (id: string, data: UpdateFields<Task, 'project_id' | 'parent_task_id' | 'description' | 'due_date' | 'planned_date' | 'estimated_minutes'>): Promise<Task> => {
     const res = await request<{ data: Task }>(`/tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -360,7 +362,7 @@ export const api = {
     });
     return res.data;
   },
-  updateDocument: async (id: string, data: Partial<Document>): Promise<Document> => {
+  updateDocument: async (id: string, data: UpdateFields<Document, 'project_id'> & { expected_updated_at?: string }): Promise<Document> => {
     const res = await request<{ data: Document }>(`/documents/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -392,14 +394,14 @@ export const api = {
     return res.data;
   },
 
-  createBoard: async (data: Partial<NoteBoard>): Promise<NoteBoard> => {
+  createBoard: async (data: UpdateFields<NoteBoard, 'project_id'>): Promise<NoteBoard> => {
     const res = await request<{ data: NoteBoard }>('/boards', {
       method: 'POST',
       body: JSON.stringify(data),
     });
     return res.data;
   },
-  updateBoard: async (id: string, data: Partial<NoteBoard>): Promise<NoteBoard> => {
+  updateBoard: async (id: string, data: UpdateFields<NoteBoard, 'project_id'>): Promise<NoteBoard> => {
     const res = await request<{ data: NoteBoard }>(`/boards/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -438,6 +440,10 @@ export const api = {
     });
     return res.data;
   },
+  restoreNoteBlock: async (id: string): Promise<NoteBlock> => {
+    const res = await request<{ data: NoteBlock }>(`/blocks/${id}/restore`, { method: 'POST' });
+    return res.data;
+  },
   deleteNoteBlock: async (id: string): Promise<void> => {
     await request(`/blocks/${id}`, {
       method: 'DELETE',
@@ -446,24 +452,22 @@ export const api = {
 
   // Inbox Notes (Quick Thoughts, Memos, Scratchpad)
   getInboxNotes: async (includeArchived = false): Promise<InboxNote[]> => {
-    const res = await request<any>(`/inbox${includeArchived ? '?archived=true' : ''}`);
-    if (Array.isArray(res)) return res;
-    if (res && Array.isArray(res.data)) return res.data;
-    return [];
+    const res = await request<{ data: InboxNote[] }>(`/inbox${includeArchived ? '?archived=true' : ''}`);
+    return res.data;
   },
   createInboxNote: async (data: { content: string; color?: string }): Promise<InboxNote> => {
-    const res = await request<any>('/inbox', {
+    const res = await request<{ data: InboxNote }>('/inbox', {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    return res?.data || res;
+    return res.data;
   },
   updateInboxNote: async (id: string, data: Partial<InboxNote>): Promise<InboxNote> => {
-    const res = await request<any>(`/inbox/${id}`, {
+    const res = await request<{ data: InboxNote }>(`/inbox/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
-    return res?.data || res;
+    return res.data;
   },
   deleteInboxNote: async (id: string): Promise<void> => {
     await request(`/inbox/${id}`, {

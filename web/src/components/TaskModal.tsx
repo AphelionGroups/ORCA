@@ -74,10 +74,10 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
       if (props.taskToEdit) {
         const updated = await api.updateTask(props.taskToEdit.id, {
           title: trimmedTitle,
-          description: description().trim() || undefined,
+          description: description().trim() || null,
           status: status(),
           priority: priority(),
-          due_date: dueDate() || undefined,
+          due_date: dueDate() ? `${dueDate()}T00:00:00Z` : null,
         });
         props.onSaved(updated);
       } else {
@@ -89,7 +89,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
           description: description().trim() || undefined,
           status: status(),
           priority: priority(),
-          due_date: dueDate() || undefined,
+          due_date: dueDate() ? `${dueDate()}T00:00:00Z` : undefined,
           project_id: props.defaultProjectId || undefined,
           space_id: props.defaultSpaceId || '',
         });

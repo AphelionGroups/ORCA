@@ -2,6 +2,7 @@ package board
 
 import (
 	"encoding/json"
+	"github.com/AphelionGroups/ORCA/internal/platform/httputil"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,9 +44,9 @@ type CreateBoardRequest struct {
 }
 
 type UpdateBoardRequest struct {
-	ProjectID     *uuid.UUID      `json:"project_id,omitempty"`
-	Title         string          `json:"title"`
-	ViewportState json.RawMessage `json:"viewport_state,omitempty"`
+	ProjectID     httputil.Optional[uuid.UUID] `json:"project_id,omitempty"`
+	Title         string                       `json:"title"`
+	ViewportState json.RawMessage              `json:"viewport_state,omitempty"`
 }
 
 type CreateBlockRequest struct {

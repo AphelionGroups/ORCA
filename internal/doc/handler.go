@@ -130,15 +130,26 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	existing.ProjectID = req.ProjectID
+	if req.ExpectedUpdatedAt != nil && !req.ExpectedUpdatedAt.Equal(existing.UpdatedAt) {
+		httputil.RespondDBError(w, httputil.ErrConflict)
+		return
+	}
+
+	if req.ProjectID.Set {
+		existing.ProjectID = req.ProjectID.Value
+	}
 	if req.Title != "" {
 		existing.Title = req.Title
 	}
 	if req.DocType != "" {
 		existing.DocType = req.DocType
 	}
-	existing.Content = req.Content
-	existing.IsPinned = req.IsPinned
+	if req.Content != nil {
+		existing.Content = *req.Content
+	}
+	if req.IsPinned != nil {
+		existing.IsPinned = *req.IsPinned
+	}
 
 	if err := h.repo.Update(r.Context(), existing); err != nil {
 		httputil.RespondDBError(w, err)
