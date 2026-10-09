@@ -1,13 +1,13 @@
+import { demoRequest, localImage } from './demoStorage';
 import { newOperationID } from './identity';
 import type { TaskStatus } from './taskContract';
 type UpdateFields<T, Nullable extends keyof T> = Omit<Partial<T>, Nullable> & { [Key in Nullable]?: T[Key] | null } & { expected_updated_at?: string };
 
 // =========================================================
 // ORCA Frontend API Client Service
-// Connects to Go Modular Monolith Backend
+// Demo-only: all workspace data stays in this browser.
 // =========================================================
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
 
 export interface Space {
   id: string;
@@ -131,29 +131,6 @@ export interface NoteBlock {
   updated_at: string;
 }
 
-const TOKEN_KEY = 'orca_auth_token';
-
-export const getAuthToken = (): string | null => {
-  try {
-    return localStorage.getItem(TOKEN_KEY);
-  } catch (_) {
-    return null;
-  }
-};
-
-export const setAuthToken = (token: string) => {
-  try {
-    localStorage.setItem(TOKEN_KEY, token);
-  } catch (_) {}
-};
-
-export const removeAuthToken = () => {
-  try {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem('orca_current_user');
-  } catch (_) {}
-};
-
 export interface AuthUserData {
   id: string;
   workspace_id: string;
@@ -161,12 +138,6 @@ export interface AuthUserData {
   full_name: string;
   avatar_url: string;
   role: string;
-}
-
-export interface AuthResponseData {
-  token: string;
-  user: AuthUserData;
-  workspace_id: string;
 }
 
 export interface UploadResponseData {
@@ -178,110 +149,34 @@ export interface UploadResponseData {
   driver: string;
 }
 
-export class ApiError extends Error {
-  readonly status: number;
-  constructor(message: string, status: number) { super(message); this.name = 'ApiError'; this.status = status; }
-}
+export { DemoError as ApiError } from './demoStorage';
+const request = demoRequest;
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const headers = new Headers(options.headers || {});
-  
-  // Don't set Content-Type for FormData (browser sets boundary automatically)
-  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json');
-  }
-  
-
-  const token = getAuthToken();
-  if (token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
-
-  if (!res.ok) {
-    if (res.status === 401 && !path.includes('/auth/login') && !path.includes('/auth/register')) {
-      // Clear token on unauthorized protected requests
-      removeAuthToken();
-      window.dispatchEvent(new CustomEvent('orca:auth_unauthorized'));
-    }
-
-    let errorMsg = `API Error ${res.status}`;
-    try {
-      const errJson = await res.json();
-      if (errJson.error) errorMsg = errJson.error;
-    } catch (_) {}
-    throw new ApiError(errorMsg, res.status);
-  }
-
-  return res.json();
-}
-
-// ----------------- API CLIENT -----------------
 export const api = {
-  // Auth & Profile
-  login: async (email: string, password: string): Promise<AuthResponseData> => {
-    const res = await request<{ data: AuthResponseData }>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-    setAuthToken(res.data.token);
-    return res.data;
-  },
-
-  register: async (email: string, password: string, full_name: string): Promise<AuthResponseData> => {
-    const res = await request<{ data: AuthResponseData }>('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, full_name }),
-    });
-    setAuthToken(res.data.token);
-    return res.data;
-  },
-
   getProfile: async (): Promise<AuthUserData> => {
-    const res = await request<{ data: AuthUserData }>('/auth/me');
+    const res = await request<{ data: AuthUserData }>('/profile');
     return res.data;
   },
 
   getPreferences: async (): Promise<{ calendar_timezone: string | null }> => {
-    const res = await request<{ data: { calendar_timezone: string | null } }>('/auth/preferences'); return res.data;
+    const res = await request<{ data: { calendar_timezone: string | null } }>('/preferences'); return res.data;
   },
   updatePreferences: async (calendar_timezone: string): Promise<void> => {
-    await request('/auth/preferences', { method: 'PUT', body: JSON.stringify({ calendar_timezone }) });
+    await request('/preferences', { method: 'PUT', body: JSON.stringify({ calendar_timezone }) });
   },
   updateProfile: async (data: {
     full_name: string;
     email: string;
     avatar_url?: string;
-    current_password?: string;
-    new_password?: string;
   }): Promise<AuthUserData> => {
-    const res = await request<{ data: AuthUserData }>('/auth/profile', {
+    const res = await request<{ data: AuthUserData }>('/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
     });
     return res.data;
   },
 
-  logout: () => {
-    removeAuthToken();
-    window.dispatchEvent(new CustomEvent('orca:auth_logout'));
-  },
-
-  // Object Storage File Upload (Supabase, R2, AWS, MinIO, or Local)
-  uploadImage: async (file: File): Promise<UploadResponseData> => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const res = await request<{ data: UploadResponseData }>('/upload', {
-      method: 'POST',
-      body: formData,
-    });
-    return res.data;
-  },
+  uploadImage: async (file: File): Promise<UploadResponseData> => localImage(file),
 
   // Spaces
   getSpaces: async (): Promise<Space[]> => {

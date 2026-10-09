@@ -1,3 +1,4 @@
+import { writeDemoSetting } from '../../services/demoSettings';
 import { CanvasContextToolbar } from './CanvasContextToolbar';
 import {
   ArrowLeft,
@@ -945,7 +946,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                       return (<button type="button" class={`shape-option-btn ${isSelected() ? 'active' : ''}`} title={option.label} onClick={(e) => {
                         e.stopPropagation();
                         ctx.setSelectedShapeKind(option.id);
-                        localStorage.setItem('orca_last_shape_kind', option.id);
+                        writeDemoSetting('last-shape-kind', option.id);
                         ctx.setActiveCanvasTool('shape');
                         ctx.setShowShapePicker(false);
                       }}>

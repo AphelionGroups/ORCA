@@ -2101,7 +2101,7 @@ select,
   color: var(--text-main);
 }
 
-.profile-action-btn.logout:hover {
+.profile-action-btn.reset-demo:hover {
   background: var(--error-surface);
   color: var(--status-error);
 }
@@ -2632,3 +2632,5 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--focus-ring); }
 }
 
 .operation-error { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 20px; background:var(--error-surface); color:var(--danger, #b42318); border-bottom:1px solid var(--border); }
+.demo-storage-notice { position: fixed; bottom: 16px; left: 16px; right: 16px; z-index: 1000; padding: 12px 16px; background: var(--surface); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; }
+.demo-recovery { max-width: 560px; padding: 32px; margin: 10vh auto; }

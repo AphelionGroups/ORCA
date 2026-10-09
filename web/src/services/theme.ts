@@ -3,7 +3,7 @@ import { createSignal } from 'solid-js';
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
 
-const THEME_STORAGE_KEY = 'orca-theme-mode';
+const THEME_STORAGE_KEY = 'orca-demo-theme-mode';
 
 const getSystemTheme = (): ResolvedTheme => {
   if (typeof window !== 'undefined' && window.matchMedia) {
@@ -13,12 +13,12 @@ const getSystemTheme = (): ResolvedTheme => {
 };
 
 const getInitialThemeMode = (): ThemeMode => {
-  if (typeof window !== 'undefined' && window.localStorage) {
+  try { if (typeof window !== 'undefined' && window.localStorage) {
     const saved = window.localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
     if (saved === 'light' || saved === 'dark' || saved === 'system') {
       return saved;
     }
-  }
+  } } catch { /* A sandboxed iframe may block storage. */ }
   return 'light';
 };
 
@@ -47,9 +47,9 @@ const applyThemeToDOM = (resolved: ResolvedTheme, mode: ThemeMode) => {
 
 export const setThemeMode = (mode: ThemeMode) => {
   setThemeModeSignal(mode);
-  if (typeof window !== 'undefined' && window.localStorage) {
+  try { if (typeof window !== 'undefined' && window.localStorage) {
     window.localStorage.setItem(THEME_STORAGE_KEY, mode);
-  }
+  } } catch { /* Theme still works for this page. */ }
 
   const resolved = mode === 'system' ? getSystemTheme() : mode;
   setResolvedThemeSignal(resolved);

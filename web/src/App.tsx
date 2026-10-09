@@ -4,15 +4,14 @@ import { PanelLeftOpen } from 'lucide-solid';
 import { Sidebar } from './components/Sidebar';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { ProfileModal } from './components/ProfileModal';
-import { LoginView } from './views/LoginView';
 import { InboxView } from './views/InboxView';
 import { ProjectsView } from './views/ProjectsView';
 import { CalendarView } from './views/CalendarView';
-import { api, getAuthToken } from './services/api';
-import { getCurrentUser, setCurrentUser, type UserProfile } from './services/user';
+import { api } from './services/api';
+import { resetDemo, demoPersistence } from './services/demoStorage';
+import { getCurrentUser, type UserProfile } from './services/user';
 
 export const App: Component = () => {
-  const [isAuthenticated, setIsAuthenticated] = createSignal<boolean>(Boolean(getAuthToken()));
   const [currentUser, setCurrentUserState] = createSignal<UserProfile>(getCurrentUser());
   const [isProfileModalOpen, setIsProfileModalOpen] = createSignal<boolean>(false);
   const [currentRoute, setCurrentRoute] = createSignal<string>('projects');
@@ -22,7 +21,7 @@ export const App: Component = () => {
   const [isMobile, setIsMobile] = createSignal(window.matchMedia('(max-width: 767px)').matches);
   const [isSidebarOpen, setIsSidebarOpen] = createSignal<boolean>(!isMobile());
   createEffect(() => {
-    if (!isMobile() || !isSidebarOpen() || !isAuthenticated()) return;
+    if (!isMobile() || !isSidebarOpen()) return;
     queueMicrotask(() => document.querySelector<HTMLElement>('#workspace-navigation button')?.focus());
     const keyboard = (event: KeyboardEvent) => {
       if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
@@ -59,9 +58,9 @@ export const App: Component = () => {
     }
   };
 
-  const handleLogout = () => {
-    api.logout();
-    setIsAuthenticated(false);
+  const handleResetDemo = () => {
+    if (!window.confirm('Reset demo? This removes your changes and restores the sample workspace.')) return;
+    resetDemo(); window.location.reload();
   };
 
   onMount(() => {
@@ -71,51 +70,17 @@ export const App: Component = () => {
     onCleanup(() => media.removeEventListener('change', resize));
     window.addEventListener('keydown', handleKeyDown);
 
-    const handleAuthRevoked = () => {
-      setIsAuthenticated(false);
-    };
-
-    window.addEventListener('orca:auth_unauthorized', handleAuthRevoked);
-    window.addEventListener('orca:auth_logout', handleAuthRevoked);
-
-    // If token exists, verify token & sync profile
-    if (getAuthToken()) {
-      api.getProfile().then(data => {
-        const profile: UserProfile = {
-          id: data.id,
-          workspace_id: data.workspace_id,
-          name: data.full_name,
-          email: data.email,
-          avatar_url: data.avatar_url,
-          role: data.role
-        };
-        setCurrentUser(profile);
-        setCurrentUserState(profile);
-        setIsAuthenticated(true);
-      }).catch(_ => {
-        setIsAuthenticated(false);
-      });
-    }
+    api.getProfile().then(data => {
+      const profile: UserProfile = { id: data.id, workspace_id: data.workspace_id, name: data.full_name, email: data.email, avatar_url: data.avatar_url };
+      setCurrentUserState(profile);
+    });
 
     onCleanup(() => {
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('orca:auth_unauthorized', handleAuthRevoked);
-      window.removeEventListener('orca:auth_logout', handleAuthRevoked);
     });
   });
 
   return (
-    <Show 
-      when={isAuthenticated()} 
-      fallback={
-        <LoginView 
-          onLoginSuccess={(user) => {
-            setCurrentUserState(user);
-            setIsAuthenticated(true);
-          }} 
-        />
-      }
-    >
       <div class="orca-app">
         {/* Floating Sidebar Reopen Button when Sidebar is Collapsed */}
         <Show when={!isSidebarOpen()}>
@@ -143,7 +108,7 @@ export const App: Component = () => {
           onNavigate={handleNavigate}
           onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
           onOpenProfile={() => setIsProfileModalOpen(true)}
-          onLogout={handleLogout}
+          onResetDemo={handleResetDemo}
         />
 
         {/* Main View Area */}
@@ -171,6 +136,9 @@ export const App: Component = () => {
           </Switch>
         </main>
 
+        <Show when={!demoPersistence().persistent}>
+          <div class="demo-storage-notice" role="status">{demoPersistence().message}</div>
+        </Show>
         {/* Rapid Action Modal */}
         <QuickCaptureModal 
           isOpen={isQuickCaptureOpen()} 
@@ -190,7 +158,6 @@ export const App: Component = () => {
           }}
         />
       </div>
-    </Show>
   );
 };
 

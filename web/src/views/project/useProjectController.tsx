@@ -1,3 +1,4 @@
+import { readDemoSetting } from '../../services/demoSettings';
 import { actionOperation } from './canvasHistory';
 import { newOperationID } from '../../services/identity';
 import { createRequestGate } from '../../services/requestGate';
@@ -77,7 +78,7 @@ export function useProjectController(props: ProjectsViewProps) {
   const [activeCanvasTool, setActiveCanvasTool] = createSignal<'select' | 'pan' | 'card' | 'sticky' | 'text' | 'shape' | 'connector'>('select');
 
   const [selectedShapeKind, setSelectedShapeKind] = createSignal<ShapeKind>(
-    (localStorage.getItem('orca_last_shape_kind') as ShapeKind) || 'rectangle'
+    (readDemoSetting('last-shape-kind') as ShapeKind) || 'rectangle'
   );
 
   const [showShapePicker, setShowShapePicker] = createSignal(false);

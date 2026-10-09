@@ -20,7 +20,7 @@ import {
   Folder,
   Globe,
   Sparkles,
-  LogOut,
+  RotateCcw,
   Settings
 } from 'lucide-solid';
 import { api, type Space, type Project } from '../services/api';
@@ -39,7 +39,7 @@ interface SidebarProps {
   onNavigate: (route: string, spaceId?: string | null, projectId?: string | null) => void;
   onOpenQuickCapture: () => void;
   onOpenProfile?: () => void;
-  onLogout?: () => void;
+  onResetDemo?: () => void;
 }
 
 
@@ -370,12 +370,12 @@ export const Sidebar: Component<SidebarProps> = (props) => {
             </button>
             <button
               type="button"
-              class="profile-action-btn logout"
-              title="Keluar (Logout)"
-              aria-label="Keluar dari akun"
-              onClick={() => props.onLogout && props.onLogout()}
+              class="profile-action-btn reset-demo"
+              title="Reset demo"
+              aria-label="Reset demo"
+              onClick={() => props.onResetDemo && props.onResetDemo()}
             >
-              <LogOut size={13} />
+              <RotateCcw size={13} />
             </button>
           </div>
         </div>
