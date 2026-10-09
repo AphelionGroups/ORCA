@@ -20,8 +20,7 @@ import {
   Folder,
   Globe,
   Sparkles,
-  RotateCcw,
-  Settings
+  RotateCcw
 } from 'lucide-solid';
 import { api, type Space, type Project } from '../services/api';
 import { themeMode, setThemeMode } from '../services/theme';
@@ -38,7 +37,6 @@ interface SidebarProps {
   currentUser?: UserProfile;
   onNavigate: (route: string, spaceId?: string | null, projectId?: string | null) => void;
   onOpenQuickCapture: () => void;
-  onOpenProfile?: () => void;
   onResetDemo?: () => void;
 }
 
@@ -332,8 +330,6 @@ export const Sidebar: Component<SidebarProps> = (props) => {
         <div class="profile-sidebar-widget">
           <div 
             class="profile-sidebar-identity"
-            onClick={() => props.onOpenProfile && props.onOpenProfile()}
-            title="Buka Pengaturan Profil & Akun"
           >
             <div class="profile-sidebar-avatar">
               <Show when={props.currentUser?.avatar_url} fallback={
@@ -359,15 +355,6 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           </div>
 
           <div class="profile-sidebar-actions">
-            <button
-              type="button"
-              class="profile-action-btn"
-              title="Edit Profil (Pengaturan)"
-              aria-label="Edit Profil"
-              onClick={() => props.onOpenProfile && props.onOpenProfile()}
-            >
-              <Settings size={13} />
-            </button>
             <button
               type="button"
               class="profile-action-btn reset-demo"

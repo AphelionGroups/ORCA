@@ -164,18 +164,6 @@ export const api = {
   updatePreferences: async (calendar_timezone: string): Promise<void> => {
     await request('/preferences', { method: 'PUT', body: JSON.stringify({ calendar_timezone }) });
   },
-  updateProfile: async (data: {
-    full_name: string;
-    email: string;
-    avatar_url?: string;
-  }): Promise<AuthUserData> => {
-    const res = await request<{ data: AuthUserData }>('/profile', {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-    return res.data;
-  },
-
   uploadImage: async (file: File): Promise<UploadResponseData> => localImage(file),
 
   // Spaces

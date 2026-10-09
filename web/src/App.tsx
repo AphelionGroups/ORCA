@@ -3,7 +3,6 @@ import { createSignal, createEffect, onMount, onCleanup, Switch, Match, Show } f
 import { PanelLeftOpen } from 'lucide-solid';
 import { Sidebar } from './components/Sidebar';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
-import { ProfileModal } from './components/ProfileModal';
 import { InboxView } from './views/InboxView';
 import { ProjectsView } from './views/ProjectsView';
 import { CalendarView } from './views/CalendarView';
@@ -13,7 +12,6 @@ import { getCurrentUser, type UserProfile } from './services/user';
 
 export const App: Component = () => {
   const [currentUser, setCurrentUserState] = createSignal<UserProfile>(getCurrentUser());
-  const [isProfileModalOpen, setIsProfileModalOpen] = createSignal<boolean>(false);
   const [currentRoute, setCurrentRoute] = createSignal<string>('projects');
   const [activeSpaceId, setActiveSpaceId] = createSignal<string | null>(null);
   const [activeProjectId, setActiveProjectId] = createSignal<string | null>(null);
@@ -107,7 +105,6 @@ export const App: Component = () => {
           currentUser={currentUser()}
           onNavigate={handleNavigate}
           onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
-          onOpenProfile={() => setIsProfileModalOpen(true)}
           onResetDemo={handleResetDemo}
         />
 
@@ -149,14 +146,6 @@ export const App: Component = () => {
           }}
         />
 
-        {/* User Profile Edit Modal */}
-        <ProfileModal 
-          isOpen={isProfileModalOpen()}
-          onClose={() => setIsProfileModalOpen(false)}
-          onProfileUpdated={(updated) => {
-            setCurrentUserState(updated);
-          }}
-        />
       </div>
   );
 };

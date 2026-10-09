@@ -46,11 +46,8 @@ const key = 'orca_demo_workspace_v1';
     await page.getByPlaceholder('Tulis ide, catatan, atau pemikiran yang baru terpikirkan... (Ctrl+Enter untuk simpan)').fill('A new local idea');
     await page.getByRole('button', { name: /Simpan|Save|Capture/ }).last().click();
     await page.waitForFunction(key => JSON.parse(localStorage.getItem(key)).tables.inbox.some(row => row.content === 'A new local idea'), key);
-    await page.getByRole('button', { name: 'Edit Profil', exact: true }).click();
-    await page.getByLabel('Name', { exact: true }).fill('Local Demo Visitor');
+    assert.equal(await page.getByRole('button', { name: 'Edit Profil', exact: true }).count(), 0);
     assert.equal(await page.locator('input[type=password]').count(), 0);
-    await page.getByRole('button', { name: 'Save profile', exact: true }).click();
-    await page.getByText('Local Demo Visitor', { exact: true }).waitFor();
     fs.mkdirSync(path.join(__dirname, '../bin/demo-screenshots'), { recursive: true });
     await page.screenshot({ path: path.join(__dirname, '../bin/demo-screenshots/desktop.png') });
     page.once('dialog', dialog => dialog.accept());
@@ -82,7 +79,7 @@ const key = 'orca_demo_workspace_v1';
     await blocked.getByRole('status').filter({ hasText: 'Your browser blocks saved data' }).waitFor();
     await isolated.close();
     assert.deepEqual(apiRequests, []); assert.deepEqual(errors, []);
-    console.log('PASS: no login/API requests; documents/tasks/calendar/Inbox/profile persist; board undo/redo; reset; mobile; iframe; blocked-storage fallback.');
+    console.log('PASS: no login/API requests; documents/tasks/calendar/Inbox persist; profile editing absent; board undo/redo; reset; mobile; iframe; blocked-storage fallback.');
   } finally { await browser.close(); if (parentServer) await new Promise(resolve => parentServer.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
 

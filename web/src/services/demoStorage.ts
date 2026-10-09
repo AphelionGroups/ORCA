@@ -182,7 +182,7 @@ function operate(state: DemoState, board: string, op: Row) {
 function route(state: DemoState, path: string, method: string, data: Row): unknown {
   const url = new URL(path, 'https://demo.invalid'); const [resource, id, action] = url.pathname.split('/').filter(Boolean);
   if (resource === 'profile') {
-    if (method === 'PUT') { for (const field of ['full_name', 'email', 'avatar_url']) if (data[field] !== undefined) state.profile[field] = data[field]; }
+    if (method !== 'GET') throw new DemoError('The demo profile is read-only.', 405);
     return state.profile;
   }
   if (resource === 'preferences') {

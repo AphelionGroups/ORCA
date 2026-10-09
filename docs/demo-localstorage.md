@@ -10,7 +10,7 @@ npm ci
 npm run dev -- --port 3010
 ```
 
-For the built static app, run `npm run build` then `npm run preview -- --host 127.0.0.1 --port 3010`. The demo seeds English sample content automatically on first use. The displayed profile is Demo User / demo@user.com; it is a local editable profile, not an account, and no password is needed.
+For the built static app, run `npm run build` then `npm run preview -- --host 127.0.0.1 --port 3010`. The demo seeds English sample content automatically on first use. The displayed profile is Demo User / demo@user.com; it is a local read-only profile, not an account, and no password is needed.
 
 ## Run with Docker
 
@@ -49,4 +49,4 @@ If using the iframe sandbox attribute, include `allow-scripts allow-same-origin 
 
 `cd web && npm test` covers persistence, stale writes, quota failure, atomic board batches, retries, consecutive undo/redo, connector restoration, Inbox conversion, lifecycle behavior, corrupted data recovery, and blocked iframe storage, alongside existing date/navigation tests.
 
-`npm run build` checks TypeScript and produces deployable static assets. With preview running on 3012, run `node scripts/demo-ui-check.cjs` from repository root. Set `ORCA_PLAYWRIGHT_MODULE` to an installed Playwright module when it is not in normal module resolution, and optionally set `ORCA_DEMO_URL` to another preview URL. The browser check uses a fresh isolated browser, verifies no API/login requests, edits and reloads documents, toggles tasks, exercises board deletion/undo/redo, edits calendar events, captures Inbox notes, edits the local profile, resets data, and opens an iframe and a storage-blocked browser context. Screenshots are saved under ignored `bin/demo-screenshots/`.
+`npm run build` checks TypeScript and produces deployable static assets. With preview running on 3012, run `node scripts/demo-ui-check.cjs` from repository root. Set `ORCA_PLAYWRIGHT_MODULE` to an installed Playwright module when it is not in normal module resolution, and optionally set `ORCA_DEMO_URL` to another preview URL. The browser check uses a fresh isolated browser, verifies no API/login requests, edits and reloads documents, toggles tasks, exercises board deletion/undo/redo, edits calendar events, captures Inbox notes, checks profile editing is absent, resets data, and opens an iframe and a storage-blocked browser context. Screenshots are saved under ignored `bin/demo-screenshots/`.
