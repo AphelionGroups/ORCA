@@ -1,0 +1,184 @@
+{
+  "sha": "9a658fb11fcac2aa93bd78b5ce7ae8c28dd71202",
+  "date": "2026-10-09",
+  "timezone": "Asia/Jakarta",
+  "source": "real production frontend build, real Go API and isolated PostgreSQL schema",
+  "schema": "orca_release_evidence_20261009",
+  "language": "Mixed English application UI and Indonesian auth/inbox; not full app localization",
+  "checks": [
+    "Registration through UI created an isolated workspace and signed in",
+    "Spaces/projects data loaded after reload",
+    "Document edited in UI and persisted via API",
+    "Task completion toggle persisted via UI",
+    "Board reopened/reloaded with two persisted connectors",
+    "Calendar week/day and task link loaded from database",
+    "Quick Capture Ctrl+K saved a note to inbox",
+    "Inbox-to-task conversion created a task",
+    "Stale document save rejected with 409",
+    "Calendar event edited in UI and persisted",
+    "Board delete/undo restored the original block and both connectors",
+    "Login through UI after clearing session succeeded"
+  ],
+  "assets": [
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/login-desktop.png",
+      "feature": "Local login screen, no credentials",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "sha256": "4e9054517af393c6c0ea9d2e0b02e6124537a366ddfa77694f1e63f9198a2be9",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/spaces-projects-desktop.png",
+      "feature": "Spaces and projects overview",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "sha256": "7650416b1820983d4383e327fca0f50ace4afc3a037fd3e91bd96e2ea13c80f6",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/project-hub-desktop.png",
+      "feature": "Project Hub with Docs/Board/Tasks tabs and board overview",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "sha256": "01a2cf5858356afcc99b44dfeed668ff33aaa8b1117c1e3c4be38adefbea1919",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/documents-desktop.png",
+      "feature": "Saved markdown document preview",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "sha256": "a66344cb0f675e3a7dcadbc47e00192c2fb55d98535c4edecec527135ceaeb61",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/tasks-desktop.png",
+      "feature": "Four fixed task status columns",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "sha256": "8e1016636bd7fa9e7d0ac69db686b50bc1bf8892aed19bc17cce242c52a3b9a7",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/board-desktop.png",
+      "feature": "Persisted three blocks and two connectors",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "sha256": "0b6257bf847545f876554ccc4899b0155645e529425b5adb32b29a2ec850f7f3",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/calendar-desktop.png",
+      "feature": "Week, real dates and task-linked session",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "sha256": "de3a63ab5a95aa07bb0e1309b8fdebf972bee44c0f07bfa738248192185c98c3",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/inbox-desktop.png",
+      "feature": "Persisted quick thought",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "sha256": "fa02f5afad95f119af4d24e338e9cdd9aa5ec16d27c2e0da5c5fd3248e49c51c",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/spaces-projects-mobile.png",
+      "feature": "Spaces and projects overview",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "466092d20a055fc55214cfc0d7c09c2f876c6aa2c849a653512a708453ac1ce3",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/project-hub-mobile.png",
+      "feature": "Project Hub with Docs/Board/Tasks tabs and board overview",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "0d7be309cbad1496e26fbee3c078ba6c1e281a8b687df513b1a6057566db78c4",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/documents-mobile.png",
+      "feature": "Saved markdown document preview",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "16286aeb0b5d5d3124d4d86437b0acce2113e6c874cfe12341c6a9c2852f1695",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/tasks-mobile.png",
+      "feature": "Task list",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "ad8b9db41bec179860773db9d3739152c3257f3d8a25fb1b7ee2ed6619ebf852",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/board-mobile.png",
+      "feature": "Persisted three blocks and two connectors",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "cc56118985c8f6322d87fa6c8dde03fb24f1a4c884a06c32553560e69ede95bd",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/calendar-mobile.png",
+      "feature": "Day controls and scheduling backlog",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "07d50dec55822b577be71551d6e6fb12770177d52a7f839d42b87043414054ea",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/calendar-mobile-session.png",
+      "feature": "Mobile day detail with real task-linked session",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "eaf9ecfa589bb368b5e27fe6c924907eabcc1463cb48fcf7c6eef62ac1db69c2",
+      "type": "actual local runtime with synthetic data"
+    },
+    {
+      "file": "docs/screenshots/landing-release-2026-10-09/inbox-mobile.png",
+      "feature": "Persisted quick thought",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "a5807793119a972ada4d1a4e3e4051317d5f2502574ec849c9228c5153ab76d0",
+      "type": "actual local runtime with synthetic data"
+    }
+  ]
+}
