@@ -1,3 +1,5 @@
+> **Security update:** Read [Security and deployment upgrade](security-upgrade.md) before following this guide. Production requires a unique `JWT_SECRET`; fresh production databases have no demo user; registration creates isolated workspaces; run all versioned migrations through the API or migration CLI. ORCA requires PostgreSQL; Redis is not used and has been removed from deployment configuration.
+
 # ORCA Self-Hosting & Deployment Guide
 
 This guide provides comprehensive, step-by-step instructions for installing and running **ORCA** in self-hosted environments—from local home labs to cloud VPS instances and production Kubernetes clusters.
@@ -8,11 +10,10 @@ This guide provides comprehensive, step-by-step instructions for installing and 
 - [Architecture & Deployment Models](#architecture--deployment-models)
 - [System Requirements](#system-requirements)
 - [Quickstart: Local Development / All-in-One](#quickstart-local-development--all-in-one)
-- [Production Deployment (Supabase & Cloud Redis)](#production-deployment-supabase--cloud-redis)
+- [Production Deployment (Supabase / PostgreSQL)](#production-deployment-supabase--postgresql)
   - [1. Database Setup (Supabase / Cloud PostgreSQL)](#1-database-setup-supabase--cloud-postgresql)
-  - [2. Redis Setup (Upstash / Cloud Redis)](#2-redis-setup-upstash--cloud-redis)
-  - [3. Server Configuration (.env)](#3-server-configuration-env)
-  - [4. Launch with Docker Compose](#4-launch-with-docker-compose)
+  - [2. Server Configuration (.env)](#2-server-configuration-env)
+  - [3. Launch with Docker Compose](#3-launch-with-docker-compose)
 - [Reverse Proxy & SSL Configuration](#reverse-proxy--ssl-configuration)
   - [Option A: Caddy (Automatic HTTPS)](#option-a-caddy-automatic-https)
   - [Option B: Nginx](#option-b-nginx)
@@ -28,38 +29,19 @@ This guide provides comprehensive, step-by-step instructions for installing and 
 
 ORCA utilizes an intelligent Docker Compose structure that keeps commands identical across environments while tailoring the running services:
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        DOCKER COMPOSE TOPOLOGY                         │
-└────────────────────────────────────────────────────────────────────────┘
-
-    [ Local Development ]                   [ Production / Cloud ]
-     `docker compose up`                     `docker compose up`
-     (compose.yml + override)                (compose.yml only + .env)
-             │                                        │
-    ┌────────┴────────┐                      ┌────────┴────────┐
-    │  orca-web (SPA) │                      │  orca-web (SPA) │
-    └────────┬────────┘                      └────────┬────────┘
-             │ reverse proxy                          │ reverse proxy
-    ┌────────┴────────┐                      ┌────────┴────────┐
-    │  orca-api (Go)  │                      │  orca-api (Go)  │
-    └───┬──────────┬──┘                      └───┬──────────┬──┘
-        │          │                             │          │
-        ▼          ▼                             ▼          ▼
- ┌────────────┐ ┌───────────┐             ┌────────────┐ ┌─────────────┐
- │  orca-db   │ │orca-redis │             │  Supabase  │ │ Cloud Redis │
- │ (Postgres) │ │ (Cache)   │             │ (Managed)  │ │  (Upstash)  │
- └────────────┘ └───────────┘             └────────────┘ └─────────────┘
+```text
+Local:      Web → API → PostgreSQL 16
+Production: Web → API → managed PostgreSQL
 ```
 
 1. **Local Development Mode (`compose.override.yml`):**
    - Automatically merges with `compose.yml`.
-   - Spawns local PostgreSQL 16 and Redis 7 containers.
+   - Spawns local PostgreSQL 16 containers.
    - Automatically migrates the schema and loads sample demo seed data.
 2. **Production Mode (`compose.yml` only):**
    - Omits `compose.override.yml`.
    - Runs **only** the `api` (Go modular monolith) and `web` (SolidJS Nginx SPA) containers.
-   - Connects to managed external cloud databases (e.g. Supabase, AWS RDS) and Redis (e.g. Upstash, Redis Cloud).
+   - Connects to managed external cloud databases (e.g. Supabase, AWS RDS).
    - Extremely resource-efficient: idle memory footprint is $<50\text{ MB}$ total.
 
 ---
@@ -78,14 +60,14 @@ ORCA utilizes an intelligent Docker Compose structure that keeps commands identi
 
 ## ⚡ Quickstart: Local Development / All-in-One
 
-To run ORCA with all dependencies (including local PostgreSQL and Redis) self-contained on your local machine:
+To run ORCA with all dependencies (including local PostgreSQL) self-contained on your local machine:
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/AphelionGroups/ORCA.git
 cd ORCA
 
-# 2. Start all services (Database, Redis, API, Web)
+# 2. Start all services (Database, API, Web)
 docker compose up -d --build
 
 # 3. Verify services are healthy
@@ -99,9 +81,9 @@ Once running:
 
 ---
 
-## 🚀 Production Deployment (Supabase & Cloud Redis)
+## 🚀 Production Deployment (Supabase / PostgreSQL)
 
-In production, you want high availability, automated backups, and minimal server load. Using **Supabase** for PostgreSQL and **Upstash** (or similar) for Redis provides enterprise-grade infrastructure with minimal cost.
+In production, you want high availability, automated backups, and minimal server load. Use a managed PostgreSQL instance such as Supabase for database hosting and backups.
 
 ### 1. Database Setup (Supabase / Cloud PostgreSQL)
 
@@ -114,21 +96,13 @@ In production, you want high availability, automated backups, and minimal server
      postgres://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require
      ```
 4. Run the initial database migration:
-   - **Method A (Supabase SQL Editor):** Copy the contents of [`migrations/000001_init_schema.up.sql`](../migrations/000001_init_schema.up.sql) and execute it in Supabase SQL Editor.
+   - **Method A (Supabase SQL Editor):** Apply all migrations in filename order, or preferably use `AUTO_MIGRATE=true` / `go run ./cmd/migrate` so versions are tracked. Applying only the initial schema is insufficient.
    - **Method B (ORCA Migrate CLI):**
      ```bash
      DATABASE_URL="postgres://postgres.[REF]:[PASS]@[HOST]:6543/postgres?sslmode=require" go run ./cmd/migrate/main.go
      ```
 
-### 2. Redis Setup (Upstash / Cloud Redis)
-
-1. Create a serverless Redis database on [Upstash](https://upstash.com) or Redis Cloud.
-2. Retrieve the `REDIS_URL` connection string:
-   ```
-   rediss://default:[PASSWORD]@[ENDPOINT]:6379
-   ```
-
-### 3. Server Configuration (.env)
+### 2. Server Configuration (.env)
 
 On your production server, prepare a `.env` file in the project directory:
 
@@ -141,9 +115,6 @@ ENV=production
 
 # Supabase PostgreSQL Connection String
 DATABASE_URL=postgres://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require
-
-# Cloud Redis Connection String
-REDIS_URL=rediss://default:[PASSWORD]@[ENDPOINT]:6379
 
 # Port Bindings
 API_PORT=8080
@@ -158,7 +129,7 @@ DB_MIN_CONNS=5
 DB_MAX_CONN_LIFETIME=1h
 ```
 
-### 4. Launch with Docker Compose
+### 3. Launch with Docker Compose
 
 Ensure **only** `compose.yml` is used (do not copy or include `compose.override.yml` on the production server):
 
@@ -259,7 +230,6 @@ If you don't want to open ports 80/443 on your firewall:
 | `PORT` | `8080` | Internal port the Go HTTP API binds to. |
 | `ENV` | `development` | Runtime environment (`development` or `production`). |
 | `DATABASE_URL` | `postgres://orca:orca_secret@localhost:5432/orca_db?sslmode=disable` | PostgreSQL connection URI. Supports Supabase, RDS, local Postgres. |
-| `REDIS_URL` | `redis://localhost:6379` | Redis connection URI (supports `redis://` or `rediss://` for TLS). |
 | `API_PORT` | `8080` | Host port mapped to the API container. |
 | `WEB_PORT` | `3000` | Host port mapped to the Nginx frontend container. |
 | `CORS_ALLOWED_ORIGINS`| `http://localhost:3000,...` | Comma-separated list of allowed origins for browser access. |

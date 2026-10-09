@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -37,6 +36,9 @@ var startTime = time.Now()
 
 func main() {
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("[ORCA-FATAL] Invalid configuration: %v", err)
+	}
 
 	log.Printf("[ORCA-INIT] Starting ORCA Core API (env=%s, port=%s, storage=%s)", cfg.Env, cfg.Port, cfg.StorageDriver)
 
@@ -44,6 +46,9 @@ func main() {
 	ctx := context.Background()
 	dbPool, err := db.NewPostgresPool(ctx, cfg.DatabaseURL, cfg.DBMaxConns, cfg.DBMinConns, cfg.DBMaxConnLifetime)
 	if err != nil {
+		if cfg.Env == "production" {
+			log.Fatalf("[ORCA-FATAL] Database unavailable: %v", err)
+		}
 		log.Printf("[ORCA-WARN] Database connection ping failed: %v (will retry on healthcheck)", err)
 	} else {
 		log.Printf("[ORCA-INIT] Connected to PostgreSQL pool successfully")
@@ -51,7 +56,7 @@ func main() {
 		// 1. Automatic Database Migrations on Startup
 		if cfg.AutoMigrate {
 			if err := db.AutoMigrate(ctx, dbPool.Pool); err != nil {
-				log.Printf("[ORCA-WARN] Auto-migration execution error: %v", err)
+				log.Fatalf("[ORCA-FATAL] Migration failed: %v", err)
 			}
 		}
 	}
@@ -63,7 +68,7 @@ func main() {
 	// 2. Object Storage Initialization (Supabase, R2, AWS, MinIO, or Local)
 	storageSvc, err := storage.InitStorage(ctx, cfg)
 	if err != nil {
-		log.Printf("[ORCA-WARN] Storage initialization error: %v", err)
+		log.Fatalf("[ORCA-FATAL] Storage initialization failed: %v", err)
 	}
 
 	// Router Setup
@@ -71,7 +76,6 @@ func main() {
 
 	// Global Middlewares
 	r.Use(chimiddleware.RequestID)
-	r.Use(chimiddleware.RealIP)
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.Timeout(60 * time.Second))
@@ -88,35 +92,18 @@ func main() {
 
 	// Local Storage Static Serving (if local storage driver is used)
 	if localStore, ok := storageSvc.(*storage.LocalStorage); ok {
-		fs := http.FileServer(http.Dir(localStore.BaseDir()))
-		r.Handle("/uploads/*", http.StripPrefix("/uploads", fs))
+		r.Handle("/uploads/*", uploadedAssetsHandler(localStore.BaseDir()))
 	}
 
 	// Health Check Endpoint
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		dbStatus := "connected"
-		if dbPool == nil {
-			dbStatus = "not_configured_or_unreachable"
-		} else {
-			pingCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-			defer cancel()
-			if err := dbPool.Ping(pingCtx); err != nil {
-				dbStatus = fmt.Sprintf("unreachable: %v", err)
-			}
-		}
-
-		resp := map[string]any{
-			"status":   "ok",
-			"app":      "ORCA",
-			"uptime":   time.Since(startTime).String(),
-			"database": dbStatus,
-			"storage":  storageSvc.Driver(),
-			"time":     time.Now().UTC(),
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+	r.Get("/livez", func(w http.ResponseWriter, r *http.Request) {
+		httputil.RespondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+	var database databasePinger
+	if dbPool != nil {
+		database = dbPool
+	}
+	r.Get("/healthz", readinessHandler(database, storageSvc))
 
 	// API Routes Group
 	r.Route("/api/v1", func(api chi.Router) {
@@ -136,7 +123,8 @@ func main() {
 			authRepo = auth.NewRepository(nil)
 		}
 		authHandler := auth.NewHandler(authRepo, cfg.JWTSecret)
-		authMw := middleware.RequireAuth(cfg.JWTSecret, cfg.Env == "development")
+		authHandler.SetRegistrationEnabled(cfg.AllowRegistration)
+		authMw := middleware.RequireAuth(cfg.JWTSecret, cfg.Env == "development" && cfg.AllowDevWorkspaceHeader)
 
 		// Mount Auth routes (Login, Register public; /me, /profile protected)
 		api.Mount("/auth", authHandler.Routes(authMw))
@@ -172,6 +160,8 @@ func main() {
 				// Alias profile routes directly under /api/v1/profile
 				tenant.Get("/profile", authHandler.Me)
 				tenant.Put("/profile", authHandler.UpdateProfile)
+				tenant.Get("/preferences", authHandler.GetPreferences)
+				tenant.Put("/preferences", authHandler.UpdatePreferences)
 
 				// Uploads endpoint
 				tenant.Mount("/upload", uploadHandler.Routes())

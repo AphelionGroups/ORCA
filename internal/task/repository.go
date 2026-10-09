@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/AphelionGroups/ORCA/internal/platform/httputil"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -83,7 +84,7 @@ func (r *Repository) List(ctx context.Context, workspaceID uuid.UUID, filter Lis
 		}
 		tasks = append(tasks, t)
 	}
-	return tasks, nil
+	return tasks, rows.Err()
 }
 
 func (r *Repository) GetByID(ctx context.Context, workspaceID, id uuid.UUID) (*Task, error) {
@@ -115,7 +116,7 @@ func (r *Repository) Create(ctx context.Context, t *Task) error {
 		}
 		t.ID = newID
 	}
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	t.CreatedAt = now
 	t.UpdatedAt = now
 
@@ -142,45 +143,29 @@ func (r *Repository) Create(ctx context.Context, t *Task) error {
 }
 
 func (r *Repository) Update(ctx context.Context, t *Task) error {
-	t.UpdatedAt = time.Now().UTC()
+	previousUpdatedAt := t.UpdatedAt
+	t.UpdatedAt = time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE tasks
 		SET space_id = $1, project_id = $2, parent_task_id = $3, title = $4, description = $5,
 		    status = $6, priority = $7, due_date = $8, planned_date = $9, estimated_minutes = $10, updated_at = $11
-		WHERE workspace_id = $12 AND id = $13 AND deleted_at IS NULL
+		WHERE workspace_id = $12 AND id = $13 AND deleted_at IS NULL AND updated_at = $14
 	`
 	res, err := r.pool.Exec(ctx, query,
 		t.SpaceID, t.ProjectID, t.ParentTaskID, t.Title, t.Description,
-		t.Status, t.Priority, t.DueDate, t.PlannedDate, t.EstimatedMinutes, t.UpdatedAt, t.WorkspaceID, t.ID,
+		t.Status, t.Priority, t.DueDate, t.PlannedDate, t.EstimatedMinutes, t.UpdatedAt, t.WorkspaceID, t.ID, previousUpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("task.Update exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return errors.New("task not found or already deleted")
-	}
-	return nil
-}
-
-func (r *Repository) UpdateStatus(ctx context.Context, workspaceID, id uuid.UUID, status string) error {
-	now := time.Now().UTC()
-	query := `
-		UPDATE tasks
-		SET status = $1, updated_at = $2
-		WHERE workspace_id = $3 AND id = $4 AND deleted_at IS NULL
-	`
-	res, err := r.pool.Exec(ctx, query, status, now, workspaceID, id)
-	if err != nil {
-		return fmt.Errorf("task.UpdateStatus exec: %w", err)
-	}
-	if res.RowsAffected() == 0 {
-		return errors.New("task not found or already deleted")
+		return httputil.ErrConflict
 	}
 	return nil
 }
 
 func (r *Repository) Delete(ctx context.Context, workspaceID, id uuid.UUID) error {
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE tasks
 		SET deleted_at = $1, updated_at = $1
@@ -191,7 +176,7 @@ func (r *Repository) Delete(ctx context.Context, workspaceID, id uuid.UUID) erro
 		return fmt.Errorf("task.Delete exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return errors.New("task not found or already deleted")
+		return httputil.ErrNotFound
 	}
 	return nil
 }

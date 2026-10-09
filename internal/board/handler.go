@@ -28,6 +28,9 @@ func (h *Handler) BoardRoutes() chi.Router {
 
 	r.Get("/{id}/blocks", h.ListBlocks)
 	r.Post("/{id}/blocks", h.CreateBlock)
+	r.Get("/{id}/connections", h.Connections)
+	r.Post("/{id}/operations", h.Operation)
+	r.Put("/{id}/viewport", h.Viewport)
 	return r
 }
 
@@ -36,6 +39,7 @@ func (h *Handler) BlockRoutes() chi.Router {
 	r.Get("/{id}", h.GetBlockByID)
 	r.Put("/{id}", h.UpdateBlock)
 	r.Delete("/{id}", h.DeleteBlock)
+	r.Post("/{id}/restore", h.RestoreBlock)
 	return r
 }
 
@@ -60,7 +64,7 @@ func (h *Handler) ListBoards(w http.ResponseWriter, r *http.Request) {
 
 	boards, err := h.repo.ListBoards(r.Context(), wsID, spaceIDPtr, projectIDPtr)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to retrieve boards: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": boards})
@@ -77,7 +81,7 @@ func (h *Handler) GetBoardByID(w http.ResponseWriter, r *http.Request) {
 
 	board, err := h.repo.GetBoardByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get board: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if board == nil {
@@ -109,7 +113,7 @@ func (h *Handler) CreateBoard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.CreateBoard(r.Context(), &board); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create board: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -133,15 +137,21 @@ func (h *Handler) UpdateBoard(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.repo.GetBoardByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get board: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if existing == nil {
 		httputil.RespondError(w, http.StatusNotFound, "Board not found")
 		return
 	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
 
-	existing.ProjectID = req.ProjectID
+	if req.ProjectID.Set {
+		existing.ProjectID = req.ProjectID.Value
+	}
 	if req.Title != "" {
 		existing.Title = req.Title
 	}
@@ -150,7 +160,7 @@ func (h *Handler) UpdateBoard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.UpdateBoard(r.Context(), existing); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update board: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -167,7 +177,7 @@ func (h *Handler) DeleteBoard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.DeleteBoard(r.Context(), wsID, id); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to delete board: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -187,7 +197,7 @@ func (h *Handler) ListBlocks(w http.ResponseWriter, r *http.Request) {
 
 	blocks, err := h.repo.ListBlocksByBoard(r.Context(), wsID, boardID)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to retrieve blocks: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": blocks})
@@ -204,7 +214,7 @@ func (h *Handler) GetBlockByID(w http.ResponseWriter, r *http.Request) {
 
 	block, err := h.repo.GetBlockByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get block: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if block == nil {
@@ -233,6 +243,10 @@ func (h *Handler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 		req.Type = "sticky"
 	}
 
+	if err := ValidateContent(req.Type, req.Content); err != nil {
+		respondOperationError(w, err)
+		return
+	}
 	block := NoteBlock{
 		WorkspaceID: wsID,
 		BoardID:     boardID,
@@ -248,7 +262,7 @@ func (h *Handler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.CreateBlock(r.Context(), &block); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create block: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -272,11 +286,15 @@ func (h *Handler) UpdateBlock(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.repo.GetBlockByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get block: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if existing == nil {
 		httputil.RespondError(w, http.StatusNotFound, "Block not found")
+		return
+	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -307,8 +325,12 @@ func (h *Handler) UpdateBlock(w http.ResponseWriter, r *http.Request) {
 		existing.Content = req.Content
 	}
 
+	if err := ValidateContent(existing.Type, existing.Content); err != nil {
+		respondOperationError(w, err)
+		return
+	}
 	if err := h.repo.UpdateBlock(r.Context(), existing); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update block: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -325,9 +347,23 @@ func (h *Handler) DeleteBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.DeleteBlock(r.Context(), wsID, id); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to delete block: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{"message": "Block deleted successfully"})
+}
+
+func (h *Handler) RestoreBlock(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, "Invalid block ID")
+		return
+	}
+	block, err := h.repo.RestoreBlock(r.Context(), middleware.GetWorkspaceID(r.Context()), id)
+	if err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
+	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": block})
 }

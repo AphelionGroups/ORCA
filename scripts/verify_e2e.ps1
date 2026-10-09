@@ -6,6 +6,7 @@
 param(
     [string]$ApiBase = "http://localhost:8080",
     [string]$WebBase = "http://localhost:3000",
+    [string]$Token = $env:ORCA_TOKEN,
     [string]$WorkspaceId = "018f0000-0000-7000-8000-000000000001"
 )
 
@@ -13,6 +14,8 @@ $headers = @{
     "X-Workspace-ID" = $WorkspaceId
     "Content-Type"   = "application/json"
 }
+
+if ($Token) { $headers.Remove("X-Workspace-ID"); $headers["Authorization"] = "Bearer $Token" }
 
 $passed = 0
 $failed = 0

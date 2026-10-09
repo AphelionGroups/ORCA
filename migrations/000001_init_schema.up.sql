@@ -3,9 +3,6 @@
 -- Initial schema migration for Personal & Business OS
 -- =========================================================
 
--- Enable uuid extensions if available
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- 1. WORKSPACES (Tenant Boundary)
 CREATE TABLE IF NOT EXISTS workspaces (
     id UUID PRIMARY KEY,
@@ -185,32 +182,4 @@ CREATE INDEX IF NOT EXISTS idx_events_workspace_timerange ON events(workspace_id
 CREATE INDEX IF NOT EXISTS idx_entity_links_from ON entity_links(workspace_id, from_type, from_id);
 CREATE INDEX IF NOT EXISTS idx_entity_links_to ON entity_links(workspace_id, to_type, to_id);
 CREATE INDEX IF NOT EXISTS idx_inbox_notes_workspace ON inbox_notes(workspace_id) WHERE deleted_at IS NULL;
-
--- =========================================================
--- DEFAULT SEED DATA (Personal Workspace & Owner)
--- =========================================================
-INSERT INTO workspaces (id, name, slug, owner_id, created_at, updated_at)
-VALUES (
-    '018f0000-0000-7000-8000-000000000001',
-    'Personal Workspace',
-    'personal',
-    '018f0000-0000-7000-8000-000000000002',
-    NOW(),
-    NOW()
-)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO users (id, workspace_id, email, password_hash, full_name, avatar_url, created_at, updated_at)
-VALUES (
-    '018f0000-0000-7000-8000-000000000002',
-    '018f0000-0000-7000-8000-000000000001',
-    'user@orca.local',
-    '$2a$10$UgohYx.btGVpR.7JelXLLegkjXM3/HqRuHGP.N6LCJ6iGhIKfi1Ju',
-    'Nurhabib Assolihudin',
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=faces',
-    NOW(),
-    NOW()
-)
-ON CONFLICT (id) DO NOTHING;
-
 

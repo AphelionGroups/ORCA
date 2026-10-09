@@ -2,6 +2,8 @@ package task
 
 import (
 	"bytes"
+	"context"
+	"github.com/google/uuid"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,6 +20,7 @@ func TestHandler_Create_Validation(t *testing.T) {
 	req := httptest.NewRequest("POST", "/", body)
 	rec := httptest.NewRecorder()
 
+	req = req.WithContext(context.WithValue(req.Context(), middleware.WorkspaceIDKey, uuid.MustParse(middleware.DefaultPersonalWorkspaceID)))
 	handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
@@ -32,6 +35,7 @@ func TestHandler_GetByID_InvalidUUID(t *testing.T) {
 	req := httptest.NewRequest("GET", "/bad-task-id", nil)
 	rec := httptest.NewRecorder()
 
+	req = req.WithContext(context.WithValue(req.Context(), middleware.WorkspaceIDKey, uuid.MustParse(middleware.DefaultPersonalWorkspaceID)))
 	handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {

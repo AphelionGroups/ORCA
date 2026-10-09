@@ -12,11 +12,11 @@ export interface UserProfile {
 }
 
 export const DEFAULT_USER: UserProfile = {
-  id: '018f0000-0000-7000-8000-000000000002',
-  workspace_id: '018f0000-0000-7000-8000-000000000001',
-  name: 'Nurhabib Assolihudin',
-  email: 'user@orca.local',
-  avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=faces',
+  id: '',
+  workspace_id: undefined,
+  name: 'ORCA User',
+  email: '',
+  avatar_url: '',
   role: 'Owner'
 };
 

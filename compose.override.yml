@@ -1,7 +1,7 @@
 # =========================================================
 # ORCA Local Development Override (compose.override.yml)
 # Automatically merged by Docker Compose in development.
-# Spawns local PostgreSQL 16 and Redis 7 with demo seed data.
+# Spawns local PostgreSQL 16 with demo seed data.
 #
 # Development Usage:
 #   docker compose up -d --build
@@ -30,31 +30,16 @@ services:
     networks:
       - orca-net
 
-  redis:
-    image: docker.io/library/redis:7-alpine
-    container_name: orca-redis
-    restart: unless-stopped
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - orca_redisdata:/data
-    networks:
-      - orca-net
-
   api:
     environment:
       ENV: development
       DATABASE_URL: ${DATABASE_URL:-postgres://orca:orca_secret@db:5432/orca_db?sslmode=disable}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_started
 
 volumes:
   orca_pgdata:
-  orca_redisdata:
 
 networks:
   orca-net:

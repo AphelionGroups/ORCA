@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/AphelionGroups/ORCA/internal/platform/config"
@@ -11,6 +12,12 @@ import (
 // If S3 parameters are configured or driver is explicitly "s3", S3Storage is initialized.
 // Otherwise, it falls back to LocalStorage.
 func InitStorage(ctx context.Context, cfg *config.Config) (Service, error) {
+	if cfg.StorageDriver != "auto" && cfg.StorageDriver != "local" && cfg.StorageDriver != "s3" {
+		return nil, fmt.Errorf("unsupported storage driver")
+	}
+	if cfg.StorageDriver == "s3" && cfg.StorageS3Bucket == "" {
+		return nil, fmt.Errorf("STORAGE_S3_BUCKET is required for s3")
+	}
 	useS3 := cfg.StorageDriver == "s3" || (cfg.StorageDriver == "auto" && cfg.StorageS3Bucket != "")
 
 	if useS3 {
@@ -24,7 +31,7 @@ func InitStorage(ctx context.Context, cfg *config.Config) (Service, error) {
 			PublicURLBase: cfg.StorageS3PublicURLBase,
 		})
 		if err != nil {
-			log.Printf("[ORCA-STORAGE-WARN] Failed to initialize S3 storage (%v). Falling back to local storage.", err)
+			return nil, fmt.Errorf("S3 storage initialization failed: %w", err)
 		} else {
 			return s3Store, nil
 		}

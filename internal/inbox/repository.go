@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/AphelionGroups/ORCA/internal/platform/httputil"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -45,7 +46,7 @@ func (r *Repository) List(ctx context.Context, workspaceID uuid.UUID, includeArc
 		}
 		notes = append(notes, n)
 	}
-	return notes, nil
+	return notes, rows.Err()
 }
 
 func (r *Repository) GetByID(ctx context.Context, workspaceID, id uuid.UUID) (*Note, error) {
@@ -78,7 +79,7 @@ func (r *Repository) Create(ctx context.Context, n *Note) error {
 	if n.Color == "" {
 		n.Color = "default"
 	}
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	n.CreatedAt = now
 	n.UpdatedAt = now
 
@@ -94,18 +95,19 @@ func (r *Repository) Create(ctx context.Context, n *Note) error {
 }
 
 func (r *Repository) Update(ctx context.Context, n *Note) error {
-	n.UpdatedAt = time.Now().UTC()
+	previousUpdatedAt := n.UpdatedAt
+	n.UpdatedAt = time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE inbox_notes
 		SET content = $1, color = $2, is_archived = $3, updated_at = $4
-		WHERE workspace_id = $5 AND id = $6 AND deleted_at IS NULL
+		WHERE workspace_id = $5 AND id = $6 AND deleted_at IS NULL AND updated_at = $7
 	`
-	res, err := r.pool.Exec(ctx, query, n.Content, n.Color, n.IsArchived, n.UpdatedAt, n.WorkspaceID, n.ID)
+	res, err := r.pool.Exec(ctx, query, n.Content, n.Color, n.IsArchived, n.UpdatedAt, n.WorkspaceID, n.ID, previousUpdatedAt)
 	if err != nil {
 		return fmt.Errorf("inbox.Update: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return fmt.Errorf("inbox.Update: note not found")
+		return httputil.ErrConflict
 	}
 	return nil
 }
@@ -121,7 +123,7 @@ func (r *Repository) Delete(ctx context.Context, workspaceID, id uuid.UUID) erro
 		return fmt.Errorf("inbox.Delete: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return fmt.Errorf("inbox.Delete: note not found")
+		return httputil.ErrNotFound
 	}
 	return nil
 }
@@ -135,7 +137,7 @@ func (r *Repository) ConvertToTask(ctx context.Context, workspaceID, noteID uuid
 
 	// 1. Fetch note
 	var content string
-	err = tx.QueryRow(ctx, `SELECT content FROM inbox_notes WHERE workspace_id = $1 AND id = $2 AND deleted_at IS NULL`, workspaceID, noteID).Scan(&content)
+	err = tx.QueryRow(ctx, `SELECT content FROM inbox_notes WHERE workspace_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE`, workspaceID, noteID).Scan(&content)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("inbox note not found: %w", err)
 	}
@@ -148,8 +150,8 @@ func (r *Repository) ConvertToTask(ctx context.Context, workspaceID, noteID uuid
 	title := req.Title
 	if title == "" {
 		title = content
-		if len(title) > 255 {
-			title = title[:255]
+		if len([]rune(title)) > 255 {
+			title = string([]rune(title)[:255])
 		}
 	}
 	priority := req.Priority
@@ -189,7 +191,7 @@ func (r *Repository) ConvertToDoc(ctx context.Context, workspaceID, noteID uuid.
 
 	// 1. Fetch note
 	var content string
-	err = tx.QueryRow(ctx, `SELECT content FROM inbox_notes WHERE workspace_id = $1 AND id = $2 AND deleted_at IS NULL`, workspaceID, noteID).Scan(&content)
+	err = tx.QueryRow(ctx, `SELECT content FROM inbox_notes WHERE workspace_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE`, workspaceID, noteID).Scan(&content)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("inbox note not found: %w", err)
 	}
@@ -202,8 +204,8 @@ func (r *Repository) ConvertToDoc(ctx context.Context, workspaceID, noteID uuid.
 	title := req.Title
 	if title == "" {
 		title = content
-		if len(title) > 100 {
-			title = title[:100]
+		if len([]rune(title)) > 100 {
+			title = string([]rune(title)[:100])
 		}
 	}
 

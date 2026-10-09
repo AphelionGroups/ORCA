@@ -1,0 +1,87 @@
+/* One semantic source for shell, editors, canvas, calendar and overlays.
+   Existing aliases keep component contracts stable while sharing the same palette. */
+:root, [data-theme='light'], html.light {
+  color-scheme: light;
+  --background: #F7FAF8;
+  --surface-panel: #FFFFFF;
+  --surface-muted: #E8EEEB;
+  --text-primary: #0D1B1E;
+  --text-secondary: #526560;
+  --border-subtle: #D6E2DA;
+  --border-control: #6E8177;
+  --accent: #B2FFA9;
+  --action-primary: #0D1B1E;
+  --action-primary-text: #F7FAF8;
+  --action-primary-hover: #213638;
+  --focus-ring: #22643B;
+  --status-success: #287052;
+  --status-error: #A83246;
+  --status-warning: #806019;
+  --status-info: #365D69;
+  --error-surface: #FAEEF0;
+  --success-surface: #EDF5EF;
+  --warning-surface: #F6F2E7;
+  --overlay: rgb(13 27 30 / 38%);
+  --canvas-dot: #C3D1C8;
+  --shadow-popover: 0 8px 24px rgb(13 27 30 / 12%);
+}
+[data-theme='dark'], html.dark {
+  color-scheme: dark;
+  --background: #0D1B1E;
+  --surface-panel: #15282B;
+  --surface-muted: #213638;
+  --text-primary: #F7FAF8;
+  --text-secondary: #B3C5BC;
+  --border-subtle: #354C46;
+  --border-control: #7E968A;
+  --accent: #B2FFA9;
+  --action-primary: #F7FAF8;
+  --action-primary-text: #0D1B1E;
+  --action-primary-hover: #E8EEEB;
+  --focus-ring: #B2FFA9;
+  --status-success: #91D6B0;
+  --status-error: #FFACB8;
+  --status-warning: #DEC585;
+  --status-info: #AACBD5;
+  --error-surface: #39282E;
+  --success-surface: #213C31;
+  --warning-surface: #383427;
+  --overlay: rgb(0 0 0 / 55%);
+  --canvas-dot: #354C46;
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 24%);
+}
+:root {
+  --font-sans: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: var(--font-sans);
+  --radius-panel: 8px;
+  --radius-control: 4px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px;
+  --space-4: 16px; --space-6: 24px; --space-8: 32px;
+  --surface: var(--background);
+  --surface-dim: var(--background);
+  --surface-container-lowest: var(--surface-panel);
+  --surface-container-low: var(--surface-panel);
+  --surface-container: var(--surface-panel);
+  --surface-container-high: var(--surface-muted);
+  --surface-container-highest: var(--surface-muted);
+  --surface-border: var(--border-subtle);
+  --surface-card: var(--surface-panel);
+  --surface-sticky: var(--surface-panel);
+  --primary: var(--text-primary);
+  --primary-dim: var(--text-secondary);
+  --secondary: var(--text-primary);
+  --secondary-container: var(--surface-muted);
+  --tertiary: var(--text-primary);
+  --tertiary-container: var(--surface-muted);
+  --brand-primary: var(--text-primary);
+  --brand-secondary: var(--text-primary);
+  --text-main: var(--text-primary);
+  --text-muted: var(--text-secondary);
+  --text-dim: var(--text-secondary);
+  --outline: var(--border-control);
+  --outline-variant: var(--border-control);
+  --border-medium: var(--border-control);
+  --border-active: var(--focus-ring);
+  --border-default: var(--border-subtle);
+  --shadow-elevation: none;
+}

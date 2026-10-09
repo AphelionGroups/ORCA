@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-09",
+  "timezone": "Asia/Jakarta",
+  "checkedAt": "09:17:32",
+  "app": {
+    "url": "https://app.orca.ocaty.com/",
+    "status": 200,
+    "title": "ORCA \u2014 Spatial Operating System",
+    "loginVisible": true,
+    "registerTabVisible": true,
+    "anonymousAuthMeStatus": 401,
+    "pageErrors": [],
+    "assetPaths": [
+      "/assets/index-DHM7GijZ.js",
+      "/assets/index-Btvyy0NY.css"
+    ],
+    "deploymentSha": null
+  },
+  "landing": {
+    "url": "https://orca.ocaty.com/",
+    "nodeError": "ENOTFOUND"
+  },
+  "repository": {
+    "url": "https://github.com/AphelionGroups/ORCA",
+    "status": 200,
+    "branch": "design/orca-app-refresh",
+    "branchSha": "9a658fb11fcac2aa93bd78b5ce7ae8c28dd71202",
+    "remoteDefaultHead": "ecb989507cfaf8641fb611eb76bc41b33351a7c5"
+  },
+  "limitations": "Anonymous GET only; no production credentials, authentication, registration, or mutations"
+}

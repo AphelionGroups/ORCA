@@ -19,12 +19,11 @@ const (
 )
 
 var allowedMimeTypes = map[string]bool{
-	"image/jpeg":    true,
-	"image/jpg":     true,
-	"image/png":     true,
-	"image/gif":     true,
-	"image/webp":    true,
-	"image/svg+xml": true,
+	"image/jpeg": true,
+	"image/jpg":  true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
 }
 
 type Handler struct {
@@ -50,6 +49,7 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.MultipartForm.RemoveAll()
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "No file provided under field 'file'")
@@ -66,42 +66,23 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	contentType := http.DetectContentType(buffer[:n])
 
-	// Override if client provided svg
-	if strings.HasSuffix(strings.ToLower(header.Filename), ".svg") {
-		contentType = "image/svg+xml"
-	}
-
 	if !allowedMimeTypes[contentType] {
-		httputil.RespondError(w, http.StatusBadRequest, fmt.Sprintf("Unsupported file format (%s). Only JPEG, PNG, GIF, WebP, and SVG images are allowed.", contentType))
+		httputil.RespondError(w, http.StatusBadRequest, fmt.Sprintf("Unsupported file format (%s). Only JPEG, PNG, GIF, and WebP images are allowed.", contentType))
 		return
 	}
 
 	// Rewind file to beginning
 	if _, err := file.Seek(0, 0); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to reset file stream: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
 	// Build unique object key: <workspace_id>/images/<uuid7>_<clean_filename>
 	wsID := middleware.GetWorkspaceID(r.Context())
 	fileUUID, _ := uuid.NewV7()
-	cleanExt := filepath.Ext(header.Filename)
-	if cleanExt == "" {
-		switch contentType {
-		case "image/png":
-			cleanExt = ".png"
-		case "image/webp":
-			cleanExt = ".webp"
-		case "image/gif":
-			cleanExt = ".gif"
-		case "image/svg+xml":
-			cleanExt = ".svg"
-		default:
-			cleanExt = ".jpg"
-		}
-	}
+	cleanExt := map[string]string{"image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "image/jpeg": ".jpg", "image/jpg": ".jpg"}[contentType]
 
-	baseName := strings.TrimSuffix(filepath.Base(header.Filename), cleanExt)
+	baseName := strings.TrimSuffix(filepath.Base(header.Filename), filepath.Ext(header.Filename))
 	// Sanitize baseName
 	baseName = strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
@@ -118,7 +99,7 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	// Perform upload to configured storage provider
 	fileURL, err := h.storage.Upload(r.Context(), objectKey, file, header.Size, contentType)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Storage upload failed: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 

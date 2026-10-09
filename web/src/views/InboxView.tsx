@@ -1,3 +1,5 @@
+import { createRequestGate } from '../services/requestGate';
+import { focusScope } from '../components/focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, onMount, onCleanup, For, Show } from 'solid-js';
 import { 
@@ -22,6 +24,9 @@ interface InboxViewProps {
 }
 
 export const InboxView: Component<InboxViewProps> = (props) => {
+  const requests = createRequestGate();
+  onCleanup(() => requests.invalidate());
+  const [operationError, setOperationError] = createSignal('');
   const [quickInput, setQuickInput] = createSignal('');
   const [notes, setNotes] = createSignal<InboxNote[]>([]);
   const [spaces, setSpaces] = createSignal<Space[]>([]);
@@ -64,6 +69,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
   };
 
   const loadData = async () => {
+    const request = requests.begin();
     setLoading(true);
     try {
       const [fetchedNotes, fetchedSpaces, fetchedProjects] = await Promise.all([
@@ -71,6 +77,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
         api.getSpaces(),
         api.getProjects()
       ]);
+      if (!requests.isCurrent(request)) return;
       setNotes(fetchedNotes || []);
       setSpaces(fetchedSpaces || []);
       setProjects(fetchedProjects || []);
@@ -78,9 +85,9 @@ export const InboxView: Component<InboxViewProps> = (props) => {
         setConvertSpaceId(fetchedSpaces[0].id);
       }
     } catch (err) {
-      console.error('Failed to load inbox data:', err);
+      if (requests.isCurrent(request)) setOperationError(err instanceof Error ? err.message : 'Could not load inbox');
     } finally {
-      setLoading(false);
+      if (requests.isCurrent(request)) setLoading(false);
     }
   };
 
@@ -104,12 +111,14 @@ export const InboxView: Component<InboxViewProps> = (props) => {
   const handleAddNote = async (e?: Event) => {
     if (e) e.preventDefault();
     const val = quickInput().trim();
-    if (!val) return;
+    if (!val || savingNote()) return;
 
     setSavingNote(true);
     try {
       const newNote = await api.createInboxNote({ content: val });
       if (newNote && newNote.id) {
+        requests.invalidate();
+        setLoading(false);
         setNotes([newNote, ...notes().filter(n => n.id !== newNote.id)]);
       } else {
         await loadData();
@@ -117,7 +126,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
       setQuickInput('');
       showToast('Catatan disimpan ke Inbox');
     } catch (err) {
-      console.error('Failed to capture inbox note:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     } finally {
       setSavingNote(false);
     }
@@ -126,10 +135,12 @@ export const InboxView: Component<InboxViewProps> = (props) => {
   const handleDeleteNote = async (id: string) => {
     try {
       await api.deleteInboxNote(id);
+      requests.invalidate();
+      setLoading(false);
       setNotes(notes().filter(n => n.id !== id));
       showToast('Catatan dihapus');
     } catch (err) {
-      console.error('Failed to delete note:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -142,12 +153,14 @@ export const InboxView: Component<InboxViewProps> = (props) => {
     const trimmed = editContent().trim();
     if (!trimmed) return;
     try {
-      const updated = await api.updateInboxNote(id, { content: trimmed });
+      const updated = await api.updateInboxNote(id, { content: trimmed, expected_updated_at: notes().find(note => note.id === id)?.updated_at });
+      requests.invalidate();
+      setLoading(false);
       setNotes(notes().map(n => n.id === id ? updated : n));
       setEditingNoteId(null);
       showToast('Perubahan catatan disimpan');
     } catch (err) {
-      console.error('Failed to update note:', err);
+      setOperationError(err instanceof Error ? err.message : 'Operation failed');
     }
   };
 
@@ -173,7 +186,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
   const handleExecuteConvert = async (e: Event) => {
     e.preventDefault();
     const note = convertingNote();
-    if (!note) return;
+    if (!note || convertLoading()) return;
 
     const spaceId = convertSpaceId();
     if (!spaceId) {
@@ -198,6 +211,8 @@ export const InboxView: Component<InboxViewProps> = (props) => {
           title: convertTitle().trim() || note.content,
           priority: convertPriority(),
         });
+        requests.invalidate();
+        setLoading(false);
         setNotes(notes().filter(n => n.id !== note.id));
         setConvertModalOpen(false);
         showToast('Catatan berhasil dijadikan Task di Project!');
@@ -208,13 +223,15 @@ export const InboxView: Component<InboxViewProps> = (props) => {
           project_id: projectId,
           title: convertTitle().trim() || note.content,
         });
+        requests.invalidate();
+        setLoading(false);
         setNotes(notes().filter(n => n.id !== note.id));
         setConvertModalOpen(false);
         showToast('Catatan berhasil dijadikan Dokumen di Project!');
         props.onNavigate('projects', spaceId, projectId);
       }
-    } catch (err: any) {
-      setConvertError(err.message || 'Gagal mengubah catatan');
+    } catch (err) {
+      setConvertError(err instanceof Error ? err.message : 'Gagal mengubah catatan');
     } finally {
       setConvertLoading(false);
     }
@@ -222,6 +239,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
 
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', "flex-direction": 'column', "background-color": 'var(--surface)', overflow: 'hidden' }}>
+      <Show when={operationError()}><div role="alert" class="operation-error">{operationError()}<button class="btn-secondary" onClick={() => setOperationError('')}>Dismiss</button></div></Show>
       {/* Header */}
       <header class="orca-header">
         <div class="header-breadcrumbs">
@@ -251,12 +269,12 @@ export const InboxView: Component<InboxViewProps> = (props) => {
 
       {/* Toast Notification */}
       <Show when={successToast()}>
-        <div style={{
+        <div role="status" style={{
           position: 'fixed',
           bottom: '24px',
           right: '24px',
           background: 'var(--surface-container-high)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          border: '1px solid var(--surface-muted)',
           color: 'var(--text-main)',
           padding: '10px 16px',
           "border-radius": '8px',
@@ -264,16 +282,16 @@ export const InboxView: Component<InboxViewProps> = (props) => {
           display: 'flex',
           "align-items": 'center',
           gap: '8px',
-          "box-shadow": '0 10px 30px rgba(0, 0, 0, 0.5)',
+          "box-shadow": 'none',
           "z-index": 1000
         }}>
-          <Check size={14} color="#4ade80" />
+          <Check size={14} color="var(--status-success)" />
           <span>{successToast()}</span>
         </div>
       </Show>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
+      <div class="inbox-workspace" style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
         <div style={{ "max-width": '720px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '20px' }}>
           
           {/* Quick Note Input Box */}
@@ -282,12 +300,12 @@ export const InboxView: Component<InboxViewProps> = (props) => {
             style={{
               background: 'var(--surface-card)',
               border: '1px solid var(--border-default)',
-              "border-radius": '12px',
+              "border-radius": '4px',
               padding: '12px 14px',
               display: 'flex',
               "flex-direction": 'column',
               gap: '10px',
-              "box-shadow": '0 2px 8px rgba(0, 0, 0, 0.2)'
+              "box-shadow": 'none'
             }}
           >
             <textarea
@@ -315,7 +333,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
               }}
             />
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "border-top": '1px solid var(--border-subtle)', "padding-top": '8px' }}>
-              <span style={{ "font-size": '11px', color: 'var(--text-dim)' }}>
+              <span style={{ "font-size": '12px', color: 'var(--text-dim)' }}>
                 Ide dan catatan cepat akan disimpan di Inbox sebelum dijadikan Todo/Dokumen
               </span>
               <button
@@ -341,7 +359,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
               gap: '12px',
               background: 'var(--surface-container-lowest)',
               border: '1px dashed var(--border-default)',
-              "border-radius": '12px'
+              "border-radius": '4px'
             }}>
               <div style={{
                 width: '40px',
@@ -380,7 +398,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                   <div style={{
                     background: 'var(--surface-card)',
                     border: '1px solid var(--border-default)',
-                    "border-radius": '10px',
+                    "border-radius": '4px',
                     padding: '14px 16px',
                     display: 'flex',
                     "flex-direction": 'column',
@@ -440,7 +458,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                       "padding-top": '8px',
                       "margin-top": '4px'
                     }}>
-                      <div style={{ display: 'flex', "align-items": 'center', gap: '5px', "font-size": '11px', color: 'var(--text-dim)' }}>
+                      <div style={{ display: 'flex', "align-items": 'center', gap: '5px', "font-size": '12px', color: 'var(--text-dim)' }}>
                         <Clock size={12} />
                         <span>{formatRelativeTime(note.created_at)}</span>
                       </div>
@@ -450,7 +468,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                         <button
                           type="button"
                           class="btn-secondary"
-                          style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center', gap: '4px' }}
+                          style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }}
                           title="Ubah catatan ini menjadi Task di dalam Project"
                           onClick={() => handleOpenConvert(note, 'task')}
                         >
@@ -462,7 +480,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                         <button
                           type="button"
                           class="btn-secondary"
-                          style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center', gap: '4px' }}
+                          style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }}
                           title="Ubah catatan ini menjadi Dokumen di dalam Project"
                           onClick={() => handleOpenConvert(note, 'doc')}
                         >
@@ -489,7 +507,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                           title="Hapus Catatan"
                           onClick={() => handleDeleteNote(note.id)}
                         >
-                          <Trash2 size={13} color="#f87171" />
+                          <Trash2 size={13} color="var(--status-error)" />
                         </button>
                       </div>
                     </div>
@@ -508,7 +526,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
           onClick={() => setConvertModalOpen(false)}
         >
           <div 
-            class="modal-card" 
+            class="modal-card" ref={el => focusScope(el, () => setConvertModalOpen(false))}
             style={{ "max-width": '460px' }}
             onClick={e => e.stopPropagation()}
           >

@@ -61,7 +61,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	events, err := h.repo.List(r.Context(), wsID, startAtPtr, endAtPtr, spaceIDPtr)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to retrieve events: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": events})
@@ -78,7 +78,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	event, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get event: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if event == nil {
@@ -105,6 +105,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !req.EndAt.After(req.StartAt) {
+		httputil.RespondError(w, http.StatusBadRequest, "End time must follow start time")
+		return
+	}
 	event := Event{
 		WorkspaceID:      wsID,
 		SpaceID:          req.SpaceID,
@@ -119,7 +123,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Create(r.Context(), &event); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create event: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -143,32 +147,52 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get event: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if existing == nil {
 		httputil.RespondError(w, http.StatusNotFound, "Event not found")
 		return
 	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
 
-	existing.SpaceID = req.SpaceID
-	existing.LinkedTaskID = req.LinkedTaskID
+	if req.SpaceID.Set {
+		existing.SpaceID = req.SpaceID.Value
+	}
+	if req.LinkedTaskID.Set {
+		existing.LinkedTaskID = req.LinkedTaskID.Value
+	}
 	if req.Title != "" {
 		existing.Title = req.Title
 	}
-	existing.Description = req.Description
+	if req.Description.Set {
+		existing.Description = req.Description.Value
+	}
 	if !req.StartAt.IsZero() {
 		existing.StartAt = req.StartAt
 	}
 	if !req.EndAt.IsZero() {
 		existing.EndAt = req.EndAt
 	}
-	existing.IsAllDay = req.IsAllDay
-	existing.ExternalProvider = req.ExternalProvider
-	existing.ExternalEventID = req.ExternalEventID
+	if req.IsAllDay != nil {
+		existing.IsAllDay = *req.IsAllDay
+	}
+	if req.ExternalProvider.Set {
+		existing.ExternalProvider = req.ExternalProvider.Value
+	}
+	if req.ExternalEventID.Set {
+		existing.ExternalEventID = req.ExternalEventID.Value
+	}
 
+	if !existing.EndAt.After(existing.StartAt) {
+		httputil.RespondError(w, http.StatusBadRequest, "End time must follow start time")
+		return
+	}
 	if err := h.repo.Update(r.Context(), existing); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update event: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -185,7 +209,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Delete(r.Context(), wsID, id); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to delete event: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 

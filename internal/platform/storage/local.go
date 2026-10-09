@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type LocalStorage struct {
@@ -40,7 +41,10 @@ func (l *LocalStorage) BaseDir() string {
 }
 
 func (l *LocalStorage) Upload(ctx context.Context, objectKey string, reader io.Reader, size int64, contentType string) (string, error) {
-	targetPath := filepath.Join(l.baseDir, filepath.Clean(objectKey))
+	if !filepath.IsLocal(objectKey) || strings.Contains(objectKey, "\\") {
+		return "", fmt.Errorf("invalid object key")
+	}
+	targetPath := filepath.Join(l.baseDir, objectKey)
 	dir := filepath.Dir(targetPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create target subfolder: %w", err)

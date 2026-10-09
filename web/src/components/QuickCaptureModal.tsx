@@ -1,3 +1,4 @@
+import { focusScope } from './focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, Show, For } from 'solid-js';
 import { X, CheckSquare, FileText, StickyNote, Loader2 } from 'lucide-solid';
@@ -153,7 +154,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
         class="modal-backdrop"
         onClick={(e) => { if (e.target === e.currentTarget) props.onClose(); }}
       >
-        <div class="modal-card" style={{ "max-width": '520px' }} onKeyDown={handleKeyDown}>
+        <div class="modal-card" ref={el => focusScope(el, props.onClose)} style={{ "max-width": '520px' }} onKeyDown={handleKeyDown}>
           {/* Modal Header */}
           <div class="modal-header">
             <div>
@@ -205,7 +206,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
           </div>
 
           <Show when={error()}>
-            <div class="modal-error-badge" style={{ "margin-bottom": '14px' }}>
+            <div class="modal-error-badge" role="alert" style={{ "margin-bottom": '14px' }}>
               {error()}
             </div>
           </Show>
@@ -333,7 +334,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
 
             {/* Footer Row */}
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-top": '4px', "padding-top": '14px', "border-top": '1px solid var(--border-default)' }}>
-              <span style={{ "font-size": '11px', color: 'var(--text-dim)' }}>
+              <span style={{ "font-size": '12px', color: 'var(--text-dim)' }}>
                 Tekan <kbd style={{ padding: '2px 5px', "border-radius": '3px', background: 'var(--surface-container-high)', border: '1px solid var(--border-default)' }}>Ctrl+Enter</kbd> untuk simpan
               </span>
 

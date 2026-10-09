@@ -1,0 +1,38 @@
+{
+  "sourceSha": "9a658fb11fcac2aa93bd78b5ce7ae8c28dd71202",
+  "buildVcsModified": false,
+  "binarySha256": "5A62C8096204A4110A8836B0482878ACF5E9C1E4F5898DFAAF0BA5647F13A58E",
+  "go": "1.27.0",
+  "platform": "windows/amd64",
+  "environment": "development",
+  "frontend": "production Vite asset build, with explicit local API URL",
+  "ports": {
+    "api": 8081,
+    "web": 3011
+  },
+  "schema": "orca_release_evidence_20261009",
+  "migrations": [
+    "000001",
+    "000002",
+    "000003",
+    "000004",
+    "000005",
+    "000006"
+  ],
+  "checks": [
+    "Registration through UI created an isolated workspace and signed in",
+    "Spaces/projects data loaded after reload",
+    "Document edited in UI and persisted via API",
+    "Task completion toggle persisted via UI",
+    "Board reopened/reloaded with two persisted connectors",
+    "Calendar week/day and task link loaded from database",
+    "Quick Capture Ctrl+K saved a note to inbox",
+    "Inbox-to-task conversion created a task",
+    "Stale document save rejected with 409",
+    "Calendar event edited in UI and persisted",
+    "Board delete/undo restored the original block and both connectors",
+    "Login through UI after clearing session succeeded"
+  ],
+  "screenshots": 16,
+  "hostedVersionVerified": false
+}

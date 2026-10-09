@@ -3,7 +3,7 @@
 > **Personal & Business Operating System:** Milanote visual canvas + Notion documents + Google Calendar time-blocking + Linear task management, consolidated into a single, self-hostable workspace ready for an AI intelligence layer.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status: Planning & Design](https://img.shields.io/badge/Status-Active%20Development-orange.svg)](#project-roadmap)
+[![Status: MVP Development](https://img.shields.io/badge/Status-Active%20Development-orange.svg)](#project-roadmap)
 
 ---
 
@@ -83,7 +83,8 @@ Engineered from the ground up as a **self-host first-class citizen** with a **mo
 
 All system specifications and design guidelines are organized in the [`docs/`](docs/) directory:
 
-- **[Self-Hosting & Deployment Guide](docs/self-hosting-guide.md):** Complete guide for installing ORCA locally, on VPS instances, with Supabase, Cloud Redis, and SSL reverse proxies.
+- **[Security & Upgrade Guide](docs/security-upgrade.md):** Required JWT configuration, tenant isolation, versioned migrations, upload persistence, and validation.
+- **[Self-Hosting & Deployment Guide](docs/self-hosting-guide.md):** Complete guide for installing ORCA locally, on VPS instances, with Supabase, and SSL reverse proxies.
 - **[Context & Design Philosophy](docs/context.md):** Background problems, architectural principles, and long-term product vision.
 - **[System & Architecture Specification](docs/spec.md):** Detailed frontend architecture, backend modular layout, database schema, and communication patterns.
 - **[Functional Requirements (FR)](docs/functional-requirements.md):** Granular functional requirements by module (Tasks, Calendar, Board, Project Hub, Auth).
@@ -104,7 +105,7 @@ ORCA features an **intelligent Docker Compose setup**: the launch command remain
 
 ### 1. Local Development (All-in-One Local Stack)
 In local development, Docker Compose automatically overlays [`compose.override.yml`](compose.override.yml) onto [`compose.yml`](compose.yml):
-- Starts local **PostgreSQL 16** and **Redis 7** containers with database schemas and demo seed data automatically applied.
+- Starts local **PostgreSQL 16** containers with database schemas and demo seed data automatically applied.
 - Starts **API (Go)** and **Web Frontend (Nginx/SolidJS)**.
 
 ```bash
@@ -112,11 +113,11 @@ In local development, Docker Compose automatically overlays [`compose.override.y
 git clone https://github.com/AphelionGroups/ORCA.git
 cd ORCA
 
-# Launch local dev environment (PostgreSQL, Redis, Go API, Frontend)
+# Launch local dev environment (PostgreSQL, Go API, Frontend)
 docker compose up -d --build
 ```
 
-### 2. Production Deployment (Cloud PostgreSQL / Supabase + Cloud Redis)
+### 2. Production Deployment (Cloud PostgreSQL / Supabase)
 On production servers, deploy **only** [`compose.yml`](compose.yml) (do not copy or include `compose.override.yml`):
 - Runs **only** the lightweight **API** and **Web** containers ($<50\text{ MB}$ total idle RAM).
 - Connects to external managed databases like **Supabase** via `DATABASE_URL`.
@@ -124,11 +125,11 @@ On production servers, deploy **only** [`compose.yml`](compose.yml) (do not copy
 - Simply configure `.env` (refer to [`.env.example`](.env.example)) and run the exact same command:
 
 ```bash
-# In production (with only compose.yml and .env):
-docker compose up -d --build
+# In production, explicitly exclude the development override:
+docker compose -f compose.yml up -d --build
 ```
 
-> 📖 **Full Deployment Guide:** For step-by-step Supabase setup, Cloud Redis, Caddy/Nginx reverse proxy, and SSL, see the **[Self-Hosting Guide](docs/self-hosting-guide.md)**.
+> 📖 **Full Deployment Guide:** For step-by-step Supabase setup, Caddy/Nginx reverse proxy, and SSL, see the **[Self-Hosting Guide](docs/self-hosting-guide.md)**.
 
 ---
 
@@ -139,11 +140,8 @@ docker compose up -d --build
 | **Web Frontend (Operating System)** | [`http://localhost:3000`](http://localhost:3000) | SolidJS SPA interface with dark obsidian theme & reverse proxy `/api/`. |
 | **Backend REST API** | [`http://localhost:8080/api/v1`](http://localhost:8080/api/v1) | Go Modular Monolith API. Healthcheck available at `/healthz`. |
 | **PostgreSQL Database (Dev Only)** | `localhost:5432` | User: `orca`, Pass: `orca_secret`, DB: `orca_db`. Auto-seeded with demo data. |
-| **Redis Cache (Dev Only)** | `localhost:6379` | Local in-memory cache and pub/sub broker. |
 
-> **Multi-Tenancy Header:**  
-> Requests carry the workspace tenant header:  
-> `X-Workspace-ID: 018f0000-0000-7000-8000-000000000001`
+> **Authentication and tenancy:** Requests use a Bearer JWT. The workspace comes from the signed token; an optional `X-Workspace-ID` must match it. Each registration creates a separate workspace. Production requires a unique `JWT_SECRET` of at least 32 bytes. See the [security upgrade guide](docs/security-upgrade.md) before deployment.
 
 ---
 

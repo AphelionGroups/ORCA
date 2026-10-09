@@ -7,13 +7,13 @@ import (
 )
 
 type Note struct {
-	ID          uuid.UUID  `json:"id"`
-	WorkspaceID uuid.UUID  `json:"workspace_id"`
-	Content     string     `json:"content"`
-	Color       string     `json:"color"`
-	IsArchived  bool       `json:"is_archived"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          uuid.UUID `json:"id"`
+	WorkspaceID uuid.UUID `json:"workspace_id"`
+	Content     string    `json:"content"`
+	Color       string    `json:"color"`
+	IsArchived  bool      `json:"is_archived"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type CreateNoteRequest struct {
@@ -22,9 +22,10 @@ type CreateNoteRequest struct {
 }
 
 type UpdateNoteRequest struct {
-	Content    *string `json:"content"`
-	Color      *string `json:"color"`
-	IsArchived *bool   `json:"is_archived"`
+	ExpectedUpdatedAt *time.Time `json:"expected_updated_at,omitempty"`
+	Content           *string    `json:"content"`
+	Color             *string    `json:"color"`
+	IsArchived        *bool      `json:"is_archived"`
 }
 
 type ConvertToTaskRequest struct {

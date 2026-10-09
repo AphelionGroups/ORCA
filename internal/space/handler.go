@@ -32,7 +32,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	wsID := middleware.GetWorkspaceID(r.Context())
 	spaces, err := h.repo.List(r.Context(), wsID)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to retrieve spaces: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	httputil.RespondJSON(w, http.StatusOK, map[string]any{"data": spaces})
@@ -49,7 +49,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	space, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get space: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if space == nil {
@@ -82,7 +82,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Create(r.Context(), &space); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to create space: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -106,11 +106,15 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	existing, err := h.repo.GetByID(r.Context(), wsID, id)
 	if err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to get space: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 	if existing == nil {
 		httputil.RespondError(w, http.StatusNotFound, "Space not found")
+		return
+	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -123,10 +127,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Color != "" {
 		existing.Color = req.Color
 	}
-	existing.SortOrder = req.SortOrder
+	if req.SortOrder != nil {
+		existing.SortOrder = *req.SortOrder
+	}
 
 	if err := h.repo.Update(r.Context(), existing); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to update space: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
@@ -143,7 +149,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Delete(r.Context(), wsID, id); err != nil {
-		httputil.RespondError(w, http.StatusInternalServerError, "Failed to delete space: "+err.Error())
+		httputil.RespondDBError(w, err)
 		return
 	}
 
