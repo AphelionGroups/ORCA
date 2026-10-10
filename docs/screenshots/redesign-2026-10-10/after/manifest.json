@@ -1,0 +1,45 @@
+{
+  "phase": "after",
+  "fixture": true,
+  "browser": "151.0.7922.34",
+  "checks": [
+    "Stable control bounds, pointer/reduced-motion runtime reset, theme reload and 200% zoom",
+    "Auth, projects/docs/tasks/board/calendar/Inbox at 1440",
+    "Touch drawer opens/closes, background inert and focus returns",
+    "Touch canvas toolbar scroll and shape popover remain usable",
+    "Auth, projects/docs/tasks/board/calendar/Inbox at 360",
+    "Auth, projects/docs/tasks/board/calendar/Inbox at 768",
+    "Auth, projects/docs/tasks/board/calendar/Inbox at 1024"
+  ],
+  "behavior": [
+    "Document title/content saved through API adapter, preview and reload",
+    "Keyboard opens task, status update and creation retain API writes",
+    "Canvas drag persistence, undo, zoom/reset, shape menu keyboard and focus return",
+    "Five dialog mount/unmount cycles, Tab trap, Escape/focus return and capture shortcut",
+    "Account keyboard tabs and profile update",
+    "Calendar event form keeps API payload",
+    "Inbox conversion destination and API call",
+    "Space/project creation dialogs retain API and selection flow",
+    {
+      "measurement": "Input dispatch to second animation frame, local synthetic workspace; not INP/Core Web Vitals",
+      "samples": [
+        21.9,
+        34.5,
+        32.3,
+        33.2,
+        32.7,
+        33.8,
+        32.4,
+        34,
+        34,
+        32.8,
+        33.1,
+        33.6
+      ],
+      "max": 34.5
+    },
+    "401 clears token, login error, disabled submit during pending request and logout",
+    "Registration validation/API contract and empty Space/project/Inbox states"
+  ],
+  "errors": []
+}

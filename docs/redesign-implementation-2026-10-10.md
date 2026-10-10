@@ -28,3 +28,7 @@ Baseline screenshots use an isolated browser and synthetic API fixture, never pr
 6. Run build/unit/frontend smoke and broad browser fixture QA across 360/768/1024/1440, themes, reduced-motion runtime changes, keyboard/focus and 200% zoom. Save before/after artifacts and measured contrast/performance observations. Commit verified stages on main as explicitly requested; no push, deployment or production writes.
 
 Risks: inline fixed sizes/colours override theme; board transforms are coordinate-sensitive; stacked overlays require top-dialog focus; hidden tabs must not steal focus; fixture tests verify frontend behavior rather than actual backend persistence. Calendar and some routing limitations predate redesign. Keep these separate from styling fixes.
+
+## Completion
+
+Implemented and verified on main. The archive of d3ad92d supplies reproducible baseline screenshots. Production build, request-gate tests, Go tests, frontend smoke, four-viewport browser regressions and 50 semantic contrast pairs pass. The document save/typing race discovered during QA was fixed without changing its endpoint/schema. See [handoff](redesign-handoff-2026-10-10.md) for evidence, preview setup, commits and remaining calendar/routing/live-backend limits; see [system guide](redesign-system-2026-10-10.md) for tokens and interaction lifecycle.
