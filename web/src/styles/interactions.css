@@ -1,0 +1,60 @@
+/* Hit areas and labels are stable; only paint and decorative direction icons move. */
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, [role='button']:focus-visible, [role='tab']:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+::selection { background: #B2FFA9; color: #0D1B1E; }
+:where(button, a) { -webkit-tap-highlight-color: transparent; }
+button:disabled, button[aria-disabled='true'] { cursor: not-allowed; opacity: .6; }
+:is(.btn-primary, .btn-pill-white, .btn-secondary, .btn-pill-ghost):hover:not(:disabled) { transform: none; opacity: 1; }
+.btn-primary, .btn-pill-white, .btn-secondary, .btn-pill-ghost {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  --wash-opacity: .10;
+}
+.btn-secondary, .btn-pill-ghost { --wash-opacity: var(--wash-secondary-opacity); }
+.btn-primary::before, .btn-pill-white::before, .btn-secondary::before, .btn-pill-ghost::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 90%;
+  aspect-ratio: 1;
+  left: var(--hover-x, 75%);
+  top: var(--hover-y, 75%);
+  background: var(--accent);
+  border-radius: 48% 52% 58% 42%;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(.15);
+  pointer-events: none;
+}
+[data-theme='dark'] :is(.btn-primary, .btn-pill-white) { --wash-opacity: .12; }
+:is(.btn-primary, .btn-pill-white, .btn-secondary, .btn-pill-ghost):focus-visible:not(:disabled)::before {
+  left: 75%; top: 75%; opacity: var(--wash-opacity); transform: translate(-50%, -50%) scale(1);
+}
+:is(.btn-primary, .btn-pill-white):focus-visible:not(:disabled) { background: var(--action-primary-hover); color: var(--action-primary-text); }
+.direction-badge { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 3px; }
+.direction-badge svg { width: 16px; height: 16px; }
+.project-card:is(:hover, :focus-visible) .direction-badge { background: var(--accent); color: #0D1B1E; }
+.text-link { text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; }
+.text-link:focus-visible { text-decoration-color: var(--focus-ring); }
+@media (hover: hover) and (pointer: fine) {
+  :is(.btn-primary, .btn-pill-white, .btn-secondary, .btn-pill-ghost):hover:not(:disabled):not([aria-disabled='true'])::before { opacity: var(--wash-opacity); transform: translate(-50%, -50%) scale(1); }
+  :is(.btn-primary, .btn-pill-white):hover:not(:disabled) { background: var(--action-primary-hover); color: var(--action-primary-text); }
+  .text-link:hover { text-decoration-color: var(--focus-ring); }
+  .project-card:hover { border-color: var(--border-hover) !important; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  button, a, .project-card { transition: color var(--motion-fast), background-color var(--motion-fast), border-color var(--motion-fast), transform var(--motion-fast) var(--ease-settle); }
+  :is(.btn-primary, .btn-pill-white, .btn-secondary, .btn-pill-ghost)::before { transition: transform var(--motion-wash) var(--ease-settle), opacity 240ms ease; }
+  :is(.btn-primary, .btn-pill-white, .btn-secondary, .btn-pill-ghost):active:not(:disabled) { transform: translateY(1px) scale(.985); }
+  .direction-badge { transition: background-color var(--motion-fast), color var(--motion-fast); }
+  .direction-badge svg { transition: transform 360ms var(--ease-settle); }
+  .project-card:is(:hover, :focus-visible) .direction-badge svg { transform: translateX(2px); }
+  .context-panel { animation: orca-context-arrive var(--motion-context) var(--ease-settle); }
+  @keyframes orca-context-arrive { from { opacity: .8; translate: 0 4px; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  :is(.btn-primary, .btn-pill-white, .btn-secondary, .btn-pill-ghost)::before { transform: none !important; opacity: 0 !important; }
+}

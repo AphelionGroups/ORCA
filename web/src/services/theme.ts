@@ -9,7 +9,7 @@ const getSystemTheme = (): ResolvedTheme => {
   if (typeof window !== 'undefined' && window.matchMedia) {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
-  return 'dark';
+  return 'light';
 };
 
 const getInitialThemeMode = (): ThemeMode => {
@@ -19,7 +19,7 @@ const getInitialThemeMode = (): ThemeMode => {
       return saved;
     }
   }
-  return 'system';
+  return 'light';
 };
 
 const initialMode = getInitialThemeMode();
