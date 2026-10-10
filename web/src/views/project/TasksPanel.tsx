@@ -13,7 +13,7 @@ import { api } from '../../services/api';
 import type { ProjectController } from './useProjectController';
 export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
   const ctx = props.ctx; return (<Show when={ctx.activeTab() === 'tasks'}>
-    <div style={{ height: '100%', "overflow-y": 'auto', padding: '24px 32px', "background-color": 'var(--surface)' }}>
+    <div class="task-workspace context-panel" role="tabpanel" id="project-tasks-panel" aria-labelledby="project-tasks-tab" style={{ height: '100%', "overflow-y": 'auto', padding: '24px 32px', "background-color": 'var(--surface)' }}>
       {/* Task View Mode Switcher & Actions Header */}
       <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '20px' }}>
         <div class="segmented-control">
@@ -37,7 +37,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
 
       {/* View 1: KANBAN BOARD */}
       <Show when={ctx.taskViewMode() === 'kanban'}>
-        <div style={{ display: 'grid', "grid-template-columns": 'repeat(4, minmax(260px, 1fr))', gap: '16px', "align-items": 'flex-start' }}>
+        <div class="task-kanban" style={{ display: 'grid', "grid-template-columns": 'repeat(4, minmax(260px, 1fr))', gap: '16px', "align-items": 'flex-start' }}>
           {[
             { key: 'todo' as const, title: 'Backlog', color: 'var(--outline-variant)' },
             { key: 'in_progress' as const, title: 'In Progress', color: 'var(--primary)' },
@@ -85,7 +85,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
               {/* Task Cards in Column */}
               <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px', flex: 1 }}>
                 <For each={colTasks()}>
-                  {(t) => (<div draggable={true} onDragStart={(e) => ctx.handleTaskDragStart(e, t.id)} onDragEnd={ctx.handleTaskDragEnd} onClick={() => ctx.handleOpenEditTaskModal(t)} title="Drag to move column, or click to edit" style={{
+                  {(t) => (<div class="task-card" role="button" tabindex="0" onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); ctx.handleOpenEditTaskModal(t); } }} draggable={true} onDragStart={(e) => ctx.handleTaskDragStart(e, t.id)} onDragEnd={ctx.handleTaskDragEnd} onClick={() => ctx.handleOpenEditTaskModal(t)} title="Drag to move column, or click to edit" style={{
                     padding: '12px 14px',
                     "border-radius": '7px',
                     "background-color": 'var(--surface-container)',
@@ -98,9 +98,6 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                     transition: 'box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease'
                   }}>
                     <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', gap: '8px' }}>
-                      <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
-                        #{t.id.slice(-4)}
-                      </span>
                       <span style={{
                         "font-size": '10px',
                         "font-family": 'var(--font-mono)',
@@ -108,7 +105,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                         padding: '2px 6px',
                         "border-radius": '3px',
                         background: t.priority === 'urgent' ? 'rgba(239, 68, 68, 0.18)' : 'var(--surface-container-high)',
-                        color: t.priority === 'urgent' ? '#f87171' : 'var(--text-muted)'
+                        color: t.priority === 'urgent' ? 'var(--status-error)' : 'var(--text-muted)'
                       }}>
                         {t.priority}
                       </span>

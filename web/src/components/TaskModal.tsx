@@ -1,3 +1,4 @@
+import { focusScope } from './focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, Show, For } from 'solid-js';
 import { X, Trash2, CheckSquare } from 'lucide-solid';
@@ -25,7 +26,7 @@ const PRIORITY_OPTIONS: { value: Task['priority']; label: string; color: string 
   { value: 'low', label: 'Low', color: 'var(--text-muted)' },
   { value: 'medium', label: 'Medium', color: 'var(--primary)' },
   { value: 'high', label: 'High', color: 'var(--tertiary)' },
-  { value: 'urgent', label: 'Urgent', color: '#f87171' },
+  { value: 'urgent', label: 'Urgent', color: 'var(--status-error)' },
 ];
 
 export const TaskModal: Component<TaskModalProps> = (props) => {
@@ -59,6 +60,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
   });
 
   const handleSave = async (e?: Event) => {
+    if (loading()) { e?.preventDefault(); return; }
     if (e) e.preventDefault();
     const trimmedTitle = title().trim();
     if (!trimmedTitle) {
@@ -125,7 +127,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
         class="modal-backdrop"
         onClick={(e) => { if (e.target === e.currentTarget) props.onClose(); }}
       >
-        <div class="modal-card" style={{ "max-width": '540px' }}>
+        <div ref={el => focusScope(el, props.onClose)} class="modal-card" style={{ "max-width": '540px' }}>
           {/* Header */}
           <div class="modal-header">
             <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
@@ -176,7 +178,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
                 <button
                   type="button"
                   class="btn-primary"
-                  style={{ "background-color": '#ef4444', color: '#fff' }}
+                  style={{ "background-color": 'var(--status-error)', color: 'var(--background)' }}
                   onClick={handleDelete}
                   disabled={loading()}
                 >

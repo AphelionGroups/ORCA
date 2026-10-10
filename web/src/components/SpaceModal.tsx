@@ -1,3 +1,4 @@
+import { focusScope } from './focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, Show, For } from 'solid-js';
 import { X, Trash2, Briefcase, User, Rocket, Layers, Folder, Globe, Sparkles } from 'lucide-solid';
@@ -57,6 +58,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
   });
 
   const handleSave = async (e: Event) => {
+    if (loading()) { e?.preventDefault(); return; }
     e.preventDefault();
     const trimmed = name().trim();
     if (!trimmed) {
@@ -124,7 +126,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
         class="modal-backdrop"
         onClick={(e) => { if (e.target === e.currentTarget) props.onClose(); }}
       >
-        <div class="modal-card">
+        <div ref={el => focusScope(el, props.onClose)} class="modal-card">
           {/* Header */}
           <div class="modal-header">
             <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>

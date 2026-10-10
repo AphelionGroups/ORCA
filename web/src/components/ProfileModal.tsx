@@ -1,5 +1,7 @@
+import { handleTabKey } from './tabs';
+import { focusScope } from './focusScope';
 import type { Component } from 'solid-js';
-import { createSignal, createEffect, onCleanup, Show } from 'solid-js';
+import { createSignal, createEffect, Show } from 'solid-js';
 import { 
   X, 
   Camera, 
@@ -40,18 +42,6 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
   const [errorMsg, setErrorMsg] = createSignal<string | null>(null);
   const [successMsg, setSuccessMsg] = createSignal<string | null>(null);
 
-  // Keyboard navigation: Escape key closes modal (WCAG 2.2 Guideline)
-  createEffect(() => {
-    if (!props.isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        props.onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    onCleanup(() => window.removeEventListener('keydown', handleKeyDown));
-  });
-
   createEffect(() => {
     if (props.isOpen) {
       const u = getCurrentUser();
@@ -85,12 +75,12 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
   const getPasswordStrength = () => {
     const p = newPassword();
     if (!p) return { label: '', color: 'transparent', score: 0 };
-    if (p.length < 6) return { label: 'Terlalu pendek (min 6)', color: '#ef4444', score: 1 };
+    if (p.length < 6) return { label: 'Terlalu pendek (min 6)', color: 'var(--status-error)', score: 1 };
     const hasNum = /\d/.test(p);
     const hasSpecial = /[^A-Za-z0-9]/.test(p);
-    if (p.length >= 8 && hasNum && hasSpecial) return { label: 'Sangat Kuat', color: '#22c55e', score: 3 };
-    if (p.length >= 6 && (hasNum || hasSpecial)) return { label: 'Cukup Kuat', color: '#eab308', score: 2 };
-    return { label: 'Standar', color: '#f97316', score: 1 };
+    if (p.length >= 8 && hasNum && hasSpecial) return { label: 'Sangat Kuat', color: 'var(--status-success)', score: 3 };
+    if (p.length >= 6 && (hasNum || hasSpecial)) return { label: 'Cukup Kuat', color: 'var(--status-warning)', score: 2 };
+    return { label: 'Standar', color: 'var(--status-warning)', score: 1 };
   };
 
   const handleAvatarFileChange = async (e: Event) => {
@@ -120,6 +110,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
 
   const handleSave = async (e: Event) => {
     e.preventDefault();
+    if (isSaving() || isUploading()) return;
     setErrorMsg(null);
     setSuccessMsg(null);
 
@@ -193,7 +184,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
     <Show when={props.isOpen}>
       <div class="modal-backdrop" onClick={props.onClose}>
         <div 
-          class="profile-modal-card" 
+          ref={el => focusScope(el, props.onClose)} class="profile-modal-card"
           role="dialog"
           aria-modal="true"
           aria-labelledby="profile-modal-title"
@@ -242,7 +233,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                   <input 
                     type="file" 
                     accept="image/*" 
-                    style={{ display: 'none' }} 
+                    class="accessible-file-input" aria-label="Choose profile photo"
                     disabled={isUploading()} 
                     onChange={handleAvatarFileChange} 
                   />
@@ -268,7 +259,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                   <input 
                     type="file" 
                     accept="image/*" 
-                    style={{ display: 'none' }} 
+                    class="accessible-file-input" aria-label="Choose profile photo"
                     disabled={isUploading()} 
                     onChange={handleAvatarFileChange} 
                   />
@@ -278,7 +269,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                   <button 
                     type="button" 
                     class="btn-secondary" 
-                    style={{ padding: '6px 10px', "font-size": '11.5px', color: '#f87171' }}
+                    style={{ padding: '6px 10px', "font-size": '11.5px', color: 'var(--status-error)' }}
                     onClick={() => setAvatarUrl('')}
                     title="Hapus foto profil"
                   >
@@ -290,12 +281,12 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
             </div>
 
             {/* Navigation Tabs (Profil vs Keamanan) */}
-            <div class="profile-nav-tabs" role="tablist">
+            <div class="profile-nav-tabs" role="tablist" aria-label="Account settings" onKeyDown={handleTabKey}>
               <button
                 type="button"
                 role="tab"
                 class={`profile-nav-tab ${activeTab() === 'general' ? 'active' : ''}`}
-                aria-selected={activeTab() === 'general'}
+                aria-selected={activeTab() === 'general'} tabindex={activeTab() === 'general' ? 0 : -1}
                 onClick={() => setActiveTab('general')}
               >
                 <User size={14} />
@@ -305,7 +296,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                 type="button"
                 role="tab"
                 class={`profile-nav-tab ${activeTab() === 'security' ? 'active' : ''}`}
-                aria-selected={activeTab() === 'security'}
+                aria-selected={activeTab() === 'security'} tabindex={activeTab() === 'security' ? 0 : -1}
                 onClick={() => setActiveTab('security')}
               >
                 <KeyRound size={14} />
@@ -318,7 +309,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
               <div style={{ 
                 background: 'rgba(239, 68, 68, 0.12)', 
                 border: '1px solid rgba(239, 68, 68, 0.3)', 
-                color: '#f87171', 
+                color: 'var(--status-error)',
                 padding: '10px 14px', 
                 "border-radius": '8px', 
                 "font-size": '12px', 
@@ -336,7 +327,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
               <div style={{ 
                 background: 'rgba(34, 197, 94, 0.12)', 
                 border: '1px solid rgba(34, 197, 94, 0.3)', 
-                color: '#4ade80', 
+                color: 'var(--status-success)',
                 padding: '10px 14px', 
                 "border-radius": '8px', 
                 "font-size": '12px', 
@@ -537,7 +528,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                           Konfirmasi Sandi
                         </label>
                         <Show when={confirmPassword() && confirmPassword() === newPassword()}>
-                          <span style={{ "font-size": '10px', color: '#4ade80', "font-weight": 600 }}>
+                          <span style={{ "font-size": '10px', color: 'var(--status-success)', "font-weight": 600 }}>
                             Cocok ✓
                           </span>
                         </Show>
@@ -617,8 +608,8 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                     padding: '0 18px', 
                     "font-size": '12.5px', 
                     "border-radius": '8px',
-                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                    "box-shadow": '0 4px 14px rgba(99, 102, 241, 0.35)'
+                    background: 'var(--action-primary)',
+                    "box-shadow": 'none'
                   }}
                   disabled={isSaving() || isUploading()}
                   aria-busy={isSaving()}

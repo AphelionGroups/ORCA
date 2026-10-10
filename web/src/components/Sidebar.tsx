@@ -132,12 +132,12 @@ export const Sidebar: Component<SidebarProps> = (props) => {
   };
 
   return (
-    <aside class={`orca-sidebar ${props.isOpen ? '' : 'collapsed'}`}>
+    <aside id="workspace-navigation" aria-label="Workspace navigation" inert={!props.isOpen} class={`orca-sidebar ${props.isOpen ? '' : 'collapsed'}`}>
       {/* 1. Fixed Header */}
       <div class="sidebar-brand-row">
-        <div class="brand-logo" onClick={() => props.onNavigate('projects', null, null)}>
+        <button type="button" class="brand-logo" onClick={() => props.onNavigate('projects', null, null)}>
           <span class="brand-text">ORCA</span>
-        </div>
+        </button>
         <button 
           type="button"
           aria-label="Collapse sidebar" 
@@ -157,22 +157,22 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           <div class="sidebar-section-header">Views</div>
           <nav style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
             {/* 1. Inbox */}
-            <div 
+            <button type="button" aria-current={props.currentRoute === 'inbox' ? 'page' : undefined}
               class={`sidebar-nav-item ${props.currentRoute === 'inbox' ? 'active' : ''}`}
               onClick={() => props.onNavigate('inbox', null, null)}
             >
               <Inbox size={15} color={props.currentRoute === 'inbox' ? 'var(--secondary)' : 'var(--text-dim)'} />
               <span>Inbox</span>
-            </div>
+            </button>
 
             {/* 2. Calendar */}
-            <div 
+            <button type="button" aria-current={props.currentRoute === 'calendar' ? 'page' : undefined}
               class={`sidebar-nav-item ${props.currentRoute === 'calendar' ? 'active' : ''}`}
               onClick={() => props.onNavigate('calendar', null, null)}
             >
               <Calendar size={15} color={props.currentRoute === 'calendar' ? 'var(--tertiary)' : 'var(--text-dim)'} />
               <span>Calendar</span>
-            </div>
+            </button>
           </nav>
         </div>
 
@@ -194,7 +194,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
 
           <div style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
             {/* All Spaces Entry */}
-            <div
+            <button type="button"
               class={`sidebar-space-row ${props.currentRoute === 'projects' && props.activeSpaceId === null && !props.activeProjectId ? 'active' : ''}`}
               onClick={() => props.onNavigate('projects', null, null)}
             >
@@ -203,7 +203,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                 <Layers size={14} style={{ color: 'var(--text-muted)', "flex-shrink": 0 }} />
                 <span class="sidebar-space-title">All Spaces</span>
               </div>
-            </div>
+            </button>
 
             {/* List of Spaces */}
             <For each={spaces()}>
@@ -231,7 +231,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                         {/* Chevron Collapse Toggle */}
                         <button
                           type="button"
-                          class="sidebar-chevron-btn"
+                          class="sidebar-chevron-btn" aria-expanded={!isCollapsed()} aria-label={`${isCollapsed() ? 'Expand' : 'Collapse'} ${space.name}`}
                           onClick={(e) => toggleSpaceCollapse(space.id, e)}
                           title={isCollapsed() ? 'Expand Space' : 'Collapse Space'}
                         >
@@ -247,9 +247,9 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                         />
 
                         {/* Space Name */}
-                        <span class="sidebar-space-title" title={space.name}>
+                        <button type="button" class="sidebar-space-title sidebar-route-button" title={space.name}>
                           {space.name}
-                        </span>
+                        </button>
                       </div>
 
                       {/* Space Hover Actions */}
@@ -285,12 +285,12 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                                 onClick={() => props.onNavigate('projects', space.id, project.id)}
                                 title={project.name}
                               >
-                                <div class="sidebar-project-item-left">
+                                <button type="button" class="sidebar-project-item-left sidebar-route-button" aria-current={isProjectActive() ? 'page' : undefined}>
                                   <FolderKanban size={13} style={{ "flex-shrink": 0, opacity: isProjectActive() ? 1 : 0.6 }} />
                                   <span class="sidebar-project-title">
                                     {project.name}
                                   </span>
-                                </div>
+                                </button>
 
                                 <div class="sidebar-row-actions">
                                   <button
@@ -330,7 +330,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
       <div class="sidebar-footer-fixed">
         {/* User Identity & Profile Card (Obsidian Studio Widget) */}
         <div class="profile-sidebar-widget">
-          <div 
+          <button type="button"
             class="profile-sidebar-identity"
             onClick={() => props.onOpenProfile && props.onOpenProfile()}
             title="Buka Pengaturan Profil & Akun"
@@ -356,7 +356,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                 {props.currentUser?.email || ''}
               </span>
             </div>
-          </div>
+          </button>
 
           <div class="profile-sidebar-actions">
             <button
@@ -386,7 +386,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
             type="button"
             class={`theme-toggle-btn ${themeMode() === 'light' ? 'active' : ''}`}
             onClick={() => setThemeMode('light')}
-            title="Light Theme"
+            title="Light Theme" aria-label="Light Theme" aria-pressed={themeMode() === 'light'}
           >
             <Sun size={13} />
             <span>Light</span>
@@ -395,7 +395,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
             type="button"
             class={`theme-toggle-btn ${themeMode() === 'system' ? 'active' : ''}`}
             onClick={() => setThemeMode('system')}
-            title="System Theme"
+            title="System Theme" aria-label="System Theme" aria-pressed={themeMode() === 'system'}
           >
             <Monitor size={13} />
             <span>Auto</span>
@@ -404,7 +404,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
             type="button"
             class={`theme-toggle-btn ${themeMode() === 'dark' ? 'active' : ''}`}
             onClick={() => setThemeMode('dark')}
-            title="Dark Theme"
+            title="Dark Theme" aria-label="Dark Theme" aria-pressed={themeMode() === 'dark'}
           >
             <Moon size={13} />
             <span>Dark</span>

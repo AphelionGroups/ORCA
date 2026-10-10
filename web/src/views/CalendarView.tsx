@@ -1,3 +1,4 @@
+import { focusScope } from '../components/focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, onMount, For, Show, createEffect } from 'solid-js';
 import { 
@@ -33,6 +34,8 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
   const [eventDayOffset, setEventDayOffset] = createSignal(0); // 0 = Wed/Today, -2=Mon, -1=Tue, 1=Thu, 2=Fri
   const [eventStartHour, setEventStartHour] = createSignal('10:00');
   const [eventEndHour, setEventEndHour] = createSignal('11:30');
+  const [eventSaving, setEventSaving] = createSignal(false);
+  const [eventError, setEventError] = createSignal('');
 
   const loadData = async () => {
     try {
@@ -79,7 +82,9 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
 
   const handleCreateEvent = async (e: Event) => {
     e.preventDefault();
-    if (!eventTitle().trim()) return;
+    if (eventSaving() || !eventTitle().trim()) return;
+    setEventSaving(true);
+    setEventError('');
 
     try {
       const now = new Date();
@@ -107,11 +112,14 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
       setIsEventModalOpen(false);
     } catch (err) {
       console.error('Failed to create calendar event:', err);
+      setEventError(err instanceof Error ? err.message : 'Unable to save event. Please try again.');
+    } finally {
+      setEventSaving(false);
     }
   };
 
   return (
-    <div style={{ height: '100%', width: '100%', display: 'flex', "flex-direction": 'column', "background-color": 'var(--surface)', "overflow-y": 'auto' }}>
+    <div class="calendar-workspace" style={{ height: '100%', width: '100%', display: 'flex', "flex-direction": 'column', "background-color": 'var(--surface)', "overflow-y": 'auto' }}>
       {/* Calendar Top Header */}
       <header class="orca-header">
         <div class="header-breadcrumbs">
@@ -150,7 +158,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
       </header>
 
       {/* Ribbon Controls */}
-      <div style={{ padding: '24px 32px 16px 32px', display: 'flex', "flex-wrap": 'wrap', "align-items": 'center', "justify-content": 'space-between', gap: '16px' }}>
+      <div class="calendar-ribbon" style={{ padding: '24px 32px 16px 32px', display: 'flex', "flex-wrap": 'wrap', "align-items": 'center', "justify-content": 'space-between', gap: '16px' }}>
         <div style={{ display: 'flex', "align-items": 'center', gap: '24px' }}>
           <div style={{ display: 'flex', "align-items": 'baseline', gap: '8px' }}>
             <span style={{ "font-size": '22px', color: 'var(--text-main)', "font-weight": 600, "letter-spacing": '-0.02em' }}>Current Sprint</span>
@@ -231,9 +239,9 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
       </div>
 
       {/* Matrix & Backlog */}
-      <div style={{ padding: '0 32px 48px 32px', display: 'flex', gap: '24px', "align-items": 'flex-start' }}>
+      <div class="calendar-layout context-panel" style={{ padding: '0 32px 48px 32px', display: 'flex', gap: '24px', "align-items": 'flex-start' }}>
         {/* Left Unscheduled Backlog */}
-        <div style={{ width: '280px', "flex-shrink": 0, display: 'flex', "flex-direction": 'column', gap: '12px' }}>
+        <div class="calendar-backlog" style={{ width: '280px', "flex-shrink": 0, display: 'flex', "flex-direction": 'column', gap: '12px' }}>
           <div style={{ padding: '16px', "border-radius": '8px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', gap: '4px' }}>
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
               <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', "letter-spacing": '0.1em', color: 'var(--text-dim)' }}>Unscheduled Nodes</span>
@@ -272,7 +280,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                         "font-family": 'var(--font-mono)',
                         "text-transform": 'uppercase',
                         "background-color": 'rgba(68,225,222,0.1)',
-                        color: sp.color
+                        color: 'var(--text-secondary)'
                       }}>
                         {sp.name}
                       </span>
@@ -296,7 +304,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
         </div>
 
         {/* Main Weekly Architectural Grid */}
-        <div style={{ flex: 1, "min-width": 0, "border-radius": '8px', "background-color": 'var(--surface-container-lowest)', border: '1px solid var(--border-default)', overflow: 'hidden', display: 'flex', "flex-direction": 'column' }}>
+        <div class="calendar-matrix" style={{ flex: 1, "min-width": 0, "border-radius": '8px', "background-color": 'var(--surface-container-lowest)', border: '1px solid var(--border-default)', overflow: 'hidden', display: 'flex', "flex-direction": 'column' }}>
           {/* Day Columns Header */}
           <div style={{ display: 'grid', "grid-template-columns": '60px repeat(5, 1fr)', "background-color": 'var(--surface-container-low)', "border-bottom": '1px solid var(--border-default)', "text-align": 'center' }}>
             <div style={{ padding: '12px 0', "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>Time</div>
@@ -313,7 +321,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
           {/* Time Slots Area */}
           <div style={{ position: 'relative', display: 'grid', "grid-template-columns": '60px repeat(5, 1fr)', height: '620px', "overflow-y": 'auto' }}>
             {/* Time labels column */}
-            <div style={{ display: 'flex', "flex-direction": 'column', "text-align": 'right', "font-family": 'var(--font-mono)', "font-size": '10px', color: 'rgba(100,116,139,0.6)', "padding-right": '8px', "padding-top": '8px', "border-right": '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'flex', "flex-direction": 'column', "text-align": 'right', "font-family": 'var(--font-mono)', "font-size": '10px', color: 'var(--text-secondary)', "padding-right": '8px', "padding-top": '8px', "border-right": '1px solid var(--border-subtle)' }}>
               <div style={{ height: '64px' }}>08:00</div>
               <div style={{ height: '64px' }}>10:00</div>
               <div style={{ height: '64px' }}>12:00</div>
@@ -322,37 +330,14 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
               <div style={{ height: '64px' }}>18:00</div>
             </div>
 
-            {/* Col Mon */}
-            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }}>
-              <div style={{ position: 'absolute', top: '16px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
-                <div>
-                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0, overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>Brand Visual Alignment</h5>
-                </div>
-                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>08:30 - 10:15</span>
-              </div>
-            </div>
+            {/* Mon: no synthetic event data */}
+            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }} />
 
-            {/* Col Tue */}
-            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }}>
-              <div style={{ position: 'absolute', top: '112px', left: '6px', right: '6px', height: '112px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
-                <div>
-                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--primary)', "text-transform": 'uppercase' }}>Kantor</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>Sprint Architecture Sync</h5>
-                </div>
-                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>10:00 - 12:30</span>
-              </div>
-            </div>
+            {/* Tue: no synthetic event data */}
+            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }} />
 
             {/* Col Wed (Today Active with Live events from PostgreSQL) */}
-            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)', "background-color": 'rgba(68,225,222,0.02)' }}>
-              {/* Current line pulse */}
-              <div style={{ position: 'absolute', top: '160px', left: 0, right: 0, "z-index": 30, display: 'flex', "align-items": 'center', "pointer-events": 'none' }}>
-                <div style={{ width: '8px', height: '8px', "border-radius": '50%', "background-color": 'var(--secondary)', "margin-left": '-4px' }}></div>
-                <div style={{ height: '1px', flex: 1, "background-color": 'var(--secondary)', "box-shadow": '0 0 8px rgba(68,225,222,0.8)' }}></div>
-                <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', "background-color": 'var(--secondary)', color: '#000', padding: '0 4px', "border-radius": '2px', "margin-right": '4px' }}>Now</span>
-              </div>
-
+            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)', "background-color": 'var(--surface-muted)' }}>
               {/* Dynamic Events from PostgreSQL */}
               <For each={events()}>
                 {(ev, index) => {
@@ -369,14 +354,14 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                       "border-radius": '6px',
                       padding: '10px',
                       "background-color": index() === 0 ? 'var(--surface-container-high)' : 'var(--surface-container-low)',
-                      border: index() === 0 ? '1px solid rgba(68,225,222,0.4)' : '1px solid var(--border-default)',
+                      border: index() === 0 ? '1px solid var(--border-hover)' : '1px solid var(--border-default)',
                       display: 'flex',
                       "flex-direction": 'column',
                       "justify-content": 'space-between'
                     }}>
                       <div>
-                        <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: sp.color, "text-transform": 'uppercase' }}>
-                          {sp.name} {index() === 0 ? '• Live' : ''}
+                        <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--text-secondary)', "text-transform": 'uppercase' }}>
+                          {sp.name}
                         </span>
                         <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>
                           {ev.title}
@@ -391,34 +376,18 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
               </For>
             </div>
 
-            {/* Col Thu */}
-            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }}>
-              <div style={{ position: 'absolute', top: '80px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
-                <div>
-                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--primary)', "text-transform": 'uppercase' }}>Kantor</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>Quarterly Budget Modeling</h5>
-                </div>
-                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>09:30 - 11:30</span>
-              </div>
-            </div>
+            {/* Thu: no synthetic event data */}
+            <div style={{ position: 'relative', "border-right": '1px solid var(--border-default)' }} />
 
-            {/* Col Fri */}
-            <div style={{ position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '144px', left: '6px', right: '6px', height: '96px', "border-radius": '6px', padding: '10px', "background-color": 'var(--surface-container-low)', border: '1px solid var(--border-default)', display: 'flex', "flex-direction": 'column', "justify-content": 'space-between' }}>
-                <div>
-                  <span style={{ "font-size": '9px', "font-family": 'var(--font-mono)', color: 'var(--secondary)', "text-transform": 'uppercase' }}>Bisnis A</span>
-                  <h5 style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-main)', margin: 0 }}>Launch Campaign Review</h5>
-                </div>
-                <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>11:00 - 12:30</span>
-              </div>
-            </div>
+            {/* Friday: no synthetic event data */}
+            <div style={{ position: 'relative' }} />
           </div>
         </div>
       </div>
 
       {/* Add Event Modal */}
       <Show when={isEventModalOpen()}>
-        <div 
+        <div class="modal-backdrop"
           style={{
             position: 'fixed',
             inset: 0,
@@ -426,13 +395,13 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
             display: 'flex',
             "align-items": 'center',
             "justify-content": 'center',
-            "background-color": 'rgba(0, 0, 0, 0.6)',
-            "backdrop-filter": 'blur(4px)',
+            "background-color": 'var(--overlay)',
+            "backdrop-filter": 'none',
             padding: '16px'
           }}
           onClick={(e) => { if (e.target === e.currentTarget) setIsEventModalOpen(false); }}
         >
-          <div style={{
+          <div class="modal-card" ref={el => focusScope(el, () => setIsEventModalOpen(false))} style={{
             position: 'relative',
             width: '100%',
             "max-width": '420px',
@@ -455,7 +424,8 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
               </button>
             </div>
 
-            <form onSubmit={handleCreateEvent} style={{ display: 'flex', "flex-direction": 'column', gap: '12px' }}>
+            <Show when={eventError()}><p role="alert" class="modal-error-badge">{eventError()}</p></Show>
+            <form onSubmit={handleCreateEvent} aria-busy={eventSaving()} style={{ display: 'flex', "flex-direction": 'column', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>EVENT TITLE</label>
                 <input 
@@ -529,12 +499,12 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                   Cancel
                 </button>
                 <button 
-                  type="submit"
+                  type="submit" disabled={eventSaving()}
                   class="btn-primary"
                   style={{ padding: '6px 16px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }}
                 >
                   <Clock size={13} />
-                  <span>Book Event</span>
+                  <span>{eventSaving() ? 'Saving...' : 'Book Event'}</span>
                 </button>
               </div>
             </form>

@@ -1,3 +1,4 @@
+import { focusScope } from '../components/focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, onMount, onCleanup, For, Show } from 'solid-js';
 import { 
@@ -251,7 +252,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
 
       {/* Toast Notification */}
       <Show when={successToast()}>
-        <div style={{
+        <div role="status" class="workspace-toast" style={{
           position: 'fixed',
           bottom: '24px',
           right: '24px',
@@ -267,17 +268,17 @@ export const InboxView: Component<InboxViewProps> = (props) => {
           "box-shadow": '0 10px 30px rgba(0, 0, 0, 0.5)',
           "z-index": 1000
         }}>
-          <Check size={14} color="#4ade80" />
+          <Check size={14} color="var(--status-success)" />
           <span>{successToast()}</span>
         </div>
       </Show>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
+      <div class="inbox-workspace context-panel" style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
         <div style={{ "max-width": '720px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '20px' }}>
           
           {/* Quick Note Input Box */}
-          <form 
+          <form class="inbox-capture-form"
             onSubmit={handleAddNote}
             style={{
               background: 'var(--surface-card)',
@@ -290,7 +291,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
               "box-shadow": '0 2px 8px rgba(0, 0, 0, 0.2)'
             }}
           >
-            <textarea
+            <textarea aria-label="New Inbox note"
               rows={2}
               value={quickInput()}
               onInput={e => setQuickInput(e.currentTarget.value)}
@@ -508,7 +509,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
           onClick={() => setConvertModalOpen(false)}
         >
           <div 
-            class="modal-card" 
+            class="modal-card" ref={el => focusScope(el, () => setConvertModalOpen(false))}
             style={{ "max-width": '460px' }}
             onClick={e => e.stopPropagation()}
           >
