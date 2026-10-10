@@ -40,6 +40,8 @@ input, textarea { user-select: text; }
 .btn-ghost-icon, .profile-action-btn { border-radius: 4px; color: var(--text-secondary); }
 .btn-ghost-icon:hover, .profile-action-btn:hover { background: var(--surface-muted); color: var(--text-primary); }
 .btn-danger { background: var(--status-error); color: var(--background); border-radius: 4px; }
+.btn-danger:hover:not(:disabled) { background: var(--status-error); color: var(--background); }
+.profile-action-btn.logout:hover { color: var(--status-error); }
 .form-input, .modal-form-input, .modal-form-select, .modal-form-textarea { border: 1px solid var(--border-control); border-radius: 4px; min-height: 40px; font-size: 14px; background: var(--surface-panel); color: var(--text-primary); }
 input::placeholder, textarea::placeholder { color: var(--text-secondary); opacity: 1; }
 input[type='checkbox'], input[type='radio'] { accent-color: var(--focus-ring); }

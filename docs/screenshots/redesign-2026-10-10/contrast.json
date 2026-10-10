@@ -150,6 +150,18 @@
     "minimum": 3
   },
   {
+    "theme": "light",
+    "name": "destructive base/hover",
+    "ratio": 6.23,
+    "minimum": 4.5
+  },
+  {
+    "theme": "light",
+    "name": "destructive primary + wash",
+    "ratio": 5.41,
+    "minimum": 4.5
+  },
+  {
     "theme": "dark",
     "name": "text-primary / background",
     "ratio": 16.76,
@@ -298,5 +310,17 @@
     "name": "secondary hover border + wash",
     "ratio": 3.4,
     "minimum": 3
+  },
+  {
+    "theme": "dark",
+    "name": "destructive base/hover",
+    "ratio": 9.67,
+    "minimum": 4.5
+  },
+  {
+    "theme": "dark",
+    "name": "destructive primary + wash",
+    "ratio": 10.05,
+    "minimum": 4.5
   }
 ]

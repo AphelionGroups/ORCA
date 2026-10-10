@@ -23,6 +23,8 @@ for (const [i, block] of [...css.matchAll(/\{([^{}]+)\}/g)].slice(0, 2).entries(
   check('primary hover + wash', tokens['action-primary-text'], composite(tokens['action-primary-hover'], i ? .12 : .10), 4.5);
   check('secondary hover + wash', tokens['text-primary'], composite(tokens['surface-muted'], i ? .28 : .36), 4.5);
   check('secondary hover border + wash', tokens['text-secondary'], composite(tokens['surface-muted'], i ? .28 : .36), 3);
+  check('destructive base/hover', tokens.background, tokens['status-error'], 4.5);
+  check('destructive primary + wash', tokens.background, composite(tokens['status-error'], i ? .12 : .10), 4.5);
 }
 fs.mkdirSync('docs/screenshots/redesign-2026-10-10', { recursive: true });
 fs.writeFileSync('docs/screenshots/redesign-2026-10-10/contrast.json', JSON.stringify(results, null, 2));

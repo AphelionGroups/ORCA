@@ -25,7 +25,7 @@ The existing mixed Indonesian/English UI was retained; the safe QA content uses 
 | `go test ./...` | Pass; backend files unchanged, cached results; not evidence of live database integration |
 | `node scripts/frontend-smoke.cjs` | Pass: authenticated shell, docs/tasks/canvas, project switches and delayed stale responses |
 | `node scripts/redesign-ui-check.cjs` | Pass in Chromium 151.0.7922.34, using intercepted synthetic API responses |
-| `node scripts/redesign-contrast.cjs` | Pass: 50 semantic colour pairs, including maximum hover compositing and control/focus boundaries |
+| `node scripts/redesign-contrast.cjs` | Pass: 54 semantic colour pairs, including maximum hover compositing and control/focus boundaries |
 | `git diff --check` | Pass |
 
 Browser coverage includes 360/768/1024/1440px; light/dark persistence; runtime reduced-motion reset; stable hover bounds; touch drawer/inert background; Tab/Escape/focus return; repeated dialog mount/unmount with listener-count checks; keyboard tabs; shape menu on touch and 200% zoom; clipped-action assertions for document Save and header actions.
