@@ -1,5 +1,5 @@
 import { createRequestGate } from '../../services/requestGate';
-import { For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
+import { For, Show, createEffect, createMemo, createSignal, on, onCleanup, onMount } from 'solid-js';
 import type { NoteBlock, NoteBoard, Document as OrcaDoc, Project, Space, Task } from '../../services/api';
 import { api } from '../../services/api';
 import { getCurrentUser } from '../../services/user';
@@ -63,6 +63,9 @@ export function useProjectController(props: ProjectsViewProps) {
   const [docViewMode, setDocViewMode] = createSignal<'edit' | 'preview'>('edit');
 
   const [isSavingDoc, setIsSavingDoc] = createSignal(false);
+  const [docSaveError, setDocSaveError] = createSignal('');
+  let documentSaveQueue: Promise<void> = Promise.resolve();
+  let pendingDocumentSaves = 0;
 
   // Canvas Viewport & Tool state
   const [zoom, setZoom] = createSignal(100);
@@ -665,14 +668,17 @@ export function useProjectController(props: ProjectsViewProps) {
   };
 
   const currentDoc = () => docs().find(d => d.id === selectedDocId()) || docs()[0];
+  const currentDocId = createMemo(() => currentDoc()?.id);
 
   const getSpaceName = (spaceId?: string) => {
     if (!spaceId) return 'Workspace';
     return spaces().find(s => s.id === spaceId)?.name || 'Space';
   };
 
-  createEffect(() => {
+  // Hydrate on selection, not on a save response that may contain an older draft.
+  createEffect(on(currentDocId, () => {
     const doc = currentDoc();
+    setDocSaveError('');
     if (doc) {
       setEditingDocTitle(doc.title || '');
       setEditingDocContent(doc.content || '');
@@ -680,7 +686,7 @@ export function useProjectController(props: ProjectsViewProps) {
       setEditingDocTitle('');
       setEditingDocContent('');
     }
-  });
+  }));
 
   // -------------------------------------------------------------
   // SPATIAL CANVAS INTERACTIONS (PAN, DRAG, ADD, EDIT, DELETE)
@@ -2809,16 +2815,27 @@ export function useProjectController(props: ProjectsViewProps) {
     if (!doc) return;
     const title = editingDocTitle().trim() || 'Untitled Document';
     const content = editingDocContent();
+    pendingDocumentSaves++;
     setIsSavingDoc(true);
-    try {
-      const updated = await api.updateDocument(doc.id, { title, content });
-      if (!isCurrent()) return;
-      setDocs(docs().map(d => d.id === doc.id ? updated : d));
-    } catch (err) {
-      console.error('Failed to save document:', err);
-    } finally {
-      if (isCurrent()) setIsSavingDoc(false);
-    }
+    // Blur and explicit save share a queue so the backend receives drafts in order.
+    const save = async () => {
+      try {
+        if (!isCurrent()) return;
+        const persisted = docs().find(item => item.id === doc.id);
+        if (persisted?.title === title && persisted?.content === content) return;
+        setDocSaveError('');
+        const updated = await api.updateDocument(doc.id, { title, content });
+        if (!isCurrent()) return;
+        setDocs(docs().map(d => d.id === doc.id ? updated : d));
+      } catch (err) {
+        if (isCurrent()) setDocSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again.');
+      } finally {
+        pendingDocumentSaves--;
+        if (isCurrent()) setIsSavingDoc(pendingDocumentSaves > 0);
+      }
+    };
+    documentSaveQueue = documentSaveQueue.then(save, save);
+    await documentSaveQueue;
   };
 
   const handleDeleteDoc = async (docId?: string) => {
@@ -2902,6 +2919,7 @@ setSelectedProjectId,
     editingDocTitle,
     setEditingDocTitle,
     handleSaveDoc,
+    docSaveError,
     setDocViewMode,
     docViewMode,
     handleDownloadDoc,
