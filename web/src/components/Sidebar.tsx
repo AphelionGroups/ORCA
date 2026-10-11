@@ -217,7 +217,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                   <div class="sidebar-space-group">
                     {/* Space Row: Clicking opens the space and ensures its tree is expanded */}
                     <div 
-                      class={`sidebar-space-row ${isSpaceActive() ? 'active' : ''}`}
+                      role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click(); } }} class={`sidebar-space-row ${isSpaceActive() ? 'active' : ''}`}
                       onClick={() => {
                         setCollapsedSpaces(prev => ({
                           ...prev,
@@ -281,7 +281,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
                             const isProjectActive = () => props.activeProjectId === project.id;
                             return (
                               <div
-                                class={`sidebar-project-item ${isProjectActive() ? 'active' : ''}`}
+                                role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click(); } }} aria-current={isProjectActive() ? 'page' : undefined} class={`sidebar-project-item ${isProjectActive() ? 'active' : ''}`}
                                 onClick={() => props.onNavigate('projects', space.id, project.id)}
                                 title={project.name}
                               >

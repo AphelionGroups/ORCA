@@ -19,13 +19,13 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
             Documents ({ctx.docs().length})
           </span>
           <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-            <label class="btn-secondary" style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center', gap: '4px', cursor: 'pointer' }} title="Import markdown/text file">
+            <label class="btn-secondary" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px', cursor: 'pointer' }} title="Import markdown/text file">
               <Upload size={12} />
               <span>Import</span>
               <input type="file" accept=".md,.txt,.markdown" class="accessible-file-input" aria-label="Import document" onChange={ctx.handleImportDoc} />
             </label>
 
-            <button onClick={ctx.handleCreateNewDoc} title="Add new document" class="btn-primary" style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center', gap: '4px' }}>
+            <button onClick={ctx.handleCreateNewDoc} title="Add new document" class="btn-primary" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }}>
               <Plus size={12} />
               <span>New</span>
             </button>

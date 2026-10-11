@@ -68,8 +68,9 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
     try {
       if (props.projectToEdit) {
         const updated = await api.updateProject(props.projectToEdit.id, {
+          expected_updated_at: props.projectToEdit.updated_at,
           name: trimmedName,
-          description: description().trim() || undefined,
+          description: description().trim() || null,
           status: status(),
         });
         props.onSaved(updated);
@@ -137,7 +138,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
 
           {/* Error Message */}
           <Show when={error()}>
-            <div class="modal-error-badge">
+            <div class="modal-error-badge" role="alert">
               {error()}
             </div>
           </Show>
@@ -148,14 +149,14 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
               <div style={{ "font-weight": 600, "margin-bottom": '4px' }}>
                 Hapus Project "{props.projectToEdit?.name}"?
               </div>
-              <div style={{ "font-size": '11px', color: 'var(--text-muted)', "margin-bottom": '12px' }}>
+              <div style={{ "font-size": '12px', color: 'var(--text-muted)', "margin-bottom": '12px' }}>
                 Seluruh canvas boards, documents, dan tasks yang terkait dengan project ini akan ikut terhapus permanen. Tindakan ini tidak dapat dibatalkan.
               </div>
               <div style={{ display: 'flex', gap: '8px', "justify-content": 'flex-end' }}>
                 <button 
                   type="button"
                   class="btn-secondary"
-                  style={{ padding: '4px 10px', "font-size": '11px' }}
+                  style={{ padding: '4px 10px', "font-size": '12px' }}
                   onClick={() => setConfirmDelete(false)}
                   disabled={loading()}
                 >
@@ -164,7 +165,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
                 <button 
                   type="button"
                   class="btn-danger"
-                  style={{ padding: '4px 10px', "font-size": '11px' }}
+                  style={{ padding: '4px 10px', "font-size": '12px' }}
                   onClick={handleDelete}
                   disabled={loading()}
                 >

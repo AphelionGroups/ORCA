@@ -123,15 +123,23 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, http.StatusNotFound, "Project not found")
 		return
 	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
 
 	if req.Name != "" {
 		existing.Name = req.Name
 	}
-	existing.Description = req.Description
+	if req.Description.Set {
+		existing.Description = req.Description.Value
+	}
 	if req.Status != "" {
 		existing.Status = req.Status
 	}
-	existing.TargetDate = req.TargetDate
+	if req.TargetDate.Set {
+		existing.TargetDate = req.TargetDate.Value
+	}
 	if len(req.KanbanColumns) > 0 {
 		existing.KanbanColumns = req.KanbanColumns
 	}

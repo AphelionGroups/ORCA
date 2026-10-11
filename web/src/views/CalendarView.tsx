@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import type { CalendarEvent, Task, Space } from '../services/api';
 import { addDays, dateKey, calendarDays, moveCalendar, calendarItems, itemsOnDay, taskDate, timedLayout } from '../services/calendar';
 import type { CalendarMode, CalendarItem } from '../services/calendar';
+import { wallTimeToInstant, zonedParts } from '../services/calendarDates';
 
 interface CalendarViewProps {
   onOpenQuickCapture: () => void;
@@ -17,6 +18,11 @@ const formatTime = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit'
 
 export const CalendarView: Component<CalendarViewProps> = (_props) => {
   const [spaceFilter, setSpaceFilter] = createSignal('all');
+  const [zone, setZone] = createSignal(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+  const zonedDate = (instant: string | Date) => {
+    const parts = zonedParts(instant, zone());
+    return new Date(`${parts.date}T${parts.time}`);
+  };
   const [scheduleView, setScheduleView] = createSignal<CalendarMode>('Week');
   const [anchor, setAnchor] = createSignal(new Date());
   const [events, setEvents] = createSignal<CalendarEvent[]>([]);
@@ -28,6 +34,10 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
   const [eventTitle, setEventTitle] = createSignal('');
   const [eventSpaceId, setEventSpaceId] = createSignal('');
   const [eventDate, setEventDate] = createSignal(dateKey(new Date()));
+  const [eventEndDate, setEventEndDate] = createSignal(dateKey(new Date()));
+  const [eventAllDay, setEventAllDay] = createSignal(false);
+  const [eventTaskId, setEventTaskId] = createSignal('');
+  const [editingEvent, setEditingEvent] = createSignal<CalendarEvent | null>(null);
   const [eventStartHour, setEventStartHour] = createSignal('10:00');
   const [eventEndHour, setEventEndHour] = createSignal('11:30');
   const [eventSaving, setEventSaving] = createSignal(false);
@@ -47,9 +57,28 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
       if (!disposed && request === generation) setLoadError(error instanceof Error ? error.message : 'Unable to load calendar. Please try again.');
     } finally { if (!disposed && request === generation) setLoading(false); }
   };
-  onMount(() => { void loadData(); });
+  onMount(() => {
+    void loadData();
+    void api.getPreferences().then(preferences => {
+      if (!disposed && preferences.calendar_timezone) {
+        setZone(preferences.calendar_timezone); setAnchor(zonedDate(new Date()));
+      }
+    }).catch(error => { if (!disposed) setLoadError(error instanceof Error ? error.message : 'Unable to load calendar preferences.'); });
+  });
+  const selectZone = async (value: string) => {
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: value });
+      await api.updatePreferences(value);
+      if (!disposed) { setZone(value); setAnchor(zonedDate(new Date())); }
+    } catch (error) { if (!disposed) setLoadError(error instanceof Error ? error.message : 'Enter a valid timezone.'); }
+  };
   const matchesSpace = (spaceId?: string) => spaceFilter() === 'all' || spaceId === spaceFilter();
-  const items = createMemo(() => calendarItems(events(), tasks()).filter(item => matchesSpace(item.spaceId)));
+  const items = createMemo(() => calendarItems(events().map(event => {
+    const start = zonedDate(event.start_at), end = zonedDate(event.end_at);
+    // Keep repeated-hour sessions visible when daylight saving time ends.
+    const displayEnd = end > start ? end : new Date(start.getTime() + Date.parse(event.end_at) - Date.parse(event.start_at));
+    return { ...event, start_at: start.toISOString(), end_at: displayEnd.toISOString() };
+  }), tasks()).filter(item => matchesSpace(item.spaceId)));
   const backlogTasks = createMemo(() => tasks().filter(task => matchesSpace(task.space_id) && !taskDate(task) && !events().some(event => event.linked_task_id === task.id) && task.status !== 'done' && task.status !== 'cancelled'));
   const days = createMemo(() => calendarDays(anchor(), scheduleView()));
   const visibleItems = createMemo(() => items().filter(item => item.start < addDays(days().at(-1)!, 1) && item.end > days()[0]!));
@@ -58,41 +87,74 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
     : scheduleView() === 'Day' ? `${formatDay(anchor())}, ${anchor().getFullYear()}`
     : `${formatDay(days()[0]!)} – ${formatDay(days().at(-1)!)}, ${days().at(-1)!.getFullYear()}`);
   const getSpaceInfo = (spaceId?: string) => spaces().find(space => space.id === spaceId)?.name || 'General';
-  const openEvent = () => {
-    setEventDate(dateKey(anchor())); setEventError('');
+  const openEvent = (task?: Task) => {
+    const target = task ? taskDate(task) || anchor() : anchor();
+    setEditingEvent(null); setEventTitle(task?.title || ''); setEventTaskId(task?.id || '');
+    setEventDate(dateKey(target)); setEventEndDate(dateKey(target)); setEventAllDay(false); setEventError('');
     if (spaceFilter() !== 'all') setEventSpaceId(spaceFilter());
+    if (task) {
+      setEventSpaceId(task.space_id); setEventStartHour('10:00');
+      const end = 600 + Math.max(15, Math.min(720, task.estimated_minutes || 60));
+      setEventEndHour(`${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`);
+    }
     setIsEventModalOpen(true);
+  };
+  const editEvent = (event: CalendarEvent) => {
+    const start = zonedDate(event.start_at), end = zonedDate(event.end_at);
+    setEditingEvent(event); setEventTitle(event.title); setEventSpaceId(event.space_id || '');
+    setEventTaskId(event.linked_task_id || ''); setEventAllDay(event.is_all_day);
+    setEventDate(dateKey(start)); setEventEndDate(dateKey(event.is_all_day ? addDays(end, -1) : end));
+    setEventStartHour(zonedParts(event.start_at, zone()).time); setEventEndHour(zonedParts(event.end_at, zone()).time);
+    setEventError(''); setIsEventModalOpen(true);
+  };
+  const removeEvent = async () => {
+    const current = editingEvent(); if (!current || eventSaving()) return;
+    setEventSaving(true); setEventError('');
+    try {
+      await api.deleteEvent(current.id);
+      if (!disposed) { generation++; setLoading(false); setEvents(previous => previous.filter(event => event.id !== current.id)); setIsEventModalOpen(false); }
+    } catch (error) { if (!disposed) setEventError(error instanceof Error ? error.message : 'Unable to delete event.'); }
+    finally { if (!disposed) setEventSaving(false); }
   };
   const handleCreateEvent = async (event: Event) => {
     event.preventDefault();
     if (eventSaving() || !eventTitle().trim()) return;
-    const start = new Date(`${eventDate()}T${eventStartHour()}`), end = new Date(`${eventDate()}T${eventEndHour()}`);
-    if (!Number.isFinite(start.getTime()) || !(end > start)) { setEventError('End time must be after start time.'); return; }
     setEventSaving(true); setEventError('');
     try {
-      const created = await api.createEvent({ title: eventTitle().trim(), space_id: eventSpaceId() || undefined, start_at: start.toISOString(), end_at: end.toISOString(), is_all_day: false });
+      const start = wallTimeToInstant(eventDate(), eventAllDay() ? '00:00' : eventStartHour(), zone());
+      const endDay = eventAllDay() ? dateKey(addDays(new Date(`${eventEndDate()}T00:00`), 1)) : eventEndDate();
+      const end = wallTimeToInstant(endDay, eventAllDay() ? '00:00' : eventEndHour(), zone());
+      if (Date.parse(end) <= Date.parse(start)) throw new Error('End time must be after start time.');
+      const data = { title: eventTitle().trim(), space_id: eventSpaceId() || null, linked_task_id: eventTaskId() || null, start_at: start, end_at: end, is_all_day: eventAllDay() };
+      const current = editingEvent();
+      const created = current ? await api.updateEvent(current.id, { ...data, expected_updated_at: current.updated_at })
+        : await api.createEvent({ ...data, space_id: data.space_id || undefined, linked_task_id: data.linked_task_id || undefined });
       if (disposed) return;
       // Invalidate older refreshes so they cannot overwrite the newly created event.
       generation++; setLoading(false);
-      setEvents(previous => [...previous, created]); setEventTitle('');
-      setAnchor(start); setIsEventModalOpen(false);
+      setEvents(previous => [...previous.filter(event => event.id !== created.id), created]); setEventTitle('');
+      setAnchor(zonedDate(start)); setIsEventModalOpen(false);
     } catch (error) { if (!disposed) setEventError(error instanceof Error ? error.message : 'Unable to save event. Please try again.'); }
     finally { if (!disposed) setEventSaving(false); }
   };
   const itemCard = (item: CalendarItem) => <div class="calendar-item" classList={{ 'calendar-item-done': item.status === 'done' }} title={`${item.title} · ${getSpaceInfo(item.spaceId)}`}>
-    <strong>{item.title}</strong><small>{item.kind} · {getSpaceInfo(item.spaceId)}{item.status === 'done' ? ' · Done' : ''}</small>
+    <Show when={item.kind === 'Event'} fallback={<strong>{item.title}</strong>}>
+      <button class="calendar-item-action" onClick={() => { const event = events().find(event => `event:${event.id}` === item.id); if (event) editEvent(event); }}>{item.title}</button>
+    </Show>
+    <small>{item.kind} · {getSpaceInfo(item.spaceId)}{item.status === 'done' ? ' · Done' : ''}</small>
     <Show when={!item.allDay}><small>{formatTime(item.start)} – {formatTime(item.end)}</small></Show>
+    <Show when={item.kind === 'Task' && item.status !== 'done'}><button class="btn-secondary" onClick={() => { const task = tasks().find(task => `task:${task.id}` === item.id); if (task) openEvent(task); }}>Schedule task</button></Show>
   </div>;
 
   return <div class="calendar-workspace">
     <header class="orca-header"><div class="header-breadcrumbs"><div class="breadcrumb-title"><Calendar size={17} /><span>Calendar</span></div></div>
       <div class="header-actions"><button class="btn-secondary" aria-label="Refresh events" disabled={loading()} onClick={() => void loadData()}><RotateCcw size={14} /></button>
-        <button class="btn-primary" onClick={openEvent}><Plus size={14} /> Add Event</button></div>
+        <button class="btn-primary" onClick={() => openEvent()}><Plus size={14} /> Add Event</button></div>
     </header>
     <div class="calendar-ribbon">
       <div><h2 aria-live="polite" class="calendar-period">{periodLabel()}</h2>
         <div class="calendar-controls"><button class="btn-secondary" aria-label="Previous period" onClick={() => setAnchor(moveCalendar(anchor(), scheduleView(), -1))}><ChevronLeft size={16} /></button>
-          <button class="btn-secondary" onClick={() => setAnchor(new Date())}>Today</button>
+          <button class="btn-secondary" onClick={() => setAnchor(zonedDate(new Date()))}>Today</button>
           <button class="btn-secondary" aria-label="Next period" onClick={() => setAnchor(moveCalendar(anchor(), scheduleView(), 1))}><ChevronRight size={16} /></button></div>
         <div class="calendar-controls" role="group" aria-label="Filter calendar by space">
           <button class="btn-secondary" aria-pressed={spaceFilter() === 'all'} onClick={() => setSpaceFilter('all')}>All Spaces</button>
@@ -100,17 +162,19 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
         </div>
       </div>
       <div class="calendar-controls" role="group" aria-label="Calendar view"><For each={modes}>{mode => <button class="btn-secondary" aria-pressed={scheduleView() === mode} onClick={() => setScheduleView(mode)}>{mode}</button>}</For></div>
+      <label class="calendar-zone">Timezone <input aria-label="Calendar timezone" value={zone()} list="calendar-timezones" disabled={isEventModalOpen()} onChange={event => void selectZone(event.currentTarget.value)} /></label>
+      <datalist id="calendar-timezones"><For each={['UTC', 'Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura', 'America/New_York', 'Europe/London']}>{value => <option value={value} />}</For></datalist>
     </div>
     <Show when={loadError()}><p role="alert" class="calendar-message">{loadError()} <button class="btn-secondary" onClick={() => void loadData()}>Retry</button></p></Show>
     <Show when={loading()}><p role="status" class="calendar-message">Loading calendar…</p></Show>
     <div class="calendar-layout" aria-busy={loading()}>
       <aside class="calendar-backlog"><h3>Unscheduled tasks <span>({backlogTasks().length})</span></h3><p>Active tasks without a planned date or due date.</p>
-        <For each={backlogTasks()} fallback={<p>No unscheduled tasks.</p>}>{task => <div class="calendar-item"><strong>{task.title}</strong><small>{getSpaceInfo(task.space_id)}<Show when={task.estimated_minutes}> · {task.estimated_minutes} min</Show></small></div>}</For>
+        <For each={backlogTasks()} fallback={<p>No unscheduled tasks.</p>}>{task => <div class="calendar-item"><strong>{task.title}</strong><small>{getSpaceInfo(task.space_id)}<Show when={task.estimated_minutes}> · {task.estimated_minutes} min</Show></small><button class="btn-secondary" onClick={() => openEvent(task)}>Schedule task</button></div>}</For>
       </aside>
       <section class="calendar-matrix" aria-label={`${scheduleView()} calendar`}>
         <Show when={scheduleView() === 'Month'}>
           <div class="calendar-month-head"><For each={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']}>{day => <span>{day}</span>}</For></div>
-          <div class="calendar-month"><For each={days()}>{day => <div class="calendar-month-day" data-date={dateKey(day)} classList={{ 'calendar-outside': day.getMonth() !== anchor().getMonth(), 'calendar-today': dateKey(day) === dateKey(new Date()) }}>
+          <div class="calendar-month"><For each={days()}>{day => <div class="calendar-month-day" data-date={dateKey(day)} classList={{ 'calendar-outside': day.getMonth() !== anchor().getMonth(), 'calendar-today': dateKey(day) === dateKey(zonedDate(new Date())) }}>
             <button class="calendar-date" aria-label={`View ${formatDay(day)}`} onClick={() => { setAnchor(day); setScheduleView('Day'); }}>{day.getDate()}</button>
             <For each={itemsOnDay(items(), day)}>{itemCard}</For>
           </div>}</For></div>
@@ -122,7 +186,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
         </Show>
         <Show when={scheduleView() === 'Week' || scheduleView() === 'Day'}>
           <div class="calendar-time-head" style={{ 'grid-template-columns': `56px repeat(${days().length}, minmax(100px, 1fr))` }}><span>Time</span>
-            <For each={days()}>{day => <div classList={{ 'calendar-today': dateKey(day) === dateKey(new Date()) }}>{formatDay(day)}
+            <For each={days()}>{day => <div classList={{ 'calendar-today': dateKey(day) === dateKey(zonedDate(new Date())) }}>{formatDay(day)}
               <For each={itemsOnDay(items(), day).filter(item => item.allDay)}>{itemCard}</For>
             </div>}</For>
           </div>
@@ -148,9 +212,9 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
             "backdrop-filter": 'none',
             padding: '16px'
           }}
-          onClick={(e) => { if (e.target === e.currentTarget) setIsEventModalOpen(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget && !eventSaving()) setIsEventModalOpen(false); }}
         >
-          <div class="modal-card" ref={el => focusScope(el, () => setIsEventModalOpen(false))} style={{
+          <div class="modal-card" ref={el => focusScope(el, () => { if (!eventSaving()) setIsEventModalOpen(false); })} style={{
             position: 'relative',
             width: '100%',
             "max-width": '420px',
@@ -163,10 +227,10 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
             <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '16px' }}>
               <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
                 <Calendar size={16} color="var(--primary)" />
-                <h3 style={{ "font-size": '13px', "font-weight": 600, color: 'var(--text-main)', margin: 0 }}>Schedule Event</h3>
+                <h3 style={{ "font-size": '13px', "font-weight": 600, color: 'var(--text-main)', margin: 0 }}>{editingEvent() ? 'Edit Event' : 'Schedule Event'}</h3>
               </div>
               <button
-                aria-label="Close event dialog" onClick={() => setIsEventModalOpen(false)}
+                aria-label="Close event dialog" disabled={eventSaving()} onClick={() => setIsEventModalOpen(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}
               >
                 <X size={16} />
@@ -192,9 +256,10 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                   <label for="event-space" style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>SPACE</label>
                   <select id="event-space"
                     value={eventSpaceId()}
-                    onChange={e => setEventSpaceId(e.currentTarget.value)}
+                    onChange={e => { setEventSpaceId(e.currentTarget.value); setEventTaskId(''); }}
                     style={{ width: '100%', padding: '6px 8px', "font-size": '12px', "background-color": 'var(--surface-container)', border: '1px solid var(--border-default)', "border-radius": '4px', color: 'var(--text-main)', outline: 'none' }}
                   >
+                    <option value="">General</option>
                     <For each={spaces()}>
                       {(sp) => <option value={sp.id}>{sp.name}</option>}
                     </For>
@@ -203,10 +268,14 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
 
                 <div>
                   <label for="event-date" style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>DATE</label>
-                  <input id="event-date" type="date" required value={eventDate()} onInput={e => setEventDate(e.currentTarget.value)} />
+                  <input id="event-date" type="date" required value={eventDate()} onInput={e => { setEventDate(e.currentTarget.value); if (eventEndDate() < e.currentTarget.value) setEventEndDate(e.currentTarget.value); }} />
                 </div>
               </div>
 
+              <label for="event-end-date">End date<input id="event-end-date" type="date" required value={eventEndDate()} onInput={event => setEventEndDate(event.currentTarget.value)} /></label>
+              <div><label for="event-task">Linked task</label><select id="event-task" style={{ width: '100%' }} value={eventTaskId()} onChange={event => { setEventTaskId(event.currentTarget.value); const task = tasks().find(task => task.id === event.currentTarget.value); if (task) setEventSpaceId(task.space_id); }}><option value="">No linked task</option><For each={tasks()}>{task => <option value={task.id}>{task.title}</option>}</For></select></div>
+              <label for="event-all-day"><input id="event-all-day" type="checkbox" aria-label="All day" checked={eventAllDay()} onChange={event => setEventAllDay(event.currentTarget.checked)} /> All day</label>
+              <Show when={!eventAllDay()}>
               <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label for="event-start" style={{ display: 'block', "font-size": '10px', color: 'var(--text-dim)', "margin-bottom": '4px', "font-family": 'var(--font-mono)' }}>START TIME</label>
@@ -227,10 +296,14 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
                   />
                 </div>
               </div>
+              </Show>
+              <small>Times use {zone()}. All-day end dates include the selected day.</small>
 
               <div style={{ display: 'flex', "justify-content": 'flex-end', gap: '8px', "margin-top": '8px' }}>
+                <Show when={editingEvent()}><button type="button" class="btn-ghost-danger" disabled={eventSaving()} onClick={() => void removeEvent()}>Delete event</button></Show>
                 <button
                   type="button"
+                  disabled={eventSaving()}
                   class="btn-secondary"
                   onClick={() => setIsEventModalOpen(false)}
                   style={{ padding: '6px 14px', "font-size": '12px' }}

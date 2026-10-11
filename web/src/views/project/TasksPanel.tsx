@@ -64,7 +64,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                   <span style={{ "font-size": '13px', "font-weight": 600, color: 'var(--text-main)' }}>{col.title}</span>
                 </div>
                 <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-                  <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 6px', "border-radius": '4px', "background-color": 'var(--surface-container-high)' }}>
+                  <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 6px', "border-radius": '4px', "background-color": 'var(--surface-container-high)' }}>
                     {colTasks().length}
                   </span>
                   <button onClick={() => ctx.handleOpenNewTaskModal(col.key)} title={`Add task in ${col.title}`} style={{
@@ -99,7 +99,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                   }}>
                     <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', gap: '8px' }}>
                       <span style={{
-                        "font-size": '10px',
+                        "font-size": '12px',
                         "font-family": 'var(--font-mono)',
                         "text-transform": 'uppercase',
                         padding: '2px 6px',
@@ -114,7 +114,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                       {t.title}
                     </h4>
                     <Show when={t.due_date}>
-                      <div style={{ display: 'flex', "align-items": 'center', "font-size": '11px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
+                      <div style={{ display: 'flex', "align-items": 'center', "font-size": '12px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
                         <span>Due {new Date(t.due_date!).toLocaleDateString()}</span>
                       </div>
                     </Show>
@@ -168,11 +168,12 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                       <button type="button" onClick={async (e) => {
                         e.stopPropagation();
                         const nextStatus = t.status === 'done' ? 'todo' : 'done';
+                        const projectId = ctx.selectedProjectId();
                         try {
-                          await api.updateTaskStatus(t.id, nextStatus);
-                          ctx.setTasks(ctx.tasks().map(item => item.id === t.id ? { ...item, status: nextStatus } : item));
+                          const updated = await api.updateTaskStatus(t.id, nextStatus, t.updated_at);
+                          if (ctx.selectedProjectId() === projectId) ctx.setTasks(ctx.tasks().map(item => item.id === t.id ? updated : item));
                         }
-                        catch (_) { }
+                        catch (failure) { if (ctx.selectedProjectId() === projectId) ctx.setOperationError(failure instanceof Error ? failure.message : 'Could not update task'); }
                       }} style={{
                         background: 'none',
                         border: 'none',
@@ -199,7 +200,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                         }}>
                           {t.title}
                         </span>
-                        <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                        <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
                           #{t.id.slice(-4)} {t.due_date ? `• Due ${new Date(t.due_date).toLocaleDateString()}` : ''}
                         </span>
                       </div>
@@ -207,7 +208,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
 
                     <div style={{ display: 'flex', "align-items": 'center', gap: '10px', "flex-shrink": 0 }}>
                       <span style={{
-                        "font-size": '10px',
+                        "font-size": '12px',
                         "font-family": 'var(--font-mono)',
                         "text-transform": 'uppercase',
                         padding: '2px 7px',
@@ -220,7 +221,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
 
                       <span style={{
                         padding: '3px 8px',
-                        "font-size": '11px',
+                        "font-size": '12px',
                         "border-radius": '4px',
                         background: 'var(--surface-container-high)',
                         color: 'var(--text-muted)',
@@ -229,7 +230,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                         {t.status.replace('_', ' ')}
                       </span>
 
-                      <button type="button" onClick={() => ctx.handleOpenEditTaskModal(t)} class="btn-secondary" style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center', gap: '4px' }} title="Edit Task">
+                      <button type="button" onClick={() => ctx.handleOpenEditTaskModal(t)} class="btn-secondary" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }} title="Edit Task">
                         <Edit3 size={12} />
                         <span>Edit</span>
                       </button>
@@ -245,7 +246,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                             console.error('Failed to delete task:', err);
                           }
                         }
-                      }} class="btn-ghost-danger" style={{ padding: '4px 8px', "font-size": '11px', display: 'flex', "align-items": 'center' }} title="Delete Task">
+                      }} class="btn-ghost-danger" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center' }} title="Delete Task">
                         <Trash2 size={13} />
                       </button>
                     </div>

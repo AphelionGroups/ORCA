@@ -1,3 +1,4 @@
+import { TASK_STATUS_OPTIONS as STATUS_OPTIONS } from '../services/taskContract';
 import { focusScope } from './focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, Show, For } from 'solid-js';
@@ -15,12 +16,6 @@ interface TaskModalProps {
   onDeleted?: (taskId: string) => void;
 }
 
-const STATUS_OPTIONS: { value: Task['status']; label: string }[] = [
-  { value: 'todo', label: 'Backlog' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'in_review', label: 'In Review' },
-  { value: 'done', label: 'Done' },
-];
 
 const PRIORITY_OPTIONS: { value: Task['priority']; label: string; color: string }[] = [
   { value: 'low', label: 'Low', color: 'var(--text-muted)' },
@@ -74,11 +69,12 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
     try {
       if (props.taskToEdit) {
         const updated = await api.updateTask(props.taskToEdit.id, {
+          expected_updated_at: props.taskToEdit.updated_at,
           title: trimmedTitle,
-          description: description().trim() || undefined,
+          description: description().trim() || null,
           status: status(),
           priority: priority(),
-          due_date: dueDate() || undefined,
+          due_date: dueDate() ? `${dueDate()}T00:00:00Z` : null,
         });
         props.onSaved(updated);
       } else {
@@ -90,7 +86,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
           description: description().trim() || undefined,
           status: status(),
           priority: priority(),
-          due_date: dueDate() || undefined,
+          due_date: dueDate() ? `${dueDate()}T00:00:00Z` : undefined,
           project_id: props.defaultProjectId || undefined,
           space_id: props.defaultSpaceId || '',
         });
@@ -147,7 +143,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
           </div>
 
           <Show when={error()}>
-            <div class="modal-error-badge">
+            <div class="modal-error-badge" role="alert">
               {error()}
             </div>
           </Show>
@@ -157,8 +153,8 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
             <div style={{
               padding: '16px',
               "border-radius": '8px',
-              "background-color": 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
+              "background-color": 'var(--error-surface)',
+              border: '1px solid var(--error-surface)',
               display: 'flex',
               "flex-direction": 'column',
               gap: '12px'

@@ -28,8 +28,9 @@ type CreateSpaceRequest struct {
 }
 
 type UpdateSpaceRequest struct {
-	Name      string `json:"name"`
-	Icon      string `json:"icon"`
-	Color     string `json:"color"`
-	SortOrder int    `json:"sort_order"`
+	ExpectedUpdatedAt *time.Time `json:"expected_updated_at,omitempty"`
+	Name              string     `json:"name"`
+	Icon              string     `json:"icon"`
+	Color             string     `json:"color"`
+	SortOrder         *int       `json:"sort_order"`
 }

@@ -48,6 +48,8 @@ func (h *Handler) Routes(authMiddleware func(http.Handler) http.Handler) chi.Rou
 		}
 		protected.Get("/me", h.Me)
 		protected.Put("/profile", h.UpdateProfile)
+		protected.Get("/preferences", h.GetPreferences)
+		protected.Put("/preferences", h.UpdatePreferences)
 		protected.Post("/change-password", h.ChangePassword)
 	})
 
@@ -68,6 +70,8 @@ func (h *Handler) ProtectedRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/me", h.Me)
 	r.Put("/profile", h.UpdateProfile)
+	r.Get("/preferences", h.GetPreferences)
+	r.Put("/preferences", h.UpdatePreferences)
 	r.Post("/change-password", h.ChangePassword)
 	return r
 }

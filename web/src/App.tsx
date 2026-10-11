@@ -48,6 +48,7 @@ export const App: Component = () => {
   });
 
   const handleNavigate = (route: string, spaceId?: string | null, projectId?: string | null) => {
+    if (isMobile()) setIsSidebarOpen(false);
     setCurrentRoute(route);
     if (isMobile()) setIsSidebarOpen(false);
     if (route === 'inbox' || route === 'calendar') {
@@ -74,6 +75,10 @@ export const App: Component = () => {
   };
 
   onMount(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const resize = (event: MediaQueryListEvent) => { setIsMobile(event.matches); setIsSidebarOpen(!event.matches); };
+    media.addEventListener('change', resize);
+    onCleanup(() => media.removeEventListener('change', resize));
     window.addEventListener('keydown', handleKeyDown);
     const cleanupControls = installControlInteractions(document.body);
     const resizeSidebar = () => { setIsMobile(mobileQuery.matches); setIsSidebarOpen(!mobileQuery.matches); };
@@ -155,7 +160,7 @@ export const App: Component = () => {
         />
 
         {/* Main View Area */}
-        <div inert={isMobile() && isSidebarOpen()} class={`orca-main-viewport ${isSidebarOpen() ? '' : 'sidebar-collapsed'}`}>
+        <main id="main-content" aria-label="Workspace" inert={isMobile() && isSidebarOpen()} class={`orca-main-viewport ${isSidebarOpen() ? '' : 'sidebar-collapsed'}`}>
           <Switch>
             <Match when={currentRoute() === 'inbox'}>
               <InboxView 
@@ -178,7 +183,7 @@ export const App: Component = () => {
               />
             </Match>
           </Switch>
-        </div>
+        </main>
 
         {/* Rapid Action Modal */}
         <QuickCaptureModal 

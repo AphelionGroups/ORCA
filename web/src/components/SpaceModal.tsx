@@ -72,6 +72,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
     try {
       if (props.spaceToEdit) {
         const updated = await api.updateSpace(props.spaceToEdit.id, {
+          expected_updated_at: props.spaceToEdit.updated_at,
           name: trimmed,
           color: color(),
           icon: icon(),
@@ -153,7 +154,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
 
           {/* Error Message */}
           <Show when={error()}>
-            <div class="modal-error-badge">
+            <div class="modal-error-badge" role="alert">
               {error()}
             </div>
           </Show>
@@ -164,14 +165,14 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
               <div style={{ "font-weight": 600, "margin-bottom": '4px' }}>
                 Hapus Space "{props.spaceToEdit?.name}"?
               </div>
-              <div style={{ "font-size": '11px', color: 'var(--text-muted)', "margin-bottom": '12px' }}>
+              <div style={{ "font-size": '12px', color: 'var(--text-muted)', "margin-bottom": '12px' }}>
                 Seluruh project, canvas boards, dokumen, dan tasks di dalam space ini akan ikut terhapus. Tindakan ini tidak dapat dibatalkan.
               </div>
               <div style={{ display: 'flex', gap: '8px', "justify-content": 'flex-end' }}>
                 <button 
                   type="button"
                   class="btn-secondary"
-                  style={{ padding: '4px 10px', "font-size": '11px' }}
+                  style={{ padding: '4px 10px', "font-size": '12px' }}
                   onClick={() => setConfirmDelete(false)}
                   disabled={loading()}
                 >
@@ -180,7 +181,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
                 <button 
                   type="button"
                   class="btn-danger"
-                  style={{ padding: '4px 10px', "font-size": '11px' }}
+                  style={{ padding: '4px 10px', "font-size": '12px' }}
                   onClick={handleDelete}
                   disabled={loading()}
                 >

@@ -49,21 +49,21 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
             <FileText size={13} color={ctx.activeTab() === 'docs' ? 'var(--tertiary)' : 'var(--text-dim)'} />
             <span>Docs & Plans</span>
             <Show when={ctx.docs().length > 0}>
-              <span style={{ "font-size": '10px', opacity: 0.6 }}>({ctx.docs().length})</span>
+              <span style={{ "font-size": '12px', opacity: 0.6 }}>({ctx.docs().length})</span>
             </Show>
           </button>
           <button type="button" role="tab" id="project-board-tab" aria-controls="project-board-panel" aria-selected={ctx.activeTab() === 'board'} tabindex={ctx.activeTab() === 'board' ? 0 : -1} class={`seg-btn ${ctx.activeTab() === 'board' ? 'active' : ''}`} onClick={() => ctx.setActiveTab('board')}>
             <LayoutGrid size={13} color={ctx.activeTab() === 'board' ? 'var(--secondary)' : 'var(--text-dim)'} />
             <span>Board</span>
             <Show when={ctx.boards().length > 0}>
-              <span style={{ "font-size": '10px', opacity: 0.6 }}>({ctx.boards().length})</span>
+              <span style={{ "font-size": '12px', opacity: 0.6 }}>({ctx.boards().length})</span>
             </Show>
           </button>
           <button type="button" role="tab" id="project-tasks-tab" aria-controls="project-tasks-panel" aria-selected={ctx.activeTab() === 'tasks'} tabindex={ctx.activeTab() === 'tasks' ? 0 : -1} class={`seg-btn ${ctx.activeTab() === 'tasks' ? 'active' : ''}`} onClick={() => ctx.setActiveTab('tasks')}>
             <CheckSquare size={13} color={ctx.activeTab() === 'tasks' ? 'var(--primary)' : 'var(--text-dim)'} />
             <span>Tasks</span>
             <Show when={ctx.tasks().length > 0}>
-              <span style={{ "font-size": '10px', opacity: 0.6 }}>({ctx.tasks().length})</span>
+              <span style={{ "font-size": '12px', opacity: 0.6 }}>({ctx.tasks().length})</span>
             </Show>
           </button>
         </div>
@@ -89,6 +89,12 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       </div>
     </header>
 
+    <Show when={ctx.operationError()}>
+      <div role="alert" class="operation-error">
+        <span>{ctx.operationError()}</span>
+        <button class="btn-secondary" onClick={() => ctx.setOperationError('')}>Dismiss</button>
+      </div>
+    </Show>
     {/* Main Container */}
     <Show when={!ctx.selectedProjectId()} fallback={<div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
 
@@ -156,7 +162,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                         <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--secondary)', background: 'var(--surface-muted)', padding: '2px 6px', "border-radius": '3px' }}>
                           {ctx.getSpaceName(proj.space_id)}
                         </span>
-                        <span style={{ "font-size": '11px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', "text-transform": 'capitalize' }}>
+                        <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', "text-transform": 'capitalize' }}>
                           {proj.status}
                         </span>
                       </div>

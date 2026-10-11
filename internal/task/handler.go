@@ -94,6 +94,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := ValidateAttributes(req.Status, req.Priority, req.EstimatedMinutes); err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if req.Title == "" || req.SpaceID == uuid.Nil {
 		httputil.RespondError(w, http.StatusBadRequest, "Title and space_id are required")
 		return
@@ -113,9 +117,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.PlannedDate != nil && *req.PlannedDate != "" {
-		if t, err := time.Parse("2006-01-02", *req.PlannedDate); err == nil {
-			task.PlannedDate = &t
+		t, err := time.Parse("2006-01-02", *req.PlannedDate)
+		if err != nil {
+			httputil.RespondError(w, http.StatusBadRequest, "Invalid planned_date")
+			return
 		}
+		task.PlannedDate = &t
 	}
 
 	if err := h.repo.Create(r.Context(), &task); err != nil {
@@ -150,32 +157,54 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httputil.RespondError(w, http.StatusNotFound, "Task not found")
 		return
 	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, existing.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
 
 	if req.SpaceID != nil {
 		existing.SpaceID = *req.SpaceID
 	}
-	existing.ProjectID = req.ProjectID
-	existing.ParentTaskID = req.ParentTaskID
+	if req.ProjectID.Set {
+		existing.ProjectID = req.ProjectID.Value
+	}
+	if req.ParentTaskID.Set {
+		existing.ParentTaskID = req.ParentTaskID.Value
+	}
 	if req.Title != "" {
 		existing.Title = req.Title
 	}
-	existing.Description = req.Description
+	if req.Description.Set {
+		existing.Description = req.Description.Value
+	}
 	if req.Status != "" {
 		existing.Status = req.Status
 	}
 	if req.Priority != "" {
 		existing.Priority = req.Priority
 	}
-	existing.DueDate = req.DueDate
-	if req.PlannedDate != nil {
-		if *req.PlannedDate == "" {
+	if req.DueDate.Set {
+		existing.DueDate = req.DueDate.Value
+	}
+	if req.PlannedDate.Set {
+		if req.PlannedDate.Value == nil || *req.PlannedDate.Value == "" {
 			existing.PlannedDate = nil
-		} else if t, err := time.Parse("2006-01-02", *req.PlannedDate); err == nil {
-			existing.PlannedDate = &t
+		} else if parsed, err := time.Parse("2006-01-02", *req.PlannedDate.Value); err == nil {
+			existing.PlannedDate = &parsed
+		} else {
+			httputil.RespondError(w, http.StatusBadRequest, "Invalid planned date")
+			return
 		}
 	}
-	existing.EstimatedMinutes = req.EstimatedMinutes
 
+	if req.EstimatedMinutes.Set {
+		existing.EstimatedMinutes = req.EstimatedMinutes.Value
+	}
+
+	if err := ValidateAttributes(existing.Status, existing.Priority, existing.EstimatedMinutes); err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if err := h.repo.Update(r.Context(), existing); err != nil {
 		httputil.RespondDBError(w, err)
 		return
@@ -199,17 +228,35 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := ValidateAttributes(req.Status, "", nil); err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if req.Status == "" {
 		httputil.RespondError(w, http.StatusBadRequest, "Status is required")
 		return
 	}
 
-	if err := h.repo.UpdateStatus(r.Context(), wsID, id, req.Status); err != nil {
+	current, err := h.repo.GetByID(r.Context(), wsID, id)
+	if err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
+	if current == nil {
+		httputil.RespondDBError(w, httputil.ErrNotFound)
+		return
+	}
+	if err := httputil.CheckVersion(req.ExpectedUpdatedAt, current.UpdatedAt); err != nil {
+		httputil.RespondDBError(w, err)
+		return
+	}
+	current.Status = req.Status
+	if err := h.repo.Update(r.Context(), current); err != nil {
 		httputil.RespondDBError(w, err)
 		return
 	}
 
-	httputil.RespondJSON(w, http.StatusOK, map[string]any{"status": req.Status})
+	httputil.RespondJSON(w, http.StatusOK, map[string]any{"status": req.Status, "data": current})
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {

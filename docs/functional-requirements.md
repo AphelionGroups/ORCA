@@ -40,7 +40,7 @@ This document defines the functional requirements for **ORCA**, encompassing bot
 - **FR-TASK-01 (Task Attributes & Creation):** Tasks support the following attributes:
   - Title (mandatory)
   - Description (Markdown formatted)
-  - Status (`todo`, `in_progress`, `done`, `cancelled`)
+  - Status (`todo`, `in_progress`, `in_review`, `done`, `cancelled`)
   - Priority (`low`, `medium`, `high`, `urgent`)
   - Due date
   - Estimated duration (in minutes, required for calendar time-blocking)

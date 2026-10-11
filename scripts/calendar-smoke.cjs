@@ -60,6 +60,25 @@ const server = http.createServer((req, res) => {
     await page.waitForFunction(() => !document.querySelector('.calendar-layout')?.getAttribute('aria-busy') || document.querySelector('.calendar-layout').getAttribute('aria-busy')==='false');
     assert.equal(await calendar.locator('.calendar-item').filter({hasText:'New dated event'}).count(),1);
     assert.equal(eventReads,2,'filters must not cause repeat fetching');
+    await calendar.getByRole('button',{name:'New dated event',exact:true}).click();
+    await page.getByLabel('EVENT TITLE',{exact:true}).fill('Updated event');
+    await page.getByRole('button',{name:'Book Event',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+    assert.ok(state.events.some(event=>event.title==='Updated event'));
+    await calendar.getByRole('button',{name:'Updated event',exact:true}).click();await page.getByRole('button',{name:'Delete event',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+    assert.ok(!state.events.some(event=>event.title==='Updated event'));
+    await calendar.locator('.calendar-backlog').getByRole('button',{name:'Schedule task',exact:true}).first().click();
+    assert.equal(await page.getByLabel('Linked task',{exact:true}).inputValue(),state.tasks[2].id);
+    await page.getByRole('checkbox',{name:'All day',exact:true}).check();await page.getByRole('button',{name:'Book Event',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+    assert.equal(state.events.at(-1).linked_task_id,state.tasks[2].id);assert.equal(state.events.at(-1).is_all_day,true);
+    assert.equal(Date.parse(state.events.at(-1).end_at)-Date.parse(state.events.at(-1).start_at),86400000);
+    await page.getByRole('combobox',{name:'Calendar timezone',exact:true}).fill('UTC');
+    const preferencesResponse=page.waitForResponse(response=>response.url().endsWith('/auth/preferences')&&response.request().method()==='PUT');
+    await calendar.locator('.calendar-period').click();await preferencesResponse;
+    assert.equal(state.preferences.calendar_timezone,'UTC');
+    await calendar.getByRole('button',{name:'Add Event',exact:true}).click();await page.getByLabel('EVENT TITLE',{exact:true}).fill('UTC event');
+    await page.getByLabel('START TIME',{exact:true}).fill('00:00');await page.getByLabel('END TIME',{exact:true}).fill('00:30');
+    await page.getByRole('button',{name:'Book Event',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+    assert.match(state.events.at(-1).start_at,/T00:00:00.000Z$/);
     await page.route('**/api/v1/events', async route => {
       if (route.request().method() === 'GET') await route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Calendar temporarily unavailable'})});
       else await route.fallback();

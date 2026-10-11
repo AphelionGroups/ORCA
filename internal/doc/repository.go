@@ -60,7 +60,7 @@ func (r *Repository) List(ctx context.Context, workspaceID uuid.UUID, spaceID *u
 		}
 		docs = append(docs, d)
 	}
-	return docs, nil
+	return docs, rows.Err()
 }
 
 func (r *Repository) GetByID(ctx context.Context, workspaceID, id uuid.UUID) (*Document, error) {
@@ -90,7 +90,7 @@ func (r *Repository) Create(ctx context.Context, d *Document) error {
 		}
 		d.ID = newID
 	}
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	d.CreatedAt = now
 	d.UpdatedAt = now
 
@@ -112,26 +112,27 @@ func (r *Repository) Create(ctx context.Context, d *Document) error {
 }
 
 func (r *Repository) Update(ctx context.Context, d *Document) error {
-	d.UpdatedAt = time.Now().UTC()
+	previousUpdatedAt := d.UpdatedAt
+	d.UpdatedAt = time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE documents
 		SET project_id = $1, title = $2, doc_type = $3, content = $4, is_pinned = $5, updated_at = $6
-		WHERE workspace_id = $7 AND id = $8 AND deleted_at IS NULL
+		WHERE workspace_id = $7 AND id = $8 AND deleted_at IS NULL AND updated_at = $9
 	`
 	res, err := r.pool.Exec(ctx, query,
-		d.ProjectID, d.Title, d.DocType, d.Content, d.IsPinned, d.UpdatedAt, d.WorkspaceID, d.ID,
+		d.ProjectID, d.Title, d.DocType, d.Content, d.IsPinned, d.UpdatedAt, d.WorkspaceID, d.ID, previousUpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("doc.Update exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return httputil.ErrNotFound
+		return httputil.ErrConflict
 	}
 	return nil
 }
 
 func (r *Repository) Delete(ctx context.Context, workspaceID, id uuid.UUID) error {
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE documents
 		SET deleted_at = $1, updated_at = $1

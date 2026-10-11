@@ -53,7 +53,7 @@ func (r *Repository) List(ctx context.Context, workspaceID uuid.UUID, spaceID *u
 		}
 		projects = append(projects, p)
 	}
-	return projects, nil
+	return projects, rows.Err()
 }
 
 func (r *Repository) GetByID(ctx context.Context, workspaceID, id uuid.UUID) (*Project, error) {
@@ -83,7 +83,7 @@ func (r *Repository) Create(ctx context.Context, p *Project) error {
 		}
 		p.ID = newID
 	}
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	p.CreatedAt = now
 	p.UpdatedAt = now
 
@@ -109,26 +109,27 @@ func (r *Repository) Create(ctx context.Context, p *Project) error {
 }
 
 func (r *Repository) Update(ctx context.Context, p *Project) error {
-	p.UpdatedAt = time.Now().UTC()
+	previousUpdatedAt := p.UpdatedAt
+	p.UpdatedAt = time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE projects
 		SET name = $1, description = $2, status = $3, target_date = $4, kanban_columns = $5, updated_at = $6
-		WHERE workspace_id = $7 AND id = $8 AND deleted_at IS NULL
+		WHERE workspace_id = $7 AND id = $8 AND deleted_at IS NULL AND updated_at = $9
 	`
 	res, err := r.pool.Exec(ctx, query,
-		p.Name, p.Description, p.Status, p.TargetDate, p.KanbanColumns, p.UpdatedAt, p.WorkspaceID, p.ID,
+		p.Name, p.Description, p.Status, p.TargetDate, p.KanbanColumns, p.UpdatedAt, p.WorkspaceID, p.ID, previousUpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("project.Update exec: %w", err)
 	}
 	if res.RowsAffected() == 0 {
-		return httputil.ErrNotFound
+		return httputil.ErrConflict
 	}
 	return nil
 }
 
 func (r *Repository) Delete(ctx context.Context, workspaceID, id uuid.UUID) error {
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE projects
 		SET deleted_at = $1, updated_at = $1

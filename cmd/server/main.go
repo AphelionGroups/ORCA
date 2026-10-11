@@ -160,6 +160,8 @@ func main() {
 				// Alias profile routes directly under /api/v1/profile
 				tenant.Get("/profile", authHandler.Me)
 				tenant.Put("/profile", authHandler.UpdateProfile)
+				tenant.Get("/preferences", authHandler.GetPreferences)
+				tenant.Put("/preferences", authHandler.UpdatePreferences)
 
 				// Uploads endpoint
 				tenant.Mount("/upload", uploadHandler.Routes())

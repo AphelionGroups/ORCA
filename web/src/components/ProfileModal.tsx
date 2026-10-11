@@ -471,7 +471,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                           Kata Sandi Baru
                         </label>
                         <Show when={newPassword()}>
-                          <span style={{ "font-size": '10px', color: getPasswordStrength().color, "font-weight": 600 }}>
+                          <span style={{ "font-size": '12px', color: getPasswordStrength().color, "font-weight": 600 }}>
                             {getPasswordStrength().label}
                           </span>
                         </Show>

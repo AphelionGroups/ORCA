@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -72,8 +73,12 @@ func TestMigrationsFreshAndLegacy(t *testing.T) {
 			if err := db.AutoMigrate(ctx, pool); err != nil {
 				t.Fatalf("repeat migration: %v", err)
 			}
+			files, err := fs.Glob(migrations.Files, "*.up.sql")
+			if err != nil {
+				t.Fatal(err)
+			}
 			var count int
-			if err := pool.QueryRow(ctx, `SELECT count(*) FROM schema_migrations`).Scan(&count); err != nil || count != 2 {
+			if err := pool.QueryRow(ctx, `SELECT count(*) FROM schema_migrations`).Scan(&count); err != nil || count != len(files) {
 				t.Fatalf("versions: %d %v", count, err)
 			}
 			if err := pool.QueryRow(ctx, `SELECT count(*) FROM users`).Scan(&count); err != nil || count != 0 {
