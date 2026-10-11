@@ -60,7 +60,6 @@ export function useProjectController(props: ProjectsViewProps) {
 
   const [editingDocContent, setEditingDocContent] = createSignal('');
 
-  const [docViewMode, setDocViewMode] = createSignal<'edit' | 'preview'>('edit');
 
   const [isSavingDoc, setIsSavingDoc] = createSignal(false);
   const [docSaveError, setDocSaveError] = createSignal('');
@@ -2803,7 +2802,6 @@ export function useProjectController(props: ProjectsViewProps) {
       setSelectedDocId(newDoc.id);
       setEditingDocTitle(newDoc.title);
       setEditingDocContent('');
-      setDocViewMode('edit');
     } catch (err) {
       console.error('Failed to create document:', err);
     }
@@ -2920,8 +2918,6 @@ setSelectedProjectId,
     setEditingDocTitle,
     handleSaveDoc,
     docSaveError,
-    setDocViewMode,
-    docViewMode,
     handleDownloadDoc,
     isSavingDoc,
     editingDocContent,

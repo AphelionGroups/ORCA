@@ -1,7 +1,5 @@
 import {
   Download,
-  Edit3,
-  Eye,
   FileText,
   Plus,
   Save,
@@ -9,8 +7,8 @@ import {
   Upload
 } from 'lucide-solid';
 import type { Component } from 'solid-js';
-import { For, Show } from 'solid-js';
-import { formatInlineMarkdown } from './canvas';
+import { For, Show, lazy, Suspense } from 'solid-js';
+const MarkdownEditor = lazy(() => import('../../components/MarkdownEditor').then(module => ({ default: module.MarkdownEditor })));
 import type { ProjectController } from './useProjectController';
 export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => {
   const ctx = props.ctx; return (<Show when={ctx.activeTab() === 'docs'}>
@@ -99,18 +97,6 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
               }} />
 
               <div class="document-actions" style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-                {/* Edit / Preview switch */}
-                <div class="segmented-control">
-                  <button type="button" onClick={() => ctx.setDocViewMode('edit')} class={`seg-btn ${ctx.docViewMode() === 'edit' ? 'active' : ''}`} style={{ display: 'flex', "align-items": 'center', gap: '4px', padding: '5px 10px', "font-size": '11px' }}>
-                    <Edit3 size={12} />
-                    <span>Edit</span>
-                  </button>
-                  <button type="button" onClick={() => ctx.setDocViewMode('preview')} class={`seg-btn ${ctx.docViewMode() === 'preview' ? 'active' : ''}`} style={{ display: 'flex', "align-items": 'center', gap: '4px', padding: '5px 10px', "font-size": '11px' }}>
-                    <Eye size={12} />
-                    <span>Preview</span>
-                  </button>
-                </div>
-
                 {/* Export / Download */}
                 <button type="button" class="btn-secondary" onClick={ctx.handleDownloadDoc} style={{ display: 'flex', "align-items": 'center', gap: '5px', padding: '6px 12px', "font-size": '12px' }} title="Download document as Markdown (.md)">
                   <Download size={13} />
@@ -133,23 +119,7 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
 
             {/* Document Content View / Editor */}
             <Show when={ctx.docSaveError()}><p role="alert" class="modal-error-badge">{ctx.docSaveError()} Save again to retry.</p></Show>
-            <Show when={ctx.docViewMode() === 'edit'} fallback={<div class="document-preview" style={{ "font-size": '15px', "line-height": 1.75, color: 'var(--text-main)', "white-space": 'pre-wrap', padding: '8px 0' }} innerHTML={formatInlineMarkdown(ctx.editingDocContent() || '(Empty document)')} />}>
-              <textarea aria-label="Document content" rows={20} value={ctx.editingDocContent()} onInput={e => ctx.setEditingDocContent(e.currentTarget.value)} onBlur={ctx.handleSaveDoc} placeholder="Write strategic architecture guidelines, specifications, or notes in Markdown..." style={{
-                width: '100%',
-                "min-height": '520px',
-                border: '1px solid var(--border-default)',
-                "border-radius": '8px',
-                "background-color": 'var(--surface-container-low)',
-                padding: '20px',
-                color: 'var(--text-main)',
-                "font-size": '14px',
-                "line-height": 1.7,
-                "font-family": 'inherit',
-                resize: 'vertical',
-                outline: 'none',
-                "box-sizing": 'border-box'
-              }} />
-            </Show>
+            <Suspense fallback={<p role="status">Loading editor…</p>}><MarkdownEditor documentId={ctx.currentDoc()!.id} value={ctx.editingDocContent()} onChange={ctx.setEditingDocContent} onSave={ctx.handleSaveDoc} /></Suspense>
           </div>
         </Show>
       </main>
