@@ -3,7 +3,7 @@
 Implemented from ORCA-Land's redesign brief using the existing SolidJS, lucide-solid and vanilla CSS stack. No backend or landing changes.
 
 ## Tokens and usage
-`web/src/theme.css` is the only semantic palette source; legacy aliases resolve to the same tokens. Light defaults for new preferences; existing light/dark/system choices remain persisted in `orca-theme-mode`.
+`web/src/styles/theme.css` is the semantic palette source; legacy aliases resolve to the same tokens. Light defaults for new preferences; existing light/dark/system choices remain persisted in `orca-theme-mode`.
 
 | Purpose | Light value |
 | --- | --- |

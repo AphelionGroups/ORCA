@@ -55,6 +55,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
   });
 
   const handleSave = async (e?: Event) => {
+    if (loading()) { e?.preventDefault(); return; }
     if (e) e.preventDefault();
     const trimmedTitle = title().trim();
     if (!trimmedTitle) {
@@ -122,7 +123,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
         class="modal-backdrop"
         onClick={(e) => { if (e.target === e.currentTarget) props.onClose(); }}
       >
-        <div class="modal-card" ref={el => focusScope(el, props.onClose)} style={{ "max-width": '540px' }}>
+        <div ref={el => focusScope(el, props.onClose)} class="modal-card" style={{ "max-width": '540px' }}>
           {/* Header */}
           <div class="modal-header">
             <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
@@ -173,7 +174,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
                 <button
                   type="button"
                   class="btn-primary"
-                  style={{ "background-color": 'var(--status-error)', color: '#fff' }}
+                  style={{ "background-color": 'var(--status-error)', color: 'var(--background)' }}
                   onClick={handleDelete}
                   disabled={loading()}
                 >

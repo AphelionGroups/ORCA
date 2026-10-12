@@ -1,7 +1,5 @@
 import {
   Download,
-  Edit3,
-  Eye,
   FileText,
   Plus,
   Save,
@@ -9,13 +7,13 @@ import {
   Upload
 } from 'lucide-solid';
 import type { Component } from 'solid-js';
-import { For, Show } from 'solid-js';
-import { formatInlineMarkdown } from './canvas';
+import { For, Show, lazy, Suspense } from 'solid-js';
+const MarkdownEditor = lazy(() => import('../../components/MarkdownEditor').then(module => ({ default: module.MarkdownEditor })));
 import type { ProjectController } from './useProjectController';
 export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => {
   const ctx = props.ctx; return (<Show when={ctx.activeTab() === 'docs'}>
-    <div class="documents-layout" style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      <aside class="documents-list" style={{ width: '280px', "background-color": 'var(--surface-container-low)', "border-right": '1px solid var(--border-default)', padding: '16px', display: 'flex', "flex-direction": 'column', gap: '8px' }}>
+    <div class="documents-layout context-panel" role="tabpanel" id="project-docs-panel" aria-labelledby="project-docs-tab" style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+      <aside class="document-sidebar" style={{ width: '280px', "background-color": 'var(--surface-container-low)', "border-right": '1px solid var(--border-default)', padding: '16px', display: 'flex', "flex-direction": 'column', gap: '8px' }}>
         <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '6px' }}>
           <span style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)' }}>
             Documents ({ctx.docs().length})
@@ -24,7 +22,7 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
             <label class="btn-secondary" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px', cursor: 'pointer' }} title="Import markdown/text file">
               <Upload size={12} />
               <span>Import</span>
-              <input type="file" accept=".md,.txt,.markdown" style={{ display: 'none' }} onChange={ctx.handleImportDoc} />
+              <input type="file" accept=".md,.txt,.markdown" class="accessible-file-input" aria-label="Import document" onChange={ctx.handleImportDoc} />
             </label>
 
             <button onClick={ctx.handleCreateNewDoc} title="Add new document" class="btn-primary" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }}>
@@ -54,10 +52,10 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
                   gap: '8px',
                   transition: 'background-color 0.12s ease'
                 }}>
-                  <div style={{ display: 'flex', "align-items": 'center', gap: '8px', overflow: 'hidden' }}>
+                  <button type="button" class="document-list-button" aria-pressed={ctx.selectedDocId() === doc.id} style={{ display: 'flex', "align-items": 'center', gap: '8px', overflow: 'hidden' }}>
                     <FileText size={14} color={ctx.selectedDocId() === doc.id ? 'var(--primary)' : 'var(--text-dim)'} />
                     <span style={{ overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>{doc.title || 'Untitled'}</span>
-                  </div>
+                  </button>
                   <button type="button" onClick={(e) => {
                     e.stopPropagation();
                     ctx.handleDeleteDoc(doc.id);
@@ -79,13 +77,13 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
         </Show>
       </aside>
 
-      <main class="document-workspace" style={{ flex: 1, "overflow-y": 'auto', padding: '32px 48px', "background-color": 'var(--surface)' }}>
+      <main class="document-editor" style={{ flex: 1, "overflow-y": 'auto', padding: '32px 48px', "background-color": 'var(--surface)' }}>
         <Show when={ctx.currentDoc()} fallback={<div style={{ color: 'var(--text-dim)', padding: '60px 0', "text-align": 'center' }}>
           Select or create a document to view contents.
         </div>}>
           <div style={{ "max-width": '840px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '20px' }}>
             {/* Document Header & Action Bar */}
-            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', gap: '16px', "padding-bottom": '12px', "border-bottom": '1px solid var(--border-default)' }}>
+            <div class="document-toolbar" style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', gap: '16px', "padding-bottom": '12px', "border-bottom": '1px solid var(--border-default)' }}>
               <input type="text" value={ctx.editingDocTitle()} onInput={e => ctx.setEditingDocTitle(e.currentTarget.value)} onBlur={ctx.handleSaveDoc} aria-label="Document title" placeholder="Document Title..." style={{
                 flex: 1,
                 "font-size": '24px',
@@ -98,19 +96,7 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
                 padding: '4px 0'
               }} />
 
-              <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-                {/* Edit / Preview switch */}
-                <div class="segmented-control">
-                  <button type="button" onClick={() => ctx.setDocViewMode('edit')} class={`seg-btn ${ctx.docViewMode() === 'edit' ? 'active' : ''}`} style={{ display: 'flex', "align-items": 'center', gap: '4px', padding: '5px 10px', "font-size": '12px' }}>
-                    <Edit3 size={12} />
-                    <span>Edit</span>
-                  </button>
-                  <button type="button" onClick={() => ctx.setDocViewMode('preview')} class={`seg-btn ${ctx.docViewMode() === 'preview' ? 'active' : ''}`} style={{ display: 'flex', "align-items": 'center', gap: '4px', padding: '5px 10px', "font-size": '12px' }}>
-                    <Eye size={12} />
-                    <span>Preview</span>
-                  </button>
-                </div>
-
+              <div class="document-actions" style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
                 {/* Export / Download */}
                 <button type="button" class="btn-secondary" onClick={ctx.handleDownloadDoc} style={{ display: 'flex', "align-items": 'center', gap: '5px', padding: '6px 12px', "font-size": '12px' }} title="Download document as Markdown (.md)">
                   <Download size={13} />
@@ -132,23 +118,8 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
             </div>
 
             {/* Document Content View / Editor */}
-            <Show when={ctx.docViewMode() === 'edit'} fallback={<div style={{ "font-size": '15px', "line-height": 1.75, color: 'var(--text-main)', "white-space": 'pre-wrap', padding: '8px 0' }} innerHTML={formatInlineMarkdown(ctx.editingDocContent() || '(Empty document)')} />}>
-              <textarea aria-label="Document content" rows={20} value={ctx.editingDocContent()} onInput={e => ctx.setEditingDocContent(e.currentTarget.value)} onBlur={ctx.handleSaveDoc} placeholder="Write strategic architecture guidelines, specifications, or notes in Markdown..." style={{
-                width: '100%',
-                "min-height": '520px',
-                border: '1px solid var(--border-default)',
-                "border-radius": '8px',
-                "background-color": 'var(--surface-container-low)',
-                padding: '20px',
-                color: 'var(--text-main)',
-                "font-size": '14px',
-                "line-height": 1.7,
-                "font-family": 'inherit',
-                resize: 'vertical',
-                outline: 'none',
-                "box-sizing": 'border-box'
-              }} />
-            </Show>
+            <Show when={ctx.docSaveError()}><p role="alert" class="modal-error-badge">{ctx.docSaveError()} Save again to retry.</p></Show>
+            <Suspense fallback={<p role="status">Loading editor…</p>}><MarkdownEditor documentId={ctx.currentDoc()!.id} value={ctx.editingDocContent()} onChange={ctx.setEditingDocContent} onSave={ctx.handleSaveDoc} /></Suspense>
           </div>
         </Show>
       </main>

@@ -1,0 +1,14 @@
+{
+  "phase": "before",
+  "fixture": true,
+  "baseline": "d3ad92d",
+  "browser": "151.0.7922.34",
+  "checks": [
+    "Auth, projects/docs/tasks/board/calendar/Inbox at 1440",
+    "Auth, projects/docs/tasks/board/calendar/Inbox at 360",
+    "Auth, projects/docs/tasks/board/calendar/Inbox at 768",
+    "Auth, projects/docs/tasks/board/calendar/Inbox at 1024"
+  ],
+  "behavior": [],
+  "errors": []
+}

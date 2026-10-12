@@ -1,4 +1,6 @@
 import { writeDemoSetting } from '../../services/demoSettings';
+import { handleMenuKey } from '../../components/tabs';
+import { Portal } from 'solid-js/web';
 import { CanvasContextToolbar } from './CanvasContextToolbar';
 import {
   ArrowLeft,
@@ -18,14 +20,15 @@ import {
   Undo
 } from 'lucide-solid';
 import type { Component } from 'solid-js';
-import { For, Show, createSignal, onCleanup } from 'solid-js';
+import { For, Show, createSignal, onCleanup, onMount } from 'solid-js';
 import { getTextColorForBackground } from '../../services/theme';
 import { getCurrentUser } from '../../services/user';
 import { DynamicShapeIcon, SHAPE_OPTIONS, UnifiedMarkdownBlock, formatRelativeTime } from './canvas';
 import type { ProjectController } from './useProjectController';
 export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
+  let shapeTrigger: HTMLButtonElement | undefined;
   const ctx = props.ctx; return (<Show when={ctx.activeTab() === 'board'}>
-    <Show when={ctx.isBoardCanvasOpen()} fallback={<div class="board-gallery" style={{
+    <Show when={ctx.isBoardCanvasOpen()} fallback={<div class="board-gallery context-panel" role="tabpanel" id="project-board-panel" aria-labelledby="project-board-tab" style={{
       width: '100%',
       height: '100%',
       overflow: 'auto',
@@ -125,18 +128,17 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
       </Show>
 
       {/* Responsive Grid of Board Cards */}
-      <div style={{
+      <div class="board-gallery-grid" style={{
         display: 'grid',
         "grid-template-columns": 'repeat(auto-fill, minmax(280px, 1fr))',
         gap: '22px'
       }}>
         <For each={ctx.boards()}>
           {(b) => {
-            const [isCardHovered, setIsCardHovered] = createSignal(false);
             const [isRenaming, setIsRenaming] = createSignal(false);
             const [renameVal, setRenameVal] = createSignal(b.title);
             const count = () => b.block_count ?? 0;
-            return (<div onMouseEnter={() => setIsCardHovered(true)} onMouseLeave={() => setIsCardHovered(false)} onClick={() => {
+            return (<div class="board-gallery-card" onClick={() => {
               if (!isRenaming()) {
                 ctx.handleOpenBoard(b.id);
               }
@@ -144,148 +146,18 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
               display: 'flex',
               "flex-direction": 'column',
               background: 'var(--surface-container)',
-              border: isCardHovered() ? '1px solid var(--secondary)' : '1px solid var(--border-default)',
-              "border-radius": '4px',
+              border: '1px solid var(--border-default)',
+              "border-radius": '12px',
               overflow: 'hidden',
               cursor: 'pointer',
-              transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
-              transform: isCardHovered() ? 'translateY(-3px)' : 'none',
-              "box-shadow": isCardHovered() ? '0 10px 24px rgba(0, 0, 0, 0.22)' : '0 2px 6px rgba(0, 0, 0, 0.08)',
+              transition: 'border-color var(--motion-fast)',
               position: 'relative'
             }}>
-              {/* CANVAS PREVIEW THUMBNAIL */}
-              <div style={{
-                position: 'relative',
-                width: '100%',
-                height: '150px',
-                background: 'var(--surface-container-lowest, #0e1217)',
-                "background-image": 'var(--surface-muted)',
-                "background-size": '16px 16px',
-                overflow: 'hidden',
-                display: 'flex',
-                "align-items": 'center',
-                "justify-content": 'center',
-                "border-bottom": '1px solid var(--border-subtle)'
-              }}>
-                <Show when={count() > 0} fallback={<div style={{
-                  display: 'flex',
-                  "flex-direction": 'column',
-                  "align-items": 'center',
-                  gap: '6px',
-                  opacity: 0.35,
-                  color: 'var(--text-muted)'
-                }}>
-                  <LayoutGrid size={22} />
-                  <span style={{ "font-size": '12px', "letter-spacing": '0.3px' }}>Kanvas Kosong</span>
-                </div>}>
-                  {/* Simulated miniature spatial elements */}
-                  <div style={{
-                    position: 'relative',
-                    width: '180px',
-                    height: '110px',
-                    "pointer-events": 'none'
-                  }}>
-                    {/* Miniature Sticky Note */}
-                    <div style={{
-                      position: 'absolute',
-                      top: '12px',
-                      left: '12px',
-                      width: '68px',
-                      height: '56px',
-                      background: 'var(--surface-muted)',
-                      "border-radius": '4px',
-                      "box-shadow": 'none',
-                      transform: 'rotate(-4deg)',
-                      padding: '6px',
-                      display: 'flex',
-                      "flex-direction": 'column',
-                      gap: '3px'
-                    }}>
-                      <div style={{ width: '40px', height: '3px', background: 'var(--text-primary)', opacity: 0.7, "border-radius": '2px' }} />
-                      <div style={{ width: '52px', height: '2px', background: 'var(--text-secondary)', opacity: 0.4, "border-radius": '1px' }} />
-                      <div style={{ width: '34px', height: '2px', background: 'var(--text-secondary)', opacity: 0.4, "border-radius": '1px' }} />
-                    </div>
-
-                    {/* Miniature Card Node */}
-                    <div style={{
-                      position: 'absolute',
-                      bottom: '8px',
-                      right: '12px',
-                      width: '84px',
-                      height: '54px',
-                      background: 'var(--surface-container-high)',
-                      border: '1px solid var(--primary)',
-                      "border-radius": '6px',
-                      "box-shadow": 'none',
-                      padding: '6px',
-                      display: 'flex',
-                      "flex-direction": 'column',
-                      gap: '3px'
-                    }}>
-                      <div style={{ display: 'flex', "align-items": 'center', gap: '4px' }}>
-                        <div style={{ width: '6px', height: '6px', "border-radius": '50%', background: 'var(--primary)' }} />
-                        <div style={{ width: '48px', height: '3px', background: 'var(--text-main)', opacity: 0.8, "border-radius": '2px' }} />
-                      </div>
-                      <div style={{ width: '64px', height: '2px', background: 'var(--text-muted)', opacity: 0.4, "border-radius": '1px' }} />
-                      <div style={{ width: '42px', height: '2px', background: 'var(--text-muted)', opacity: 0.4, "border-radius": '1px' }} />
-                    </div>
-
-                    {/* Miniature Connector Curve */}
-                    <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>
-                      <path d="M 75 40 Q 100 28, 115 50" fill="none" stroke="var(--secondary)" stroke-width="1.8" stroke-dasharray="3 2" opacity="0.85" />
-                    </svg>
-                  </div>
-                </Show>
-
-                {/* Item count tag on canvas corner */}
-                <div style={{
-                  position: 'absolute',
-                  top: '10px',
-                  right: '10px',
-                  padding: '2px 8px',
-                  "border-radius": '4px',
-                  background: 'rgba(0,0,0,0.5)',
-                  "backdrop-filter": 'none',
-                  color: 'var(--text-muted)',
-                  "font-size": '12px',
-                  "font-family": 'var(--font-mono)',
-                  display: 'flex',
-                  "align-items": 'center',
-                  gap: '4px'
-                }}>
-                  <LayoutGrid size={10} />
-                  <span>{count()} item</span>
-                </div>
-
-                {/* Hover overlay with "Buka Kanvas" button */}
-                <div style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'rgba(0, 0, 0, 0.48)',
-                  "backdrop-filter": 'none',
-                  display: 'flex',
-                  "align-items": 'center',
-                  "justify-content": 'center',
-                  opacity: isCardHovered() ? 1 : 0,
-                  transition: 'opacity 0.18s ease',
-                  "pointer-events": isCardHovered() ? 'auto' : 'none'
-                }}>
-                  <span style={{
-                    padding: '6px 14px',
-                    "border-radius": '4px',
-                    background: 'var(--secondary)',
-                    color: 'var(--action-primary-text)',
-                    "font-size": '12px',
-                    "font-weight": 600,
-                    "box-shadow": 'none',
-                    display: 'flex',
-                    "align-items": 'center',
-                    gap: '6px'
-                  }}>
-                    Buka Kanvas →
-                  </span>
-                </div>
-              </div>
+              <button type="button" class="board-open-preview" aria-label={`Open board ${b.title}`} onClick={e => { e.stopPropagation(); ctx.handleOpenBoard(b.id); }}>
+                <LayoutGrid size={28} aria-hidden="true" />
+                <span>{count()} item</span>
+                <span class="board-open-label">Buka kanvas <span aria-hidden="true">→</span></span>
+              </button>
 
               {/* CARD DETAILS / FOOTER */}
               <div style={{
@@ -300,7 +172,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                   "justify-content": 'space-between',
                   gap: '8px'
                 }}>
-                  <Show when={isRenaming()} fallback={<span style={{
+                  <Show when={isRenaming()} fallback={<button type="button" class="board-title-button" style={{
                     "font-size": '14px',
                     "font-weight": 600,
                     color: 'var(--text-main)',
@@ -309,7 +181,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                     "text-overflow": 'ellipsis'
                   }} title={b.title}>
                     {b.title}
-                  </span>}>
+                  </button>}>
                     <input type="text" value={renameVal()} onClick={(e) => e.stopPropagation()} onInput={(e) => setRenameVal(e.currentTarget.value)} onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.stopPropagation();
@@ -394,7 +266,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
         </For>
 
         {/* CREATE BOARD CARD (Dashed Card) */}
-        <div onClick={() => {
+        <button type="button" class="board-new-card" onClick={() => {
           ctx.setNewBoardTitle(`Board ${ctx.boards().length + 1}`);
           ctx.setIsCreatingBoard(true);
         }} style={{
@@ -410,14 +282,6 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           cursor: 'pointer',
           transition: 'all 0.18s ease',
           padding: '20px'
-        }} onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = 'var(--secondary)';
-          e.currentTarget.style.backgroundColor = 'var(--surface-container-low)';
-          e.currentTarget.style.transform = 'translateY(-3px)';
-        }} onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = 'var(--border-default)';
-          e.currentTarget.style.backgroundColor = 'transparent';
-          e.currentTarget.style.transform = 'none';
         }}>
           <div style={{
             width: '42px',
@@ -439,10 +303,10 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
               Mulai dari kanvas kosong
             </div>
           </div>
-        </div>
+        </button>
       </div>
     </div>}>
-      <div ref={(el) => {
+      <div class="board-canvas" role="tabpanel" id="project-board-panel" aria-labelledby="project-board-tab" ref={(el) => {
         ctx.canvasContainerRef = el;
         el.addEventListener('wheel', ctx.handleCanvasWheel, { passive: false });
         el.addEventListener('touchstart', ctx.handleCanvasTouchStart, { passive: false });
@@ -591,8 +455,8 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
               "z-index": 55
             }}>
               <For each={ctx.snapGuides()}>
-                {(guide) => (<Show when={guide.type === 'vertical'} fallback={<line x1={guide.start} y1={guide.pos} x2={guide.end} y2={guide.pos} stroke="var(--secondary)" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.9" style={{ filter: 'drop-shadow(0 0 3px rgba(68, 225, 222, 0.75))' }} />}>
-                  <line x1={guide.pos} y1={guide.start} x2={guide.pos} y2={guide.end} stroke="var(--secondary)" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.9" style={{ filter: 'drop-shadow(0 0 3px rgba(68, 225, 222, 0.75))' }} />
+                {(guide) => (<Show when={guide.type === 'vertical'} fallback={<line x1={guide.start} y1={guide.pos} x2={guide.end} y2={guide.pos} stroke="var(--secondary)" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.9" style={{ filter: 'none' }} />}>
+                  <line x1={guide.pos} y1={guide.start} x2={guide.pos} y2={guide.end} stroke="var(--secondary)" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.9" style={{ filter: 'none' }} />
                 </Show>)}
               </For>
             </svg>
@@ -874,7 +738,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
        ========================================================= */}
         <div class="canvas-toolbar">
           {/* Pointer / Select */}
-          <button class={`tool-btn ${ctx.activeCanvasTool() === 'select' ? 'active' : ''}`} onClick={() => ctx.setActiveCanvasTool('select')}>
+          <button type="button" title="Select and move" aria-label="Select and move" aria-pressed={ctx.activeCanvasTool() === 'select'} class={`tool-btn ${ctx.activeCanvasTool() === 'select' ? 'active' : ''}`} onClick={() => ctx.setActiveCanvasTool('select')}>
             <MousePointer size={15} />
             <span class="tool-tooltip">
               Select & Move <span class="tool-tooltip-kbd">V</span>
@@ -882,7 +746,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           </button>
 
           {/* Pan Tool */}
-          <button class={`tool-btn ${ctx.activeCanvasTool() === 'pan' ? 'active' : ''}`} onClick={() => ctx.setActiveCanvasTool('pan')}>
+          <button type="button" title="Pan canvas" aria-label="Pan canvas" aria-pressed={ctx.activeCanvasTool() === 'pan'} class={`tool-btn ${ctx.activeCanvasTool() === 'pan' ? 'active' : ''}`} onClick={() => ctx.setActiveCanvasTool('pan')}>
             <Hand size={15} />
             <span class="tool-tooltip">
               Hand / Pan <span class="tool-tooltip-kbd">H</span>
@@ -892,7 +756,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           <div class="tool-divider"></div>
 
           {/* Undo Tool */}
-          <button class={`tool-btn ${ctx.undoStack().length === 0 ? 'disabled' : ''}`} onClick={ctx.handleUndo} disabled={ctx.undoStack().length === 0} style={{ opacity: ctx.undoStack().length === 0 ? 0.35 : 1, cursor: ctx.undoStack().length === 0 ? 'not-allowed' : 'pointer' }}>
+          <button type="button" title="Undo" aria-label="Undo" class={`tool-btn ${ctx.undoStack().length === 0 ? 'disabled' : ''}`} onClick={ctx.handleUndo} disabled={ctx.undoStack().length === 0} style={{ opacity: ctx.undoStack().length === 0 ? 0.35 : 1, cursor: ctx.undoStack().length === 0 ? 'not-allowed' : 'pointer' }}>
             <Undo size={15} />
             <span class="tool-tooltip">
               Undo <span class="tool-tooltip-kbd">Ctrl+Z</span>
@@ -900,7 +764,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           </button>
 
           {/* Redo Tool */}
-          <button class={`tool-btn ${ctx.redoStack().length === 0 ? 'disabled' : ''}`} onClick={ctx.handleRedo} disabled={ctx.redoStack().length === 0} style={{ opacity: ctx.redoStack().length === 0 ? 0.35 : 1, cursor: ctx.redoStack().length === 0 ? 'not-allowed' : 'pointer' }}>
+          <button type="button" title="Redo" aria-label="Redo" class={`tool-btn ${ctx.redoStack().length === 0 ? 'disabled' : ''}`} onClick={ctx.handleRedo} disabled={ctx.redoStack().length === 0} style={{ opacity: ctx.redoStack().length === 0 ? 0.35 : 1, cursor: ctx.redoStack().length === 0 ? 'not-allowed' : 'pointer' }}>
             <Redo size={15} />
             <span class="tool-tooltip">
               Redo <span class="tool-tooltip-kbd">Ctrl+Y</span>
@@ -910,7 +774,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           <div class="tool-divider"></div>
 
           {/* Add Card */}
-          <button class={`tool-btn ${ctx.activeCanvasTool() === 'card' ? 'active' : ''}`} onClick={() => ctx.setActiveCanvasTool(ctx.activeCanvasTool() === 'card' ? 'select' : 'card')}>
+          <button type="button" title="Add card" aria-label="Add card" aria-pressed={ctx.activeCanvasTool() === 'card'} class={`tool-btn ${ctx.activeCanvasTool() === 'card' ? 'active' : ''}`} onClick={() => ctx.setActiveCanvasTool(ctx.activeCanvasTool() === 'card' ? 'select' : 'card')}>
             <LayoutGrid size={15} />
             <span class="tool-tooltip">
               Card <span class="tool-tooltip-kbd">C</span>
@@ -918,7 +782,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           </button>
 
           {/* Add Sticky Note */}
-          <button class={`tool-btn ${ctx.activeCanvasTool() === 'sticky' ? 'active' : ''}`} onClick={() => ctx.setActiveCanvasTool(ctx.activeCanvasTool() === 'sticky' ? 'select' : 'sticky')}>
+          <button type="button" title="Add sticky note" aria-label="Add sticky note" aria-pressed={ctx.activeCanvasTool() === 'sticky'} class={`tool-btn ${ctx.activeCanvasTool() === 'sticky' ? 'active' : ''}`} onClick={() => ctx.setActiveCanvasTool(ctx.activeCanvasTool() === 'sticky' ? 'select' : 'sticky')}>
             <StickyNote size={15} />
             <span class="tool-tooltip">
               Sticky Note <span class="tool-tooltip-kbd">S</span>
@@ -926,7 +790,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           </button>
 
           {/* Add Text Block */}
-          <button class={`tool-btn ${ctx.activeCanvasTool() === 'text' ? 'active' : ''}`} onClick={() => ctx.setActiveCanvasTool(ctx.activeCanvasTool() === 'text' ? 'select' : 'text')}>
+          <button type="button" title="Add text" aria-label="Add text" aria-pressed={ctx.activeCanvasTool() === 'text'} class={`tool-btn ${ctx.activeCanvasTool() === 'text' ? 'active' : ''}`} onClick={() => ctx.setActiveCanvasTool(ctx.activeCanvasTool() === 'text' ? 'select' : 'text')}>
             <Type size={15} />
             <span class="tool-tooltip">
               Text Block <span class="tool-tooltip-kbd">T</span>
@@ -936,14 +800,26 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           {/* Add Shape Container & Popover */}
           <div class={`shape-tool-wrapper ${ctx.showShapePicker() ? 'popover-open' : ''}`}>
             <Show when={ctx.showShapePicker()}>
-              <div class="shape-picker-popover" onClick={(e) => e.stopPropagation()}>
+              <Portal>
+              <div class="shape-picker-popover" id="canvas-shapes" role="menu" aria-label="Shapes" ref={el => {
+                onMount(() => {
+                  const bounds = shapeTrigger?.getBoundingClientRect();
+                  if (bounds) {
+                    const scale = el.getBoundingClientRect().width / el.offsetWidth || 1;
+                    el.style.left = `${Math.max(8, Math.min(innerWidth / scale - 170, bounds.left / scale - 60))}px`;
+                    el.style.bottom = `${(innerHeight - bounds.top) / scale + 12}px`;
+                  }
+                  el.querySelector<HTMLButtonElement>('button')?.focus();
+                });
+                onCleanup(() => shapeTrigger?.focus());
+              }} onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); ctx.setShowShapePicker(false); } else handleMenuKey(e); }} onClick={(e) => e.stopPropagation()}>
                 <div class="shape-picker-header">Shapes</div>
                 <div class="shape-picker-list">
                   <For each={SHAPE_OPTIONS}>
                     {(option) => {
                       const Icon = option.icon;
                       const isSelected = () => ctx.selectedShapeKind() === option.id;
-                      return (<button type="button" class={`shape-option-btn ${isSelected() ? 'active' : ''}`} title={option.label} onClick={(e) => {
+                      return (<button type="button" role="menuitem" class={`shape-option-btn ${isSelected() ? 'active' : ''}`} title={option.label} onClick={(e) => {
                         e.stopPropagation();
                         ctx.setSelectedShapeKind(option.id);
                         writeDemoSetting('last-shape-kind', option.id);
@@ -957,9 +833,10 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                   </For>
                 </div>
               </div>
+              </Portal>
             </Show>
 
-            <button class={`tool-btn ${ctx.activeCanvasTool() === 'shape' ? 'active' : ''}`} onClick={(e) => {
+            <button type="button" ref={shapeTrigger} aria-label="Choose shape" aria-haspopup="menu" aria-expanded={ctx.showShapePicker()} aria-controls="canvas-shapes" class={`tool-btn ${ctx.activeCanvasTool() === 'shape' ? 'active' : ''}`} onClick={(e) => {
               e.stopPropagation();
               if (ctx.activeCanvasTool() !== 'shape') {
                 ctx.setActiveCanvasTool('shape');
@@ -977,7 +854,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           </div>
 
           {/* Connector Tool */}
-          <button class={`tool-btn ${ctx.activeCanvasTool() === 'connector' ? 'active' : ''}`} onClick={() => {
+          <button type="button" title="Connect objects" aria-label="Connect objects" aria-pressed={ctx.activeCanvasTool() === 'connector'} class={`tool-btn ${ctx.activeCanvasTool() === 'connector' ? 'active' : ''}`} onClick={() => {
             ctx.setActiveCanvasTool(ctx.activeCanvasTool() === 'connector' ? 'select' : 'connector');
             ctx.setConnectingSourceId(null);
           }}>
@@ -988,39 +865,39 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           </button>
 
           {/* Object Storage Image Upload Tool */}
-          <label class="tool-btn" title="Unggah Gambar ke Object Storage" style={{ cursor: ctx.isUploadingCanvasImage() ? 'not-allowed' : 'pointer', position: 'relative', display: 'flex', "align-items": 'center', "justify-content": 'center' }}>
+          <label class="tool-btn" title="Unggah gambar" style={{ cursor: ctx.isUploadingCanvasImage() ? 'not-allowed' : 'pointer', position: 'relative', display: 'flex', "align-items": 'center', "justify-content": 'center' }}>
             <Show when={ctx.isUploadingCanvasImage()} fallback={<ImageIcon size={15} />}>
               <Loader2 size={15} class="spin" />
             </Show>
             <span class="tool-tooltip">
               Upload Image
             </span>
-            <input type="file" accept="image/*" style={{ display: 'none' }} disabled={ctx.isUploadingCanvasImage()} onChange={ctx.handleUploadCanvasImage} />
+            <input type="file" accept="image/*" class="accessible-file-input" aria-label="Upload board image" disabled={ctx.isUploadingCanvasImage()} onChange={ctx.handleUploadCanvasImage} />
           </label>
 
           <div class="tool-divider"></div>
 
           {/* Zoom Controls */}
-          <div style={{ display: 'flex', "align-items": 'center', gap: '2px', "font-size": '12px', "font-family": 'var(--font-mono)' }}>
-            <button onClick={() => ctx.setZoom(z => Math.max(20, z - 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
+          <div style={{ display: 'flex', "align-items": 'center', gap: '2px', "font-size": '11px', "font-family": 'var(--font-mono)' }}>
+            <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => ctx.setZoom(z => Math.max(50, z - 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
               -
               <span class="tool-tooltip">
                 Zoom Out <span class="tool-tooltip-kbd">-</span>
               </span>
             </button>
-            <span class="tool-zoom-badge" onClick={() => { ctx.setZoom(100); ctx.setPan({ x: 0, y: 0 }); }} style={{ padding: '0 6px', color: 'var(--text-muted)', cursor: 'pointer', "user-select": 'none' }}>
+            <button type="button" class="tool-zoom-badge" aria-label="Reset canvas zoom" onClick={() => { ctx.setZoom(100); ctx.setPan({ x: 0, y: 0 }); }} style={{ padding: '0 6px', color: 'var(--text-muted)', cursor: 'pointer', "user-select": 'none' }}>
               {ctx.zoom()}%
               <span class="tool-tooltip">
                 Reset View <span class="tool-tooltip-kbd">100%</span>
               </span>
-            </span>
-            <button onClick={() => ctx.setZoom(z => Math.min(200, z + 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
+            </button>
+            <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => ctx.setZoom(z => Math.min(150, z + 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
               +
               <span class="tool-tooltip">
                 Zoom In <span class="tool-tooltip-kbd">+</span>
               </span>
             </button>
-            <button onClick={() => { ctx.setZoom(100); ctx.setPan({ x: 0, y: 0 }); }} class="tool-btn" style={{ width: '26px', height: '26px' }}>
+            <button type="button" title="Reset canvas view" aria-label="Reset canvas view" onClick={() => { ctx.setZoom(100); ctx.setPan({ x: 0, y: 0 }); }} class="tool-btn" style={{ width: '26px', height: '26px' }}>
               <Maximize2 size={12} />
               <span class="tool-tooltip">
                 Fit / Center

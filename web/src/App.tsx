@@ -1,6 +1,7 @@
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, onMount, onCleanup, Switch, Match, Show } from 'solid-js';
 import { PanelLeftOpen } from 'lucide-solid';
+import { installControlInteractions } from './services/controlInteractions';
 import { Sidebar } from './components/Sidebar';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { InboxView } from './views/InboxView';
@@ -16,29 +17,37 @@ export const App: Component = () => {
   const [activeSpaceId, setActiveSpaceId] = createSignal<string | null>(null);
   const [activeProjectId, setActiveProjectId] = createSignal<string | null>(null);
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = createSignal<boolean>(false);
-  const [isMobile, setIsMobile] = createSignal(window.matchMedia('(max-width: 767px)').matches);
-  const [isSidebarOpen, setIsSidebarOpen] = createSignal<boolean>(!isMobile());
+  const mobileQuery = window.matchMedia('(max-width: 767px)');
+  const [isMobile, setIsMobile] = createSignal(mobileQuery.matches);
+  const [isSidebarOpen, setIsSidebarOpen] = createSignal(!mobileQuery.matches);
+  let sidebarTrigger: HTMLButtonElement | undefined;
   createEffect(() => {
     if (!isMobile() || !isSidebarOpen()) return;
-    queueMicrotask(() => document.querySelector<HTMLElement>('#workspace-navigation button')?.focus());
-    const keyboard = (event: KeyboardEvent) => {
-      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+    const sidebar = document.getElementById('workspace-navigation');
+    const controls = () => Array.from(sidebar?.querySelectorAll<HTMLElement>('button:not(:disabled), input, select, textarea, [tabindex="0"]') || []).filter(el => el.offsetParent !== null);
+    queueMicrotask(() => controls()[0]?.focus());
+    const trap = (event: KeyboardEvent) => {
+      if (document.querySelector('[aria-modal="true"]')) return;
       if (event.key === 'Escape') { event.preventDefault(); setIsSidebarOpen(false); }
-      if (event.key === 'Tab') {
-        const sidebar = document.getElementById('workspace-navigation');
-        const items = Array.from(sidebar?.querySelectorAll<HTMLElement>('button:not(:disabled), [tabindex="0"]') || []).filter(el => el.getClientRects().length);
-        const first = items[0], last = items.at(-1);
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-      }
+      if (event.key !== 'Tab') return;
+      const items = controls(); const first = items[0]; const last = items.at(-1);
+      if (event.shiftKey && (document.activeElement === first || !sidebar?.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     };
-    document.addEventListener('keydown', keyboard);
-    onCleanup(() => { document.removeEventListener('keydown', keyboard); requestAnimationFrame(() => document.querySelector<HTMLElement>('.sidebar-toggle-floating-btn')?.focus()); });
+    document.addEventListener('keydown', trap);
+    onCleanup(() => {
+      document.removeEventListener('keydown', trap);
+      queueMicrotask(() => {
+        if (document.querySelector('[aria-modal="true"]')) return;
+        sidebarTrigger?.focus();
+      });
+    });
   });
 
   const handleNavigate = (route: string, spaceId?: string | null, projectId?: string | null) => {
     if (isMobile()) setIsSidebarOpen(false);
     setCurrentRoute(route);
+    if (isMobile()) setIsSidebarOpen(false);
     if (route === 'inbox' || route === 'calendar') {
       setActiveSpaceId(null);
       setActiveProjectId(null);
@@ -51,6 +60,7 @@ export const App: Component = () => {
   // Global keyboard shortcut Ctrl+K / Cmd+K
   const handleKeyDown = (e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      if (document.querySelector('[aria-modal="true"]') && !isQuickCaptureOpen()) return;
       e.preventDefault();
       setIsQuickCaptureOpen(prev => !prev);
     }
@@ -62,11 +72,10 @@ export const App: Component = () => {
   };
 
   onMount(() => {
-    const media = window.matchMedia('(max-width: 767px)');
-    const resize = (event: MediaQueryListEvent) => { setIsMobile(event.matches); setIsSidebarOpen(!event.matches); };
-    media.addEventListener('change', resize);
-    onCleanup(() => media.removeEventListener('change', resize));
     window.addEventListener('keydown', handleKeyDown);
+    const cleanupControls = installControlInteractions(document.body);
+    const resizeSidebar = () => { setIsMobile(mobileQuery.matches); setIsSidebarOpen(!mobileQuery.matches); };
+    mobileQuery.addEventListener('change', resizeSidebar);
 
     api.getProfile().then(data => {
       const profile: UserProfile = { id: data.id, workspace_id: data.workspace_id, name: data.full_name, email: data.email, avatar_url: data.avatar_url };
@@ -75,6 +84,8 @@ export const App: Component = () => {
 
     onCleanup(() => {
       window.removeEventListener('keydown', handleKeyDown);
+      cleanupControls();
+      mobileQuery.removeEventListener('change', resizeSidebar);
     });
   });
 
@@ -86,15 +97,13 @@ export const App: Component = () => {
             type="button"
             class="sidebar-toggle-floating-btn" 
             onClick={() => setIsSidebarOpen(true)}
-            title="Buka Sidebar" aria-label="Buka Sidebar" aria-expanded={isSidebarOpen()} aria-controls="workspace-navigation"
+            title="Buka Sidebar" aria-label="Buka Sidebar" aria-controls="workspace-navigation" aria-expanded={isSidebarOpen()} ref={sidebarTrigger}
           >
             <PanelLeftOpen size={16} />
           </button>
         </Show>
 
-        <Show when={isMobile() && isSidebarOpen()}>
-          <button class="sidebar-drawer-backdrop" aria-label="Tutup Sidebar" tabIndex={-1} onClick={() => setIsSidebarOpen(false)} />
-        </Show>
+        <Show when={isMobile() && isSidebarOpen()}><button class="sidebar-drawer-backdrop" aria-label="Tutup navigasi" tabindex="-1" onClick={() => setIsSidebarOpen(false)} /></Show>
         {/* Sidebar Navigation */}
         <Sidebar 
           isOpen={isSidebarOpen()}
@@ -104,7 +113,7 @@ export const App: Component = () => {
           activeProjectId={activeProjectId()}
           currentUser={currentUser()}
           onNavigate={handleNavigate}
-          onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
+          onOpenQuickCapture={() => { if (isMobile()) setIsSidebarOpen(false); setIsQuickCaptureOpen(true); }}
           onResetDemo={handleResetDemo}
         />
 
@@ -121,6 +130,7 @@ export const App: Component = () => {
               <ProjectsView 
                 activeSpaceId={activeSpaceId()} 
                 activeProjectId={activeProjectId()}
+                onSelectProject={(projectId, spaceId) => handleNavigate('projects', spaceId, projectId)}
                 onOpenQuickCapture={() => setIsQuickCaptureOpen(true)} 
               />
             </Match>

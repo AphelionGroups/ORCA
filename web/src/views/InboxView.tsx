@@ -269,7 +269,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
 
       {/* Toast Notification */}
       <Show when={successToast()}>
-        <div role="status" style={{
+        <div role="status" class="workspace-toast" style={{
           position: 'fixed',
           bottom: '24px',
           right: '24px',
@@ -291,11 +291,11 @@ export const InboxView: Component<InboxViewProps> = (props) => {
       </Show>
 
       {/* Main Content Area */}
-      <div class="inbox-workspace" style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
+      <div class="inbox-workspace context-panel" style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
         <div style={{ "max-width": '720px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '20px' }}>
           
           {/* Quick Note Input Box */}
-          <form 
+          <form class="inbox-capture-form"
             onSubmit={handleAddNote}
             style={{
               background: 'var(--surface-card)',
@@ -308,7 +308,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
               "box-shadow": 'none'
             }}
           >
-            <textarea
+            <textarea aria-label="New Inbox note"
               rows={2}
               value={quickInput()}
               onInput={e => setQuickInput(e.currentTarget.value)}

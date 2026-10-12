@@ -57,6 +57,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
 
   const handleSave = async (e?: Event) => {
     if (e) e.preventDefault();
+    if (loading()) return;
     setError('');
 
     if (type() === 'Note') {
@@ -143,9 +144,6 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
       e.preventDefault();
       handleSave();
     }
-    if (e.key === 'Escape') {
-      props.onClose();
-    }
   };
 
   return (
@@ -154,7 +152,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
         class="modal-backdrop"
         onClick={(e) => { if (e.target === e.currentTarget) props.onClose(); }}
       >
-        <div class="modal-card" ref={el => focusScope(el, props.onClose)} style={{ "max-width": '520px' }} onKeyDown={handleKeyDown}>
+        <div ref={el => focusScope(el, props.onClose)} class="modal-card" style={{ "max-width": '520px' }} onKeyDown={handleKeyDown}>
           {/* Modal Header */}
           <div class="modal-header">
             <div>

@@ -54,6 +54,11 @@ const profile={id:'018f0000-0000-7000-8000-000000000002',workspace_id:ws,full_na
   await page.getByPlaceholder('Document Title...').waitFor();assert.equal(await page.getByPlaceholder('Document Title...').inputValue(),'Document A');
   await page.getByRole('tab',{name:/Tasks/}).first().click();await page.getByText('Task A',{exact:true}).first().waitFor();
   await page.getByRole('tab',{name:/Board/}).first().click();await page.getByText('Board A',{exact:true}).click();await page.getByText('Canvas note',{exact:true}).waitFor();
+  const operationResponse=mode=>page.waitForResponse(response=>response.url().endsWith('/operations')&&response.request().postDataJSON()?.mode===mode);
+  let operation=operationResponse('apply');await page.getByRole('button',{name:'Add sticky note',exact:true}).click();await page.locator('.board-canvas').click({position:{x:450,y:300}});await operation;
+  assert.equal(graphFor(boards[0].id).blocks.length,2);
+  operation=operationResponse('undo');await page.getByRole('button',{name:'Undo',exact:true}).click();await operation;assert.equal(graphFor(boards[0].id).blocks.length,1);
+  operation=operationResponse('redo');await page.getByRole('button',{name:'Redo',exact:true}).click();await operation;assert.equal(graphFor(boards[0].id).blocks.length,2);
   await page.locator('.sidebar-project-item').filter({hasText:'Project B'}).click();await page.getByText('Board B',{exact:true}).waitFor();
   assert.equal(await page.getByText('Canvas note',{exact:true}).count(),0);
   await page.getByRole('tab',{name:/Docs & Plans/}).click();assert.equal(await page.getByPlaceholder('Document Title...').inputValue(),'Document B');
