@@ -1,4 +1,5 @@
 import { focusScope } from '../components/focusScope';
+import { TaskModal } from '../components/TaskModal';
 import type { Component } from 'solid-js';
 import { createSignal, createMemo, onMount, onCleanup, For, Show } from 'solid-js';
 import { Calendar, Plus, ChevronLeft, ChevronRight, RotateCcw, Clock, X } from 'lucide-solid';
@@ -23,7 +24,12 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
     const parts = zonedParts(instant, zone());
     return new Date(`${parts.date}T${parts.time}`);
   };
-  const [scheduleView, setScheduleView] = createSignal<CalendarMode>('Week');
+  const [scheduleView, setScheduleView] = createSignal<CalendarMode>(window.matchMedia('(max-width: 767px)').matches ? 'Day' : 'Week');
+  const [showHours, setShowHours] = createSignal(false);
+  const [selectedItem, setSelectedItem] = createSignal<{ kind: 'Event' | 'Task'; id: string } | null>(null);
+  const [taskToEdit, setTaskToEdit] = createSignal<Task | null>(null);
+  const detailEvent = createMemo(() => selectedItem()?.kind === 'Event' ? events().find(event => event.id === selectedItem()?.id) : undefined);
+  const detailTask = createMemo(() => selectedItem()?.kind === 'Task' ? tasks().find(task => task.id === selectedItem()?.id) : undefined);
   const [anchor, setAnchor] = createSignal(new Date());
   const [events, setEvents] = createSignal<CalendarEvent[]>([]);
   const [tasks, setTasks] = createSignal<Task[]>([]);
@@ -137,14 +143,11 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
     } catch (error) { if (!disposed) setEventError(error instanceof Error ? error.message : 'Unable to save event. Please try again.'); }
     finally { if (!disposed) setEventSaving(false); }
   };
-  const itemCard = (item: CalendarItem) => <div class="calendar-item" classList={{ 'calendar-item-done': item.status === 'done' }} title={`${item.title} · ${getSpaceInfo(item.spaceId)}`}>
-    <Show when={item.kind === 'Event'} fallback={<strong>{item.title}</strong>}>
-      <button class="calendar-item-action" onClick={() => { const event = events().find(event => `event:${event.id}` === item.id); if (event) editEvent(event); }}>{item.title}</button>
-    </Show>
-    <small>{item.kind} · {getSpaceInfo(item.spaceId)}{item.status === 'done' ? ' · Done' : ''}</small>
-    <Show when={!item.allDay}><small>{formatTime(item.start)} – {formatTime(item.end)}</small></Show>
-    <Show when={item.kind === 'Task' && item.status !== 'done'}><button class="btn-secondary" onClick={() => { const task = tasks().find(task => `task:${task.id}` === item.id); if (task) openEvent(task); }}>Schedule task</button></Show>
-  </div>;
+  const itemCard = (item: CalendarItem) => <button type="button" class="calendar-item calendar-entry" classList={{ 'calendar-item-done': item.status === 'done' }}
+    aria-label={item.title} onClick={() => setSelectedItem({ kind: item.kind, id: item.id.slice(item.id.indexOf(':') + 1) })}>
+    <strong>{item.title}</strong>
+    <span class="calendar-entry-meta">{item.allDay ? item.kind === 'Task' ? 'Task' : 'All day' : `${formatTime(item.start)} – ${formatTime(item.end)}`}</span>
+  </button>;
 
   return <div class="calendar-workspace">
     <header class="orca-header"><div class="header-breadcrumbs"><div class="breadcrumb-title"><Calendar size={17} /><span>Calendar</span></div></div>
@@ -156,21 +159,23 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
         <div class="calendar-controls"><button class="btn-secondary" aria-label="Previous period" onClick={() => setAnchor(moveCalendar(anchor(), scheduleView(), -1))}><ChevronLeft size={16} /></button>
           <button class="btn-secondary" onClick={() => setAnchor(zonedDate(new Date()))}>Today</button>
           <button class="btn-secondary" aria-label="Next period" onClick={() => setAnchor(moveCalendar(anchor(), scheduleView(), 1))}><ChevronRight size={16} /></button></div>
-        <div class="calendar-controls" role="group" aria-label="Filter calendar by space">
-          <button class="btn-secondary" aria-pressed={spaceFilter() === 'all'} onClick={() => setSpaceFilter('all')}>All Spaces</button>
-          <For each={spaces()}>{space => <button class="btn-secondary" aria-pressed={spaceFilter() === space.id} onClick={() => setSpaceFilter(space.id)}>{space.name}</button>}</For>
-        </div>
       </div>
-      <div class="calendar-controls" role="group" aria-label="Calendar view"><For each={modes}>{mode => <button class="btn-secondary" aria-pressed={scheduleView() === mode} onClick={() => setScheduleView(mode)}>{mode}</button>}</For></div>
+      <div class="calendar-filters">
+        <label>Space<select aria-label="Calendar space" value={spaceFilter()} onChange={event => setSpaceFilter(event.currentTarget.value)}><option value="all">All Spaces</option><For each={spaces()}>{space => <option value={space.id}>{space.name}</option>}</For></select></label>
+        <label>View<select aria-label="Calendar view" value={scheduleView()} onChange={event => setScheduleView(event.currentTarget.value as CalendarMode)}><For each={modes}>{mode => <option value={mode}>{mode === 'Timeline' ? 'Agenda' : mode}</option>}</For></select></label>
+      </div>
+      <details class="calendar-settings"><summary>View options</summary>
+      <Show when={scheduleView() === 'Week' || scheduleView() === 'Day'}><label class="calendar-hour-option"><input type="checkbox" checked={showHours()} onChange={event => setShowHours(event.currentTarget.checked)} /> Show hourly timeline</label></Show>
       <label class="calendar-zone">Timezone <input aria-label="Calendar timezone" value={zone()} list="calendar-timezones" disabled={isEventModalOpen()} onChange={event => void selectZone(event.currentTarget.value)} /></label>
       <datalist id="calendar-timezones"><For each={['UTC', 'Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura', 'America/New_York', 'Europe/London']}>{value => <option value={value} />}</For></datalist>
+      </details>
     </div>
     <Show when={loadError()}><p role="alert" class="calendar-message">{loadError()} <button class="btn-secondary" onClick={() => void loadData()}>Retry</button></p></Show>
     <Show when={loading()}><p role="status" class="calendar-message">Loading calendar…</p></Show>
     <div class="calendar-layout" aria-busy={loading()}>
-      <aside class="calendar-backlog"><h3>Unscheduled tasks <span>({backlogTasks().length})</span></h3><p>Active tasks without a planned date or due date.</p>
-        <For each={backlogTasks()} fallback={<p>No unscheduled tasks.</p>}>{task => <div class="calendar-item"><strong>{task.title}</strong><small>{getSpaceInfo(task.space_id)}<Show when={task.estimated_minutes}> · {task.estimated_minutes} min</Show></small><button class="btn-secondary" onClick={() => openEvent(task)}>Schedule task</button></div>}</For>
-      </aside>
+      <details class="calendar-backlog"><summary>Unscheduled tasks ({backlogTasks().length})</summary><p>Choose a task to see details or schedule it.</p>
+        <div class="calendar-backlog-items"><For each={backlogTasks()} fallback={<p>No unscheduled tasks.</p>}>{task => <button type="button" class="calendar-item calendar-entry" onClick={() => setSelectedItem({ kind: 'Task', id: task.id })}><strong>{task.title}</strong></button>}</For></div>
+      </details>
       <section class="calendar-matrix" aria-label={`${scheduleView()} calendar`}>
         <Show when={scheduleView() === 'Month'}>
           <div class="calendar-month-head"><For each={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']}>{day => <span>{day}</span>}</For></div>
@@ -179,18 +184,19 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
             <For each={itemsOnDay(items(), day)}>{itemCard}</For>
           </div>}</For></div>
         </Show>
-        <Show when={scheduleView() === 'Timeline'}>
-          <div class="calendar-timeline"><For each={days()}>{day => <section data-date={dateKey(day)}><h3>{formatDay(day)}</h3>
+        <Show when={scheduleView() === 'Timeline' || ((scheduleView() === 'Week' || scheduleView() === 'Day') && !showHours())}>
+          <div class="calendar-agenda" classList={{ 'calendar-week-agenda': scheduleView() === 'Week' }}><For each={days()}>{day => <section data-date={dateKey(day)}><Show when={scheduleView() !== 'Day'}><h3 classList={{ 'calendar-today-label': dateKey(day) === dateKey(zonedDate(new Date())) }}>{formatDay(day)}</h3></Show>
             <For each={itemsOnDay(items(), day)} fallback={<p>No scheduled items.</p>}>{itemCard}</For>
           </section>}</For></div>
         </Show>
-        <Show when={scheduleView() === 'Week' || scheduleView() === 'Day'}>
+        <Show when={(scheduleView() === 'Week' || scheduleView() === 'Day') && showHours()}>
+          <div class="calendar-time-scroll" tabindex="0" role="region" aria-label="Hourly calendar">
           <div class="calendar-time-head" style={{ 'grid-template-columns': `56px repeat(${days().length}, minmax(100px, 1fr))` }}><span>Time</span>
             <For each={days()}>{day => <div classList={{ 'calendar-today': dateKey(day) === dateKey(zonedDate(new Date())) }}>{formatDay(day)}
               <For each={itemsOnDay(items(), day).filter(item => item.allDay)}>{itemCard}</For>
             </div>}</For>
           </div>
-          <div class="calendar-time-scroll"><div class="calendar-time-grid" style={{ 'grid-template-columns': `56px repeat(${days().length}, minmax(100px, 1fr))` }}>
+          <div class="calendar-time-grid" style={{ 'grid-template-columns': `56px repeat(${days().length}, minmax(100px, 1fr))` }}>
             <div class="calendar-hours"><For each={Array.from({ length: 24 }, (_, index) => index)}>{hour => <span>{String(hour).padStart(2, '0')}:00</span>}</For></div>
             <For each={days()}>{day => <div class="calendar-time-day" data-date={dateKey(day)}><For each={timedLayout(items(), day)}>{row => <div class="calendar-timed-item" style={{ top: `${row.top}px`, height: `${row.height}px`, left: `${row.lane / row.lanes * 100}%`, width: `${100 / row.lanes}%` }}>{itemCard(row.item)}</div>}</For></div>}</For>
           </div></div>
@@ -198,6 +204,39 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
         <Show when={!loading() && !loadError() && visibleItems().length === 0}><p class="calendar-message" role="status">No events or dated tasks in this period.</p></Show>
       </section>
     </div>
+      <Show when={selectedItem() && (detailEvent() || detailTask())}>
+        <div class="calendar-detail-backdrop" onClick={event => { if (event.target === event.currentTarget) setSelectedItem(null); }}>
+          <section class="calendar-detail" ref={element => focusScope(element, () => setSelectedItem(null))}>
+            <header><span>{selectedItem()?.kind}</span><button type="button" class="btn-ghost-icon" aria-label="Close item details" onClick={() => setSelectedItem(null)}><X size={18} /></button></header>
+            <h2>{detailEvent()?.title || detailTask()?.title}</h2>
+            <dl>
+              <dt>Space</dt><dd>{getSpaceInfo(detailEvent()?.space_id || detailTask()?.space_id)}</dd>
+              <Show when={detailEvent()}>{event => <>
+                <dt>When</dt><dd>{formatDay(zonedDate(event().start_at))}{event().is_all_day ? ' · All day' : ` · ${formatTime(zonedDate(event().start_at))}` }<br />
+                  {event().is_all_day ? `Through ${formatDay(addDays(zonedDate(event().end_at), -1))}` : `Until ${formatDay(zonedDate(event().end_at))} · ${formatTime(zonedDate(event().end_at))}`}<br /><small>{zone()}</small></dd>
+                <Show when={event().linked_task_id}><dt>Linked task</dt><dd>{tasks().find(task => task.id === event().linked_task_id)?.title || 'Linked task'}</dd></Show>
+              </>}</Show>
+              <Show when={detailTask()}>{task => <>
+                <dt>Status</dt><dd>{task().status.replaceAll('_', ' ')}</dd><dt>Priority</dt><dd>{task().priority}</dd>
+                <Show when={task().planned_date}><dt>Planned</dt><dd>{task().planned_date?.slice(0, 10)}</dd></Show>
+                <Show when={task().due_date}><dt>Due</dt><dd>{task().due_date?.slice(0, 10)}</dd></Show>
+                <Show when={task().estimated_minutes}><dt>Duration</dt><dd>{task().estimated_minutes} min</dd></Show>
+              </>}</Show>
+            </dl>
+            <Show when={detailEvent()?.description || detailTask()?.description}><p class="calendar-detail-description">{detailEvent()?.description || detailTask()?.description}</p></Show>
+            <footer>
+              <Show when={detailEvent()}>{event => <button type="button" class="btn-primary" onClick={() => { const current = event(); setSelectedItem(null); editEvent(current); }}>Edit event</button>}</Show>
+              <Show when={detailTask()}>{task => <>
+                <button type="button" class="btn-secondary" onClick={() => { const current = task(); setSelectedItem(null); setTaskToEdit(current); }}>Edit task</button>
+                <Show when={task().status !== 'done' && task().status !== 'cancelled'}><button type="button" class="btn-primary" onClick={() => { const current = task(); setSelectedItem(null); openEvent(current); }}>Schedule task</button></Show>
+              </>}</Show>
+            </footer>
+          </section>
+        </div>
+      </Show>
+      <TaskModal isOpen={!!taskToEdit()} taskToEdit={taskToEdit()} onClose={() => setTaskToEdit(null)} onSaved={task => {
+        generation++; setLoading(false); setTasks(previous => previous.map(item => item.id === task.id ? task : item)); setTaskToEdit(null);
+      }} onDeleted={id => { setTasks(previous => previous.filter(task => task.id !== id)); setTaskToEdit(null); void loadData(); }} />
       {/* Add Event Modal */}
       <Show when={isEventModalOpen()}>
         <div class="modal-backdrop"
