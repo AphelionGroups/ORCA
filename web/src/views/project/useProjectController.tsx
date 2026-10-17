@@ -342,16 +342,21 @@ export function useProjectController(props: ProjectsViewProps) {
   };
 
   onMount(() => {
-    window.addEventListener('mousemove', handleGlobalMouseMove);
-    window.addEventListener('mouseup', handleGlobalMouseUp);
+    window.addEventListener('pointermove', handleCanvasPointerMove);
+    window.addEventListener('pointerup', handleCanvasPointerUp);
+    window.addEventListener('pointercancel', handleCanvasPointerCancel);
+    window.addEventListener('blur', cancelCanvasGesture);
     window.addEventListener('keydown', handleGlobalKeyDown);
     window.addEventListener('keyup', handleGlobalKeyUp);
     window.addEventListener('click', handleWindowClick);
   });
 
   onCleanup(() => {
-    window.removeEventListener('mousemove', handleGlobalMouseMove);
-    window.removeEventListener('mouseup', handleGlobalMouseUp);
+    cancelCanvasGesture();
+    window.removeEventListener('pointermove', handleCanvasPointerMove);
+    window.removeEventListener('pointerup', handleCanvasPointerUp);
+    window.removeEventListener('pointercancel', handleCanvasPointerCancel);
+    window.removeEventListener('blur', cancelCanvasGesture);
     window.removeEventListener('keydown', handleGlobalKeyDown);
     window.removeEventListener('keyup', handleGlobalKeyUp);
     window.removeEventListener('click', handleWindowClick);
@@ -792,7 +797,7 @@ export function useProjectController(props: ProjectsViewProps) {
     if (historyBusy()) return;
     // If clicking on toolbar or buttons or inputs, ignore
     const target = e.target as HTMLElement;
-    if (target.closest('.canvas-toolbar') || target.closest('button') || target.closest('input') || target.closest('textarea')) {
+    if (target.closest('.canvas-toolbar, .canvas-context-toolbar, button, input, textarea, select, a[href], [contenteditable="true"]')) {
       return;
     }
 
@@ -837,7 +842,7 @@ export function useProjectController(props: ProjectsViewProps) {
     }
 
     // If pan tool is active OR space is pressed: pan canvas
-    if (activeCanvasTool() === 'pan' || isSpacePressed()) {
+    if (activeCanvasTool() === 'pan' || isSpacePressed() || (e as PointerEvent).pointerType === 'touch') {
       startCanvasPan(e.clientX, e.clientY);
       return;
     }
@@ -863,7 +868,7 @@ export function useProjectController(props: ProjectsViewProps) {
     if (historyBusy()) return;
     e.stopPropagation();
     const target = e.target as HTMLElement;
-    if (['button', 'input', 'textarea', 'select'].includes(target.tagName.toLowerCase())) {
+    if (target.closest('button, input, textarea, select, a[href], [contenteditable="true"], .canvas-context-toolbar')) {
       return;
     }
     if (editingBlockId() && editingBlockId() !== block.id) {
@@ -923,7 +928,7 @@ export function useProjectController(props: ProjectsViewProps) {
     }
 
     // Prepare dragging for all currently selected blocks
-    const blocksToDrag = blocks().filter(b => currentSelected.includes(b.id));
+    const blocksToDrag = blocks().filter(b => currentSelected.includes(b.id) && !b.content?.locked);
     draggingBlockState = {
       blockId: block.id,
       startX: e.clientX,
@@ -973,6 +978,7 @@ export function useProjectController(props: ProjectsViewProps) {
   const handleHandleMouseDown = (e: MouseEvent, block: NoteBlock, side: 'top' | 'right' | 'bottom' | 'left') => {
     e.stopPropagation();
     e.preventDefault();
+    if (historyBusy() || block.content?.locked) return;
     draggingHandle = {
       blockId: block.id,
       side,
@@ -990,6 +996,7 @@ export function useProjectController(props: ProjectsViewProps) {
   const handleEndpointMouseDown = (e: MouseEvent, conn: Connection, which: 'start' | 'end') => {
     e.stopPropagation();
     e.preventDefault();
+    if (historyBusy()) return;
     draggingEndpointState = {
       conn,
       which,
@@ -1006,7 +1013,7 @@ export function useProjectController(props: ProjectsViewProps) {
   const handleResizeMouseDown = (e: MouseEvent, block: NoteBlock, corner: 'nw' | 'ne' | 'se' | 'sw') => {
     e.stopPropagation();
     e.preventDefault();
-    if (block.content?.locked) return;
+    if (historyBusy() || block.content?.locked) return;
     const w = getBlockWidth(block);
     const h = getBlockHeight(block);
     resizingBlockState = {
@@ -1602,29 +1609,96 @@ export function useProjectController(props: ProjectsViewProps) {
     }
   };
 
-  // Touchscreen 2-finger gestures (Pan Tool logic)
-  const handleCanvasTouchStart = (e: TouchEvent) => {
-    if (e.touches.length === 2) {
-      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      startCanvasPan(midX, midY);
-      e.preventDefault();
+  // A single pointer owns an edit. A second finger cancels that draft and
+  // navigates the viewport instead; no partial object edit is persisted.
+  const canvasPointers = new Map<number, { x: number; y: number; startX: number; startY: number; capture: Element }>();
+  let gestureBlocks: NoteBlock[] | null = null;
+  let gestureBoardId: string | undefined;
+  let pointerMoved = false;
+  let lastCanvasPointerType = 'mouse';
+  let navigatingWithTwo = false;
+  let pinch: { distance: number; scale: number; worldX: number; worldY: number } | null = null;
+  const restorePointerDraft = () => {
+    draggingBlockState = null; resizingBlockState = null; draggingHandle = null; draggingEndpointState = null;
+    if (gestureBlocks && currentBoard()?.id === gestureBoardId) {
+      const geometry = new Map(gestureBlocks.map(block => [block.id, block]));
+      setBlocks(previous => previous.map(block => {
+        const original = geometry.get(block.id);
+        return original ? { ...block, pos_x: original.pos_x, pos_y: original.pos_y, width: original.width, height: original.height } : block;
+      }));
+    }
+    isSelectingArea = false; setSelectionBox(null); setSnapGuides([]);
+    setDragArrowStart(null); setDragArrowEnd(null); setActiveEndpointDrag(null);
+    setHoveredTargetBlockId(null); setHoveredTargetSide(null); stopCanvasPan();
+  };
+  function cancelCanvasGesture() {
+    restorePointerDraft();
+    const captures = [...canvasPointers];
+    canvasPointers.clear(); gestureBlocks = null; pinch = null; navigatingWithTwo = false;
+    for (const [id, point] of captures) {
+      if (point.capture.hasPointerCapture(id)) point.capture.releasePointerCapture(id);
+    }
+  }
+  const handleCanvasPointerDown = (event: PointerEvent) => {
+    lastCanvasPointerType = event.pointerType;
+    const target = event.target as HTMLElement;
+    if (historyBusy() || target.closest('button, input, textarea, select, a[href], [contenteditable="true"], .canvas-toolbar, .canvas-context-toolbar, .canvas-zoom-controls')) return;
+    // Object DOM can be replaced during optimistic movement; capture on the
+    // stable canvas so that the gesture survives those renders.
+    const capture = canvasContainerRef!;
+    canvasPointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, capture });
+    capture.setPointerCapture(event.pointerId);
+    if (canvasPointers.size === 1) {
+      gestureBlocks = blocks().map(block => ({ ...block }));
+      gestureBoardId = currentBoard()?.id; pointerMoved = false; navigatingWithTwo = false;
+    } else {
+      event.preventDefault(); event.stopPropagation();
+      restorePointerDraft(); navigatingWithTwo = true;
+      const [a, b] = [...canvasPointers.values()];
+      const rect = canvasContainerRef!.getBoundingClientRect(), scale = zoom() / 100;
+      pinch = { distance: Math.max(1, Math.hypot(a!.x - b!.x, a!.y - b!.y)), scale,
+        worldX: ((a!.x + b!.x) / 2 - rect.left - pan().x) / scale,
+        worldY: ((a!.y + b!.y) / 2 - rect.top - pan().y) / scale };
     }
   };
-
-  const handleCanvasTouchMove = (e: TouchEvent) => {
-    if (e.touches.length === 2 && isPanningCanvas) {
-      e.preventDefault();
-      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      updateCanvasPan(midX, midY);
+  const handleCanvasPointerMove = (event: PointerEvent) => {
+    const point = canvasPointers.get(event.pointerId);
+    if (!point) {
+      if (event.pointerType === 'mouse' && canvasPointers.size === 0) handleGlobalMouseMove(event);
+      return;
     }
+    point.x = event.clientX; point.y = event.clientY;
+    if (navigatingWithTwo) {
+      if (canvasPointers.size !== 2 || !pinch || !canvasContainerRef) return;
+      event.preventDefault();
+      const [a, b] = [...canvasPointers.values()], rect = canvasContainerRef.getBoundingClientRect();
+      const scale = Math.max(0.2, Math.min(2, pinch.scale * Math.hypot(a!.x - b!.x, a!.y - b!.y) / pinch.distance));
+      setZoom(scale * 100);
+      setPan({ x: (a!.x + b!.x) / 2 - rect.left - pinch.worldX * scale,
+        y: (a!.y + b!.y) / 2 - rect.top - pinch.worldY * scale });
+      return;
+    }
+    if (!pointerMoved && Math.hypot(point.x - point.startX, point.y - point.startY) < (event.pointerType === 'mouse' ? 3 : 8)) return;
+    pointerMoved = true; event.preventDefault(); handleGlobalMouseMove(event);
   };
-
-  const handleCanvasTouchEnd = (e: TouchEvent) => {
-    if (e.touches.length < 2) {
-      stopCanvasPan();
-    }
+  const handleCanvasPointerUp = (event: PointerEvent) => {
+    const point = canvasPointers.get(event.pointerId);
+    if (!point) return;
+    canvasPointers.delete(event.pointerId);
+    if (!pointerMoved) { resizingBlockState = null; draggingBlockState = null; }
+    if (!navigatingWithTwo) void handleGlobalMouseUp();
+    if (point.capture.hasPointerCapture(event.pointerId)) point.capture.releasePointerCapture(event.pointerId);
+    if (canvasPointers.size === 0) { gestureBlocks = null; pinch = null; navigatingWithTwo = false; }
+  };
+  const handleCanvasPointerCancel = (event: PointerEvent) => {
+    if (canvasPointers.has(event.pointerId)) cancelCanvasGesture();
+  };
+  const handleCanvasDoubleClick = (event: MouseEvent) => {
+    if (lastCanvasPointerType !== 'mouse') return;
+    const element = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('.canvas-block');
+    const block = blocks().find(item => item.id === element?.dataset.blockId);
+    if (!block || block.content?.locked || historyBusy()) return;
+    setSelectedBlockId(block.id); setSelectedBlockIds([block.id]); setEditingBlockId(block.id);
   };
 
   // Create a block of the same type as srcBlock at (newX, newY) and connect it
@@ -2071,7 +2145,7 @@ export function useProjectController(props: ProjectsViewProps) {
             stroke="transparent"
             stroke-width="16"
             style={{ "pointer-events": 'stroke', cursor: 'pointer' }}
-            onClick={(e) => {
+            onPointerDown={(e) => {
               e.stopPropagation();
               setSelectedConnection(conn);
               setSelectedBlockId(null);
@@ -2117,9 +2191,9 @@ export function useProjectController(props: ProjectsViewProps) {
                 cursor: isDraggingThisStart ? 'grabbing' : 'grab',
                 "pointer-events": 'all',
               }}
-              onMouseDown={(e) => handleEndpointMouseDown(e, conn, 'start')}
+              onPointerDown={(e) => handleEndpointMouseDown(e, conn, 'start')}
             >
-              <circle cx={p1.x} cy={p1.y} r="14" fill="transparent" />
+              <circle cx={p1.x} cy={p1.y} r={window.matchMedia('(pointer: coarse)').matches ? 22 / (zoom() / 100) : 14} fill="transparent" />
               <circle
                 cx={p1.x}
                 cy={p1.y}
@@ -2136,9 +2210,9 @@ export function useProjectController(props: ProjectsViewProps) {
                 cursor: isDraggingThisEnd ? 'grabbing' : 'grab',
                 "pointer-events": 'all',
               }}
-              onMouseDown={(e) => handleEndpointMouseDown(e, conn, 'end')}
+              onPointerDown={(e) => handleEndpointMouseDown(e, conn, 'end')}
             >
-              <circle cx={p2.x} cy={p2.y} r="14" fill="transparent" />
+              <circle cx={p2.x} cy={p2.y} r={window.matchMedia('(pointer: coarse)').matches ? 22 / (zoom() / 100) : 14} fill="transparent" />
               <circle
                 cx={p2.x}
                 cy={p2.y}
@@ -2234,13 +2308,14 @@ export function useProjectController(props: ProjectsViewProps) {
                 {(rc) => (
                   <div
                     class="canvas-resize-handle"
+                    aria-label={`Resize ${rc.corner}`}
                     style={{
                       left: `${rc.cx}px`,
                       top: `${rc.cy}px`,
                       cursor: rc.cursor,
                     }}
                     title="Drag corner to resize. Double-click to reset height to auto."
-                    onMouseDown={(e) => handleResizeMouseDown(e, block, rc.corner)}
+                    onPointerDown={(e) => handleResizeMouseDown(e, block, rc.corner)}
                     onDblClick={(e) => handleResetBlockDimensions(e, block)}
                   />
                 )}
@@ -2258,7 +2333,7 @@ export function useProjectController(props: ProjectsViewProps) {
                       width: `${HANDLE_SIZE}px`,
                       height: `${HANDLE_SIZE}px`,
                     }}
-                    onMouseDown={(e) => handleHandleMouseDown(e, block, handle.side)}
+                    onPointerDown={(e) => handleHandleMouseDown(e, block, handle.side)}
                   />
                 )}
               </For>
@@ -2468,6 +2543,11 @@ export function useProjectController(props: ProjectsViewProps) {
     reader.readAsText(file);
     input.value = '';
   };
+  createEffect(on(
+    () => [selectedProjectId(), selectedBoardId(), activeTab(), isBoardCanvasOpen()],
+    () => cancelCanvasGesture(),
+    { defer: true },
+  ));
   return {
     operationError, setOperationError, historyBusy,
 setSelectedProjectId,
@@ -2505,9 +2585,9 @@ setSelectedProjectId,
     handleDeleteBoard,
     get canvasContainerRef() { return canvasContainerRef; }, set canvasContainerRef(value: typeof canvasContainerRef) { canvasContainerRef = value; },
     handleCanvasWheel,
-    handleCanvasTouchStart,
-    handleCanvasTouchMove,
-    handleCanvasTouchEnd,
+    handleCanvasPointerDown,
+    handleCanvasPointerCancel,
+    handleCanvasDoubleClick,
     handleCanvasMouseDown,
     setCursorCanvasPos,
     setSnapGuides,

@@ -308,18 +308,12 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
       <div class="board-canvas" role="tabpanel" id="project-board-panel" aria-labelledby="project-board-tab" ref={(el) => {
         ctx.canvasContainerRef = el;
         el.addEventListener('wheel', ctx.handleCanvasWheel, { passive: false });
-        el.addEventListener('touchstart', ctx.handleCanvasTouchStart, { passive: false });
-        el.addEventListener('touchmove', ctx.handleCanvasTouchMove, { passive: false });
-        el.addEventListener('touchend', ctx.handleCanvasTouchEnd);
-        el.addEventListener('touchcancel', ctx.handleCanvasTouchEnd);
+        el.addEventListener('pointerdown', ctx.handleCanvasPointerDown, true);
         onCleanup(() => {
           el.removeEventListener('wheel', ctx.handleCanvasWheel);
-          el.removeEventListener('touchstart', ctx.handleCanvasTouchStart);
-          el.removeEventListener('touchmove', ctx.handleCanvasTouchMove);
-          el.removeEventListener('touchend', ctx.handleCanvasTouchEnd);
-          el.removeEventListener('touchcancel', ctx.handleCanvasTouchEnd);
+          el.removeEventListener('pointerdown', ctx.handleCanvasPointerDown, true);
         });
-      }} onMouseDown={ctx.handleCanvasMouseDown} onContextMenu={(e) => e.preventDefault()} onMouseLeave={() => {
+      }} onLostPointerCapture={ctx.handleCanvasPointerCancel} onPointerDown={ctx.handleCanvasMouseDown} onDblClick={ctx.handleCanvasDoubleClick} onContextMenu={(e) => e.preventDefault()} onMouseLeave={() => {
         ctx.setCursorCanvasPos(null);
         ctx.setSnapGuides([]);
       }} style={{
@@ -328,7 +322,8 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
         height: '100%',
         "background-color": 'var(--surface)',
         overflow: 'hidden',
-        "touch-action": 'none',
+        "touch-action": ctx.editingBlockId() ? 'pan-y' : 'none',
+        "--canvas-scale": ctx.zoom() / 100,
         cursor: ctx.isActivelyPanning()
           ? 'grabbing'
           : ctx.isSelectingArea ? 'crosshair'
@@ -620,14 +615,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                   ro.observe(el);
                   onCleanup(() => ro.disconnect());
                 }
-              }} onMouseDown={(e) => ctx.handleBlockMouseDown(e, block)} onDblClick={(e) => {
-                e.stopPropagation();
-                if (isLocked())
-                  return;
-                ctx.setEditingBlockId(block.id);
-                ctx.setSelectedBlockId(block.id);
-                ctx.setSelectedBlockIds([block.id]);
-              }} class={`canvas-block ${blockTypeClass()} ${isSelected() ? 'selected' : ''} ${ctx.hoveredTargetBlockId() === block.id ? 'handle-drop-target' : ''} ${isLocked() ? 'locked' : ''}`} style={{
+              }} data-block-id={block.id} onPointerDown={(e) => ctx.handleBlockMouseDown(e, block)} class={`canvas-block ${blockTypeClass()} ${isSelected() ? 'selected' : ''} ${ctx.hoveredTargetBlockId() === block.id ? 'handle-drop-target' : ''} ${isLocked() ? 'locked' : ''}`} style={{
                 left: `${block.pos_x}px`,
                 top: `${block.pos_y}px`,
                 width: `${ctx.getBlockWidth(block)}px`,
@@ -735,6 +723,10 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
         {/* =========================================================
        FLOATING OBSIDIAN GLASS CANVAS TOOLBAR
        ========================================================= */}
+        <Show when={ctx.editingBlockId()}><button type="button" class="btn-primary canvas-edit-done" onClick={() => {
+          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+          ctx.setEditingBlockId(null);
+        }}>Done editing</button></Show>
         <div class="canvas-toolbar">
           {/* Pointer / Select */}
           <button type="button" title="Select and move" aria-label="Select and move" aria-pressed={ctx.activeCanvasTool() === 'select'} class={`tool-btn ${ctx.activeCanvasTool() === 'select' ? 'active' : ''}`} onClick={() => ctx.setActiveCanvasTool('select')}>
@@ -878,19 +870,19 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
 
           {/* Zoom Controls */}
           <div style={{ display: 'flex', "align-items": 'center', gap: '2px', "font-size": '11px', "font-family": 'var(--font-mono)' }}>
-            <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => ctx.setZoom(z => Math.max(50, z - 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
+            <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => ctx.setZoom(z => Math.max(20, z - 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
               -
               <span class="tool-tooltip">
                 Zoom Out <span class="tool-tooltip-kbd">-</span>
               </span>
             </button>
             <button type="button" class="tool-zoom-badge" aria-label="Reset canvas zoom" onClick={() => { ctx.setZoom(100); ctx.setPan({ x: 0, y: 0 }); }} style={{ padding: '0 6px', color: 'var(--text-muted)', cursor: 'pointer', "user-select": 'none' }}>
-              {ctx.zoom()}%
+              {Math.round(ctx.zoom())}%
               <span class="tool-tooltip">
                 Reset View <span class="tool-tooltip-kbd">100%</span>
               </span>
             </button>
-            <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => ctx.setZoom(z => Math.min(150, z + 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
+            <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => ctx.setZoom(z => Math.min(200, z + 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
               +
               <span class="tool-tooltip">
                 Zoom In <span class="tool-tooltip-kbd">+</span>

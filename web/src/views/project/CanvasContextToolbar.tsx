@@ -1,7 +1,8 @@
 import { For, Show } from 'solid-js';
+import { Portal } from 'solid-js/web';
 import type { useProjectController } from './useProjectController';
 
-type ToolbarContext = Pick<ReturnType<typeof useProjectController>, 'getBlockWidth' | 'handleCopyBlock' | 'handleCutBlock' | 'handleDeleteBlocks' | 'handleDuplicateBlock' | 'handleUpdateBlockContent' | 'primarySelectedBlock' | 'setEditingBlockId' | 'setShowContextColorPicker' | 'setShowContextMoreMenu' | 'showContextColorPicker' | 'showContextMoreMenu'>;
+type ToolbarContext = Pick<ReturnType<typeof useProjectController>, 'canvasContainerRef' | 'pan' | 'zoom' | 'setPan' | 'setZoom' | 'getBlockWidth' | 'handleCopyBlock' | 'handleCutBlock' | 'handleDeleteBlocks' | 'handleDuplicateBlock' | 'handleUpdateBlockContent' | 'primarySelectedBlock' | 'setEditingBlockId' | 'setShowContextColorPicker' | 'setShowContextMoreMenu' | 'showContextColorPicker' | 'showContextMoreMenu'>;
 
 export function CanvasContextToolbar(props: { ctx: ToolbarContext }) {
   const { getBlockWidth, handleCopyBlock, handleCutBlock, handleDeleteBlocks, handleDuplicateBlock, handleUpdateBlockContent, primarySelectedBlock, setEditingBlockId, setShowContextColorPicker, setShowContextMoreMenu, showContextColorPicker, showContextMoreMenu } = props.ctx;
@@ -11,8 +12,10 @@ export function CanvasContextToolbar(props: { ctx: ToolbarContext }) {
     if (!block) return null;
 
     const w = getBlockWidth(block);
-    const posX = block.pos_x + w / 2;
-    const posY = block.pos_y - 12;
+    const canvasWidth = props.ctx.canvasContainerRef?.clientWidth || 360;
+    const toolbarWidth = Math.min(460, canvasWidth - 16);
+    const posX = Math.max(toolbarWidth / 2 + 8, Math.min(canvasWidth - toolbarWidth / 2 - 8, (block.pos_x + w / 2) * props.ctx.zoom() / 100 + props.ctx.pan().x));
+    const posY = Math.max(80, Math.min((props.ctx.canvasContainerRef?.clientHeight || 600) - 90, block.pos_y * props.ctx.zoom() / 100 + props.ctx.pan().y - 12));
 
     const isLocked = Boolean(block.content?.locked);
     const currentColor = block.content?.color || '#44e1de';
@@ -32,20 +35,27 @@ export function CanvasContextToolbar(props: { ctx: ToolbarContext }) {
     ];
 
     return (
-      <div
+      <Portal mount={props.ctx.canvasContainerRef}><div
         class="canvas-context-toolbar"
         style={{
           left: `${posX}px`,
           top: `${posY}px`,
+          "max-width": `${canvasWidth - 16}px`,
         }}
-        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 1. Edit Text Tool */}
         <button
           class="ctx-btn"
           title="Edit text (or double-click block)"
+          disabled={isLocked}
           onClick={() => {
+            if (window.matchMedia('(max-width: 767px)').matches) {
+              const scale = Math.max(0.2, Math.min(1, (canvasWidth - 32) / w));
+              props.ctx.setZoom(scale * 100);
+              props.ctx.setPan({ x: (canvasWidth - w * scale) / 2 - block.pos_x * scale, y: 72 - block.pos_y * scale });
+            }
             setEditingBlockId(block.id);
             setShowContextColorPicker(false);
             setShowContextMoreMenu(false);
@@ -295,7 +305,7 @@ export function CanvasContextToolbar(props: { ctx: ToolbarContext }) {
             </div>
           </Show>
         </div>
-      </div>
+      </div></Portal>
     );
   };
 

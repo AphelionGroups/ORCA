@@ -279,7 +279,7 @@ export const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props
           class="canvas-block-unified-editor"
           style={{ color: props.textColor || 'inherit', "caret-color": props.textColor || 'currentColor' }}
           value={text()}
-          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           onInput={(e) => {
             const val = e.currentTarget.value;
             setText(val);

@@ -243,3 +243,20 @@ label:has(.accessible-file-input:focus-visible) { outline: 3px solid var(--focus
 .calendar-zone input { max-width: 220px; }
 .calendar-workspace .modal-card { max-height: 90vh; overflow-y: auto; }
 .calendar-workspace .modal-card label > input[type=date], .calendar-workspace .modal-card label > select { width: 100%; margin-top: 4px; }
+
+/* Touch targets remain usable independently of the canvas zoom. */
+.canvas-block { user-select: none; -webkit-user-select: none; }
+.canvas-block textarea, .canvas-block input, .canvas-block [contenteditable=true] { user-select: text; -webkit-user-select: text; touch-action: auto; }
+.canvas-resize-handle, .canvas-handle { touch-action: none; }
+.board-canvas > .canvas-edit-done { position: absolute; top: 12px; right: 12px; z-index: 70; min-height: 44px; }
+@media (pointer: coarse) {
+  .canvas-resize-handle::before, .canvas-handle::before { inset: auto; left: 50%; top: 50%; width: calc(44px / var(--canvas-scale, 1)); height: calc(44px / var(--canvas-scale, 1)); transform: translate(-50%, -50%); }
+  .canvas-context-toolbar .ctx-btn, .canvas-context-toolbar .ctx-menu-item { min-height: 44px; min-width: 44px; }
+  .canvas-toolbar .tool-btn, .canvas-toolbar .tool-zoom-badge { min-height: 44px; min-width: 44px; }
+}
+@media (max-width: 767px) {
+  .canvas-toolbar { width: calc(100% - 24px); flex-wrap: wrap; justify-content: center; overflow: visible; }
+  .board-canvas:has(.canvas-edit-done) > .canvas-toolbar { display: none; }
+  .canvas-context-toolbar { left: 8px !important; right: 8px; top: 12px !important; transform: none; animation: none; flex-wrap: wrap; width: auto; }
+  .canvas-context-toolbar .ctx-dropdown-menu { max-width: calc(100vw - 32px); }
+}

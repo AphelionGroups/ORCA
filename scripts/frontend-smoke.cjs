@@ -59,6 +59,7 @@ const profile={id:'018f0000-0000-7000-8000-000000000002',workspace_id:ws,full_na
   assert.equal(graphFor(boards[0].id).blocks.length,2);
   operation=operationResponse('undo');await page.getByRole('button',{name:'Undo',exact:true}).click();await operation;assert.equal(graphFor(boards[0].id).blocks.length,1);
   operation=operationResponse('redo');await page.getByRole('button',{name:'Redo',exact:true}).click();await operation;assert.equal(graphFor(boards[0].id).blocks.length,2);
+  await require('./canvas-touch-check.cjs')(page,()=>graphFor(boards[0].id),operationResponse);
   await page.locator('.sidebar-project-item').filter({hasText:'Project B'}).click();await page.getByText('Board B',{exact:true}).waitFor();
   assert.equal(await page.getByText('Canvas note',{exact:true}).count(),0);
   await page.getByRole('tab',{name:/Docs & Plans/}).click();assert.equal(await page.getByPlaceholder('Document Title...').inputValue(),'Document B');
