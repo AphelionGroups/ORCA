@@ -1,0 +1,51 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const http = require('node:http');
+const assert = require('node:assert/strict');
+const { chromium } = require(process.env.ORCA_PLAYWRIGHT_MODULE || 'playwright');
+const { createFixture, connect } = require('./redesign-fixture.cjs');
+const dist = path.resolve('web/dist');
+const server = http.createServer((req, res) => {
+  let file = path.resolve(dist, '.' + new URL(req.url, 'http://localhost').pathname);
+  if (!file.startsWith(dist + path.sep)) file = path.join(dist, 'index.html');
+  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(dist, 'index.html');
+  res.setHeader('Content-Type', ({ '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.svg': 'image/svg+xml' })[path.extname(file)] || 'application/octet-stream');
+  res.end(fs.readFileSync(file));
+});
+(async () => {
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const browser=await chromium.launch({headless:true});
+ try{
+  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  const state=createFixture();await page.addInitScript(()=>localStorage.setItem('orca_auth_token','refresh-fixture'));await connect(page,state);
+  let failTasks=false, taskReads=0;page.on('request',req=>{if(req.method()==='GET'&&new URL(req.url()).pathname.endsWith('/tasks'))taskReads++;});
+  await page.route('**/api/v1/tasks',route=>failTasks?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Temporary task loading failure'})}):route.fallback());
+  await page.goto('http://127.0.0.1:'+server.address().port);await page.getByRole('button',{name:'Open task: Explore the visual identity',exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:/^Refresh (dashboard|events)$/}).count(),0);
+  state.tasks[0].title='Changed on another device';await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await page.getByRole('button',{name:'Open task: Changed on another device',exact:true}).waitFor();
+  failTasks=true;await page.evaluate(()=>window.dispatchEvent(new Event('online')));await page.getByRole('button',{name:'Coba lagi',exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Open task: Changed on another device',exact:true}).count(),1);
+  failTasks=false;await page.getByRole('button',{name:'Coba lagi',exact:true}).click();await page.getByRole('button',{name:'Open task: Changed on another device',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Page options',exact:true}).click();await page.getByRole('button',{name:'Refresh data',exact:true}).waitFor();await page.screenshot({path:'bin/data-refresh-menu.png',fullPage:true});await page.setViewportSize({width:390,height:900});await page.waitForTimeout(650);await page.screenshot({path:'bin/data-refresh-menu-mobile.png',fullPage:true});await page.setViewportSize({width:1440,height:1000});await page.waitForTimeout(650);await page.keyboard.press('Escape');
+  assert.equal(await page.getByRole('button',{name:'Page options',exact:true}).getAttribute('aria-expanded'),'false');
+  await page.getByRole('button',{name:'Open task: Changed on another device',exact:true}).click();
+  await page.getByPlaceholder('What needs to be done?').fill('Saved task from modal');state.projects[0].name='Updated project name';
+  await page.getByRole('button',{name:'Save Changes',exact:true}).click();await page.getByRole('button',{name:'Open task: Saved task from modal',exact:true}).waitFor();
+  await page.locator('.sidebar-project-item').filter({hasText:'Updated project name'}).waitFor();
+  await page.getByRole('button',{name:'Calendar',exact:true}).click();await page.getByRole('button',{name:'Page options',exact:true}).waitFor();
+  const beforeCalendar=taskReads;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.waitForTimeout(700);assert.ok(taskReads>beforeCalendar);
+  await page.getByRole('button',{name:'Inbox',exact:true}).click();await page.getByText('Host a coffee tasting every Friday.',{exact:true}).waitFor();
+  state.inbox[0].content='Note updated externally';await page.evaluate(()=>window.dispatchEvent(new StorageEvent('storage',{key:'orca:data-revision',newValue:'external-change'})));
+  await page.getByText('Note updated externally',{exact:true}).waitFor();
+  await page.locator('.sidebar-project-item').filter({hasText:'Updated project name'}).click();await page.getByRole('tab',{name:/Docs & Plans/}).click();
+  const editor=page.getByRole('textbox',{name:'Document content',exact:true});await editor.waitFor();
+  state.documents[0].content='# Refreshed server document';state.documents[0].updated_at=new Date(Date.now()+1000).toISOString();
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.waitForFunction(()=>document.querySelector('.cm-content')?.textContent.includes('Refreshed server document'));
+  assert.equal(await page.getByRole('tab',{name:/Docs & Plans/}).getAttribute('aria-selected'),'true');
+  state.documentSaveFailure=true;await editor.click();await page.keyboard.press('Control+End');await page.keyboard.insertText(' unsaved local draft');
+  await editor.evaluate(el=>el.blur());await page.getByText('Unable to save this document Save again to retry.',{exact:true}).waitFor();
+  state.documents[0].content='# New external content';await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.waitForTimeout(800);
+  assert.ok((await editor.innerText()).includes('unsaved local draft'));assert.ok(!(await editor.innerText()).includes('New external content'));
+  assert.deepEqual(errors,[]);console.log('Data refresh passed: focus/online/storage updates, API mutation invalidation, sidebar update, error retry with retained data, menu Escape, preserved Docs tab, clean document refresh, unsaved draft protection.');
+ }finally{await browser.close();server.close();}
+})().catch(error=>{console.error(error);server.close();process.exitCode=1});

@@ -9,6 +9,7 @@ import { LoginView } from './views/LoginView';
 import { InboxView } from './views/InboxView';
 import { ProjectsView } from './views/ProjectsView';
 import { CalendarView } from './views/CalendarView';
+import { HomeView } from './views/HomeView';
 import { api, getAuthToken } from './services/api';
 import { getCurrentUser, setCurrentUser, type UserProfile } from './services/user';
 
@@ -16,9 +17,10 @@ export const App: Component = () => {
   const [isAuthenticated, setIsAuthenticated] = createSignal<boolean>(Boolean(getAuthToken()));
   const [currentUser, setCurrentUserState] = createSignal<UserProfile>(getCurrentUser());
   const [isProfileModalOpen, setIsProfileModalOpen] = createSignal<boolean>(false);
-  const [currentRoute, setCurrentRoute] = createSignal<string>('projects');
+  const [currentRoute, setCurrentRoute] = createSignal<string>('home');
   const [activeSpaceId, setActiveSpaceId] = createSignal<string | null>(null);
   const [activeProjectId, setActiveProjectId] = createSignal<string | null>(null);
+  const [homeVersion, setHomeVersion] = createSignal(0);
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = createSignal<boolean>(false);
   const mobileQuery = window.matchMedia('(max-width: 767px)');
   const [isMobile, setIsMobile] = createSignal(mobileQuery.matches);
@@ -51,7 +53,7 @@ export const App: Component = () => {
     if (isMobile()) setIsSidebarOpen(false);
     setCurrentRoute(route);
     if (isMobile()) setIsSidebarOpen(false);
-    if (route === 'inbox' || route === 'calendar') {
+    if (route === 'home' || route === 'inbox' || route === 'calendar') {
       setActiveSpaceId(null);
       setActiveProjectId(null);
       return;
@@ -162,6 +164,7 @@ export const App: Component = () => {
         {/* Main View Area */}
         <main id="main-content" aria-label="Workspace" inert={isMobile() && isSidebarOpen()} class={`orca-main-viewport ${isSidebarOpen() ? '' : 'sidebar-collapsed'}`}>
           <Switch>
+            <Match when={currentRoute() === 'home'}><HomeView currentUser={currentUser()} refreshVersion={homeVersion()} onNavigate={handleNavigate} onOpenQuickCapture={() => setIsQuickCaptureOpen(true)} /></Match>
             <Match when={currentRoute() === 'inbox'}>
               <InboxView 
                 onNavigate={handleNavigate}
@@ -190,6 +193,7 @@ export const App: Component = () => {
           isOpen={isQuickCaptureOpen()} 
           onClose={() => setIsQuickCaptureOpen(false)}
           onItemCreated={() => {
+            setHomeVersion(value => value + 1);
             const curRoute = currentRoute();
             handleNavigate(curRoute, activeSpaceId(), activeProjectId());
           }}

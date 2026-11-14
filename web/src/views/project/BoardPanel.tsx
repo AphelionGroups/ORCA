@@ -32,28 +32,28 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
       height: '100%',
       overflow: 'auto',
       background: 'var(--surface)',
-      padding: '32px 40px',
+      padding: "var(--space-8) var(--space-10)",
       display: 'flex',
       "flex-direction": 'column',
-      gap: '24px'
+      gap: "var(--space-6)"
     }}>
       {/* Header: Title, Count, Subtitle, New Board Button */}
       <div style={{
         display: 'flex',
         "align-items": 'flex-start',
         "justify-content": 'space-between',
-        gap: '16px',
-        "padding-bottom": '20px',
+        gap: "var(--space-4)",
+        "padding-bottom": "var(--space-5)",
         "border-bottom": '1px solid var(--border-subtle)'
       }}>
         <div>
-          <div style={{ display: 'flex', "align-items": 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-3)" }}>
             <h2 style={{ "font-size": '20px', "font-weight": '600', color: 'var(--text-main)', margin: 0 }}>
               Boards
             </h2>
             <span style={{
               "font-size": '12px',
-              padding: '2px 8px',
+              padding: "var(--space-1) var(--space-2)",
               "border-radius": '4px',
               background: 'var(--surface-container-high)',
               color: 'var(--text-muted)',
@@ -62,7 +62,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
               {ctx.boards().length} board
             </span>
           </div>
-          <p style={{ "font-size": '13px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+          <p style={{ "font-size": '13px', color: 'var(--text-muted)', margin: "var(--space-1) 0 0 0" }}>
             Ruang kanvas visual untuk pemetaan ide, moodboard, dan perancangan proyek.
           </p>
         </div>
@@ -73,8 +73,8 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
         }} class="btn-primary" style={{
           display: 'flex',
           "align-items": 'center',
-          gap: '6px',
-          padding: '8px 16px',
+          gap: "var(--space-2)",
+          padding: "var(--space-2) var(--space-4)",
           "font-size": '13px',
           "border-radius": '8px',
           cursor: 'pointer'
@@ -89,8 +89,8 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
         <div style={{
           display: 'flex',
           "align-items": 'center',
-          gap: '12px',
-          padding: '14px 20px',
+          gap: "var(--space-3)",
+          padding: "var(--space-4) var(--space-5)",
           "border-radius": '4px',
           background: 'var(--surface-container-low)',
           border: '1px solid var(--primary)',
@@ -113,14 +113,14 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
             border: '1px solid var(--border-default)',
             color: 'var(--text-main)',
             "font-size": '13px',
-            padding: '6px 12px',
+            padding: "var(--space-2) var(--space-3)",
             "border-radius": '6px',
             outline: 'none'
           }} />
-          <button type="button" onClick={() => ctx.handleCreateBoard()} class="btn-primary" style={{ padding: '6px 14px', "font-size": '12px', "border-radius": '6px' }}>
+          <button type="button" onClick={() => ctx.handleCreateBoard()} class="btn-primary" style={{ padding: "var(--space-2) var(--space-4)", "font-size": '12px', "border-radius": '6px' }}>
             Buat & Buka Kanvas
           </button>
-          <button type="button" onClick={() => ctx.setIsCreatingBoard(false)} class="btn-secondary" style={{ padding: '6px 12px', "font-size": '12px', "border-radius": '6px' }}>
+          <button type="button" onClick={() => ctx.setIsCreatingBoard(false)} class="btn-secondary" style={{ padding: "var(--space-2) var(--space-3)", "font-size": '12px', "border-radius": '6px' }}>
             Batal
           </button>
         </div>
@@ -130,7 +130,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
       <div class="board-gallery-grid" style={{
         display: 'grid',
         "grid-template-columns": 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: '22px'
+        gap: "var(--space-6)"
       }}>
         <For each={ctx.boards()}>
           {(b) => {
@@ -160,16 +160,16 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
 
               {/* CARD DETAILS / FOOTER */}
               <div style={{
-                padding: '12px 14px',
+                padding: "var(--space-3) var(--space-4)",
                 display: 'flex',
                 "flex-direction": 'column',
-                gap: '6px'
+                gap: "var(--space-2)"
               }}>
                 <div style={{
                   display: 'flex',
                   "align-items": 'center',
                   "justify-content": 'space-between',
-                  gap: '8px'
+                  gap: "var(--space-2)"
                 }}>
                   <Show when={isRenaming()} fallback={<button type="button" class="board-title-button" style={{
                     "font-size": '14px',
@@ -200,14 +200,14 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                       border: '1px solid var(--primary)',
                       color: 'var(--text-main)',
                       "font-size": '13px',
-                      padding: '2px 6px',
+                      padding: "var(--space-1) var(--space-2)",
                       "border-radius": '4px',
                       outline: 'none'
                     }} />
                   </Show>
 
                   {/* Quick actions: Rename & Delete */}
-                  <div style={{ display: 'flex', "align-items": 'center', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-1)" }} onClick={(e) => e.stopPropagation()}>
                     <button type="button" onClick={(e) => {
                       e.stopPropagation();
                       setRenameVal(b.title);
@@ -217,7 +217,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                       border: 'none',
                       color: 'var(--text-dim)',
                       cursor: 'pointer',
-                      padding: '4px',
+                      padding: "var(--space-1)",
                       "border-radius": '4px',
                       display: 'flex',
                       "align-items": 'center',
@@ -236,7 +236,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                         border: 'none',
                         color: 'var(--text-dim)',
                         cursor: 'pointer',
-                        padding: '4px',
+                        padding: "var(--space-1)",
                         "border-radius": '4px',
                         display: 'flex',
                         "align-items": 'center',
@@ -273,14 +273,14 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           "flex-direction": 'column',
           "align-items": 'center',
           "justify-content": 'center',
-          gap: '10px',
+          gap: "var(--space-3)",
           "min-height": '220px',
           border: '1.5px dashed var(--border-default)',
           "border-radius": '4px',
           background: 'transparent',
           cursor: 'pointer',
           transition: 'all 0.18s ease',
-          padding: '20px'
+          padding: "var(--space-5)"
         }}>
           <div style={{
             width: '42px',
@@ -298,7 +298,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
             <div style={{ "font-size": '14px', "font-weight": 600, color: 'var(--text-main)' }}>
               Board Baru
             </div>
-            <div style={{ "font-size": '12px', color: 'var(--text-muted)', "margin-top": '2px' }}>
+            <div style={{ "font-size": '12px', color: 'var(--text-muted)', "margin-top": "var(--space-1)" }}>
               Mulai dari kanvas kosong
             </div>
           </div>
@@ -339,8 +339,8 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           "z-index": 20,
           display: 'flex',
           "align-items": 'center',
-          gap: '8px',
-          padding: '6px 12px',
+          gap: "var(--space-2)",
+          padding: "var(--space-2) var(--space-3)",
           "border-radius": '8px',
           "background-color": 'var(--surface-container-low)',
           border: '1px solid var(--border-default)',
@@ -354,10 +354,10 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
             cursor: 'pointer',
             display: 'flex',
             "align-items": 'center',
-            gap: '6px',
+            gap: "var(--space-2)",
             "font-size": '12px',
             "font-weight": 500,
-            padding: '4px 8px',
+            padding: "var(--space-1) var(--space-2)",
             "border-radius": '6px',
             transition: 'all 0.12s ease'
           }} onMouseEnter={(e) => {
@@ -378,7 +378,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
             "font-size": '13px',
             "font-weight": 600,
             color: 'var(--text-main)',
-            padding: '2px 4px'
+            padding: "var(--space-1) var(--space-1)"
           }}>
             {ctx.currentBoard()?.title || 'Board'}
           </span>
@@ -388,7 +388,7 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
             "font-size": '12px',
             color: 'var(--text-dim)',
             "font-family": 'var(--font-mono)',
-            padding: '2px 6px',
+            padding: "var(--space-1) var(--space-2)",
             "border-radius": '4px',
             background: 'var(--surface-container-high)'
           }}>
@@ -869,14 +869,14 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
           <div class="tool-divider"></div>
 
           {/* Zoom Controls */}
-          <div style={{ display: 'flex', "align-items": 'center', gap: '2px', "font-size": '11px', "font-family": 'var(--font-mono)' }}>
+          <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-1)", "font-size": '11px', "font-family": 'var(--font-mono)' }}>
             <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => ctx.setZoom(z => Math.max(20, z - 10))} class="tool-btn" style={{ width: '26px', height: '26px' }}>
               -
               <span class="tool-tooltip">
                 Zoom Out <span class="tool-tooltip-kbd">-</span>
               </span>
             </button>
-            <button type="button" class="tool-zoom-badge" aria-label="Reset canvas zoom" onClick={() => { ctx.setZoom(100); ctx.setPan({ x: 0, y: 0 }); }} style={{ padding: '0 6px', color: 'var(--text-muted)', cursor: 'pointer', "user-select": 'none' }}>
+            <button type="button" class="tool-zoom-badge" aria-label="Reset canvas zoom" onClick={() => { ctx.setZoom(100); ctx.setPan({ x: 0, y: 0 }); }} style={{ padding: "0 var(--space-2)", color: 'var(--text-muted)', cursor: 'pointer', "user-select": 'none' }}>
               {Math.round(ctx.zoom())}%
               <span class="tool-tooltip">
                 Reset View <span class="tool-tooltip-kbd">100%</span>

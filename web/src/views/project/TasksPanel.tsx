@@ -13,9 +13,9 @@ import { api } from '../../services/api';
 import type { ProjectController } from './useProjectController';
 export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
   const ctx = props.ctx; return (<Show when={ctx.activeTab() === 'tasks'}>
-    <div class="task-workspace context-panel" role="tabpanel" id="project-tasks-panel" aria-labelledby="project-tasks-tab" style={{ height: '100%', "overflow-y": 'auto', padding: '24px 32px', "background-color": 'var(--surface)' }}>
+    <div class="task-workspace context-panel" role="tabpanel" id="project-tasks-panel" aria-labelledby="project-tasks-tab" style={{ height: '100%', "overflow-y": 'auto', padding: "var(--space-6) var(--space-8)", "background-color": 'var(--surface)' }}>
       {/* Task View Mode Switcher & Actions Header */}
-      <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '20px' }}>
+      <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": "var(--space-5)" }}>
         <div class="segmented-control">
           <button type="button" onClick={() => ctx.setTaskViewMode('kanban')} class={`seg-btn ${ctx.taskViewMode() === 'kanban' ? 'active' : ''}`}>
             <Kanban size={13} />
@@ -27,8 +27,8 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
           </button>
         </div>
 
-        <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-          <button type="button" class="btn-primary" onClick={() => ctx.handleOpenNewTaskModal('todo')} style={{ padding: '7px 16px', "font-size": '13px', display: 'flex', "align-items": 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
+          <button type="button" class="btn-primary" onClick={() => ctx.handleOpenNewTaskModal('todo')} style={{ padding: "var(--space-2) var(--space-4)", "font-size": '13px', display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
             <Plus size={14} />
             <span>New Task</span>
           </button>
@@ -37,7 +37,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
 
       {/* View 1: KANBAN BOARD */}
       <Show when={ctx.taskViewMode() === 'kanban'}>
-        <div class="task-kanban" style={{ display: 'grid', "grid-template-columns": 'repeat(4, minmax(260px, 1fr))', gap: '16px', "align-items": 'flex-start' }}>
+        <div class="task-kanban" style={{ display: 'grid', "grid-template-columns": 'repeat(4, minmax(260px, 1fr))', gap: "var(--space-4)", "align-items": 'flex-start' }}>
           {[
             { key: 'todo' as const, title: 'Backlog', color: 'var(--outline-variant)' },
             { key: 'in_progress' as const, title: 'In Progress', color: 'var(--primary)' },
@@ -47,24 +47,24 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
             const colTasks = () => ctx.tasks().filter(t => t.status === col.key);
             const isDragOver = () => ctx.dragOverCol() === col.key;
             return (<div onDragOver={(e) => ctx.handleColDragOver(e, col.key)} onDragLeave={() => ctx.handleColDragLeave(col.key)} onDrop={(e) => ctx.handleColDrop(e, col.key)} style={{
-              padding: '14px',
+              padding: "var(--space-4)",
               "border-radius": '8px',
               "background-color": isDragOver() ? 'var(--surface-container-high)' : 'var(--surface-container-low)',
               border: isDragOver() ? '1.5px dashed var(--primary)' : '1px solid var(--border-default)',
               display: 'flex',
               "flex-direction": 'column',
-              gap: '12px',
+              gap: "var(--space-3)",
               "min-height": '400px',
               transition: 'background-color 0.15s ease, border-color 0.15s ease'
             }}>
               {/* Column Header */}
               <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-                <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
                   <span style={{ width: '9px', height: '9px', "border-radius": '50%', "background-color": col.color }}></span>
                   <span style={{ "font-size": '13px', "font-weight": 600, color: 'var(--text-main)' }}>{col.title}</span>
                 </div>
-                <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-                  <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: '1px 6px', "border-radius": '4px', "background-color": 'var(--surface-container-high)' }}>
+                <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
+                  <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', padding: "var(--space-1) var(--space-2)", "border-radius": '4px', "background-color": 'var(--surface-container-high)' }}>
                     {colTasks().length}
                   </span>
                   <button onClick={() => ctx.handleOpenNewTaskModal(col.key)} title={`Add task in ${col.title}`} style={{
@@ -74,7 +74,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                     cursor: 'pointer',
                     display: 'flex',
                     "align-items": 'center',
-                    padding: '3px',
+                    padding: "var(--space-1)",
                     "border-radius": '4px'
                   }}>
                     <Plus size={14} />
@@ -83,26 +83,26 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
               </div>
 
               {/* Task Cards in Column */}
-              <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px', flex: 1 }}>
+              <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-2)", flex: 1 }}>
                 <For each={colTasks()}>
                   {(t) => (<div class="task-card" role="button" tabindex="0" onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); ctx.handleOpenEditTaskModal(t); } }} draggable={true} onDragStart={(e) => ctx.handleTaskDragStart(e, t.id)} onDragEnd={ctx.handleTaskDragEnd} onClick={() => ctx.handleOpenEditTaskModal(t)} title="Drag to move column, or click to edit" style={{
-                    padding: '12px 14px',
+                    padding: "var(--space-3) var(--space-4)",
                     "border-radius": '7px',
                     "background-color": 'var(--surface-container)',
                     border: '1px solid var(--border-default)',
                     display: 'flex',
                     "flex-direction": 'column',
-                    gap: '8px',
+                    gap: "var(--space-2)",
                     cursor: 'grab',
                     opacity: ctx.draggedTaskId() === t.id ? 0.45 : 1,
                     transition: 'box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease'
                   }}>
-                    <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', gap: '8px' }}>
+                    <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', gap: "var(--space-2)" }}>
                       <span style={{
                         "font-size": '12px',
                         "font-family": 'var(--font-mono)',
                         "text-transform": 'uppercase',
-                        padding: '2px 6px',
+                        padding: "var(--space-1) var(--space-2)",
                         "border-radius": '3px',
                         background: t.priority === 'urgent' ? 'rgba(239, 68, 68, 0.18)' : 'var(--surface-container-high)',
                         color: t.priority === 'urgent' ? 'var(--status-error)' : 'var(--text-muted)'
@@ -128,13 +128,13 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
 
       {/* View 2: LIST VIEW */}
       <Show when={ctx.taskViewMode() === 'list'}>
-        <div style={{ "max-width": '900px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '14px' }}>
+        <div style={{ "max-width": '900px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: "var(--space-4)" }}>
           {/* Add Task Button */}
           <button type="button" class="btn-secondary" onClick={() => ctx.handleOpenNewTaskModal('todo')} style={{
             display: 'flex',
             "align-items": 'center',
-            gap: '8px',
-            padding: '10px 16px',
+            gap: "var(--space-2)",
+            padding: "var(--space-3) var(--space-4)",
             "font-size": '13px',
             "border-radius": '8px',
             width: '100%',
@@ -146,8 +146,8 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
           </button>
 
           {/* Task List Items */}
-          <div style={{ display: 'flex', "flex-direction": 'column', gap: '6px' }}>
-            <Show when={ctx.tasks().length > 0} fallback={<div style={{ padding: '36px', "text-align": 'center', color: 'var(--text-dim)', "font-size": '13px', "border-radius": '8px', border: '1px dashed var(--border-default)' }}>
+          <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-2)" }}>
+            <Show when={ctx.tasks().length > 0} fallback={<div style={{ padding: "var(--space-9)", "text-align": 'center', color: 'var(--text-dim)', "font-size": '13px', "border-radius": '8px', border: '1px dashed var(--border-default)' }}>
               No tasks in this project yet. Click Add New Task to create one.
             </div>}>
               <For each={ctx.tasks()}>
@@ -157,14 +157,14 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                     display: 'flex',
                     "align-items": 'center',
                     "justify-content": 'space-between',
-                    padding: '12px 16px',
+                    padding: "var(--space-3) var(--space-4)",
                     "border-radius": '8px',
                     "background-color": 'var(--surface-container)',
                     border: '1px solid var(--border-default)',
-                    gap: '12px',
+                    gap: "var(--space-3)",
                     transition: 'background-color 0.12s ease'
                   }}>
-                    <div style={{ display: 'flex', "align-items": 'center', gap: '12px', flex: 1, "min-width": 0 }}>
+                    <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-3)", flex: 1, "min-width": 0 }}>
                       <button type="button" onClick={async (e) => {
                         e.stopPropagation();
                         const nextStatus = t.status === 'done' ? 'todo' : 'done';
@@ -188,7 +188,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                         </Show>
                       </button>
 
-                      <div onClick={() => ctx.handleOpenEditTaskModal(t)} style={{ display: 'flex', "flex-direction": 'column', gap: '2px', flex: 1, "min-width": 0, cursor: 'pointer' }}>
+                      <div onClick={() => ctx.handleOpenEditTaskModal(t)} style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-1)", flex: 1, "min-width": 0, cursor: 'pointer' }}>
                         <span style={{
                           "font-size": '13px',
                           "font-weight": 500,
@@ -206,12 +206,12 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', "align-items": 'center', gap: '10px', "flex-shrink": 0 }}>
+                    <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-3)", "flex-shrink": 0 }}>
                       <span style={{
                         "font-size": '12px',
                         "font-family": 'var(--font-mono)',
                         "text-transform": 'uppercase',
-                        padding: '2px 7px',
+                        padding: "var(--space-1) var(--space-2)",
                         "border-radius": '4px',
                         background: t.priority === 'urgent' ? 'rgba(244, 63, 94, 0.15)' : 'var(--surface-container-high)',
                         color: t.priority === 'urgent' ? '#f43f5e' : 'var(--text-muted)'
@@ -220,7 +220,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                       </span>
 
                       <span style={{
-                        padding: '3px 8px',
+                        padding: "var(--space-1) var(--space-2)",
                         "font-size": '12px',
                         "border-radius": '4px',
                         background: 'var(--surface-container-high)',
@@ -230,7 +230,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                         {t.status.replace('_', ' ')}
                       </span>
 
-                      <button type="button" onClick={() => ctx.handleOpenEditTaskModal(t)} class="btn-secondary" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }} title="Edit Task">
+                      <button type="button" onClick={() => ctx.handleOpenEditTaskModal(t)} class="btn-secondary" style={{ padding: "var(--space-1) var(--space-2)", "font-size": '12px', display: 'flex', "align-items": 'center', gap: "var(--space-1)" }} title="Edit Task">
                         <Edit3 size={12} />
                         <span>Edit</span>
                       </button>
@@ -246,7 +246,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                             console.error('Failed to delete task:', err);
                           }
                         }
-                      }} class="btn-ghost-danger" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center' }} title="Delete Task">
+                      }} class="btn-ghost-danger" style={{ padding: "var(--space-1) var(--space-2)", "font-size": '12px', display: 'flex', "align-items": 'center' }} title="Delete Task">
                         <Trash2 size={13} />
                       </button>
                     </div>

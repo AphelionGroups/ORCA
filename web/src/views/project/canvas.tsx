@@ -218,7 +218,7 @@ export const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props
 
   if (props.block.type === 'image') {
     return (
-      <div class="canvas-block-content" style={{ padding: '6px' }}>
+      <div class="canvas-block-content" style={{ padding: "var(--space-2)" }}>
         <img
           src={props.block.content?.url}
           alt={props.block.content?.caption || 'Canvas Image'}
@@ -226,7 +226,7 @@ export const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props
           draggable={false}
         />
         <Show when={props.block.content?.caption}>
-          <div style={{ "font-size": '12px', color: props.textColor || 'var(--text-dim)', padding: '6px 2px 2px 2px', "text-align": 'center' }}>
+          <div style={{ "font-size": '12px', color: props.textColor || 'var(--text-dim)', padding: "var(--space-2) var(--space-1) var(--space-1) var(--space-1)", "text-align": 'center' }}>
             {props.block.content?.caption}
           </div>
         </Show>

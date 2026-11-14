@@ -13,33 +13,33 @@ import type { ProjectController } from './useProjectController';
 export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => {
   const ctx = props.ctx; return (<Show when={ctx.activeTab() === 'docs'}>
     <div class="documents-layout context-panel" role="tabpanel" id="project-docs-panel" aria-labelledby="project-docs-tab" style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      <aside class="document-sidebar" style={{ width: '280px', "background-color": 'var(--surface-container-low)', "border-right": '1px solid var(--border-default)', padding: '16px', display: 'flex', "flex-direction": 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": '6px' }}>
+      <aside class="document-sidebar" style={{ width: '280px', "background-color": 'var(--surface-container-low)', "border-right": '1px solid var(--border-default)', padding: "var(--space-4)", display: 'flex', "flex-direction": 'column', gap: "var(--space-2)" }}>
+        <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": "var(--space-2)" }}>
           <span style={{ "font-size": '12px', "font-weight": 600, color: 'var(--text-main)' }}>
             Documents ({ctx.docs().length})
           </span>
-          <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
-            <label class="btn-secondary" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px', cursor: 'pointer' }} title="Import markdown/text file">
+          <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
+            <label class="btn-secondary" style={{ padding: "var(--space-1) var(--space-2)", "font-size": '12px', display: 'flex', "align-items": 'center', gap: "var(--space-1)", cursor: 'pointer' }} title="Import markdown/text file">
               <Upload size={12} />
               <span>Import</span>
               <input type="file" accept=".md,.txt,.markdown" class="accessible-file-input" aria-label="Import document" onChange={ctx.handleImportDoc} />
             </label>
 
-            <button onClick={ctx.handleCreateNewDoc} title="Add new document" class="btn-primary" style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }}>
+            <button onClick={ctx.handleCreateNewDoc} title="Add new document" class="btn-primary" style={{ padding: "var(--space-1) var(--space-2)", "font-size": '12px', display: 'flex', "align-items": 'center', gap: "var(--space-1)" }}>
               <Plus size={12} />
               <span>New</span>
             </button>
           </div>
         </div>
 
-        <Show when={!ctx.loadingSubData()} fallback={<div style={{ "font-size": '12px', color: 'var(--text-dim)', padding: '12px 0' }}>Loading documents...</div>}>
-          <Show when={ctx.docs().length > 0} fallback={<div style={{ "font-size": '12px', color: 'var(--text-dim)', padding: '16px 0', "text-align": 'center' }}>
+        <Show when={!ctx.loadingSubData()} fallback={<div style={{ "font-size": '12px', color: 'var(--text-dim)', padding: "var(--space-3) 0" }}>Loading documents...</div>}>
+          <Show when={ctx.docs().length > 0} fallback={<div style={{ "font-size": '12px', color: 'var(--text-dim)', padding: "var(--space-4) 0", "text-align": 'center' }}>
             No documents created yet. Click New or Import to start.
           </div>}>
-            <div style={{ display: 'flex', "flex-direction": 'column', gap: '3px', "overflow-y": 'auto' }}>
+            <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-1)", "overflow-y": 'auto' }}>
               <For each={ctx.docs()}>
                 {(doc) => (<div onClick={() => ctx.setSelectedDocId(doc.id)} style={{
-                  padding: '8px 10px',
+                  padding: "var(--space-2) var(--space-3)",
                   "border-radius": '6px',
                   "background-color": ctx.selectedDocId() === doc.id ? 'var(--surface-container-high)' : 'transparent',
                   border: ctx.selectedDocId() === doc.id ? '1px solid var(--border-default)' : '1px solid transparent',
@@ -49,10 +49,10 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
                   display: 'flex',
                   "align-items": 'center',
                   "justify-content": 'space-between',
-                  gap: '8px',
+                  gap: "var(--space-2)",
                   transition: 'background-color 0.12s ease'
                 }}>
-                  <button type="button" class="document-list-button" aria-pressed={ctx.selectedDocId() === doc.id} style={{ display: 'flex', "align-items": 'center', gap: '8px', overflow: 'hidden' }}>
+                  <button type="button" class="document-list-button" aria-pressed={ctx.selectedDocId() === doc.id} style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)", overflow: 'hidden' }}>
                     <FileText size={14} color={ctx.selectedDocId() === doc.id ? 'var(--primary)' : 'var(--text-dim)'} />
                     <span style={{ overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap' }}>{doc.title || 'Untitled'}</span>
                   </button>
@@ -64,7 +64,7 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
                     border: 'none',
                     color: 'var(--text-dim)',
                     cursor: 'pointer',
-                    padding: '2px',
+                    padding: "var(--space-1)",
                     display: 'flex',
                     "align-items": 'center'
                   }}>
@@ -77,13 +77,13 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
         </Show>
       </aside>
 
-      <main class="document-editor" style={{ flex: 1, "overflow-y": 'auto', padding: '32px 48px', "background-color": 'var(--surface)' }}>
-        <Show when={ctx.currentDoc()} fallback={<div style={{ color: 'var(--text-dim)', padding: '60px 0', "text-align": 'center' }}>
+      <main class="document-editor" style={{ flex: 1, "overflow-y": 'auto', padding: "var(--space-8) var(--space-12)", "background-color": 'var(--surface)' }}>
+        <Show when={ctx.currentDoc()} fallback={<div style={{ color: 'var(--text-dim)', padding: "var(--space-15) 0", "text-align": 'center' }}>
           Select or create a document to view contents.
         </div>}>
-          <div style={{ "max-width": '840px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '20px' }}>
+          <div style={{ "max-width": '840px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: "var(--space-5)" }}>
             {/* Document Header & Action Bar */}
-            <div class="document-toolbar" style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', gap: '16px', "padding-bottom": '12px', "border-bottom": '1px solid var(--border-default)' }}>
+            <div class="document-toolbar" style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', gap: "var(--space-4)", "padding-bottom": "var(--space-3)", "border-bottom": '1px solid var(--border-default)' }}>
               <input type="text" value={ctx.editingDocTitle()} onInput={e => ctx.setEditingDocTitle(e.currentTarget.value)} onBlur={ctx.handleSaveDoc} aria-label="Document title" placeholder="Document Title..." style={{
                 flex: 1,
                 "font-size": '24px',
@@ -93,24 +93,24 @@ export const DocumentsPanel: Component<{ ctx: ProjectController }> = (props) => 
                 background: 'transparent',
                 outline: 'none',
                 "letter-spacing": '-0.02em',
-                padding: '4px 0'
+                padding: "var(--space-1) 0"
               }} />
 
-              <div class="document-actions" style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+              <div class="document-actions" style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
                 {/* Export / Download */}
-                <button type="button" class="btn-secondary" onClick={ctx.handleDownloadDoc} style={{ display: 'flex', "align-items": 'center', gap: '5px', padding: '6px 12px', "font-size": '12px' }} title="Download document as Markdown (.md)">
+                <button type="button" class="btn-secondary" onClick={ctx.handleDownloadDoc} style={{ display: 'flex', "align-items": 'center', gap: "var(--space-1)", padding: "var(--space-2) var(--space-3)", "font-size": '12px' }} title="Download document as Markdown (.md)">
                   <Download size={13} />
                   <span>Export .md</span>
                 </button>
 
                 {/* Delete */}
-                <button type="button" class="btn-ghost-danger" onClick={() => ctx.handleDeleteDoc()} style={{ padding: '6px 10px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }} title="Delete current document">
+                <button type="button" class="btn-ghost-danger" onClick={() => ctx.handleDeleteDoc()} style={{ padding: "var(--space-2) var(--space-3)", "font-size": '12px', display: 'flex', "align-items": 'center', gap: "var(--space-1)" }} title="Delete current document">
                   <Trash2 size={13} />
                   <span>Delete</span>
                 </button>
 
                 {/* Save */}
-                <button type="button" class="btn-primary" onClick={ctx.handleSaveDoc} disabled={ctx.isSavingDoc()} style={{ display: 'flex', "align-items": 'center', gap: '5px', padding: '6px 16px', "font-size": '12px' }}>
+                <button type="button" class="btn-primary" onClick={ctx.handleSaveDoc} disabled={ctx.isSavingDoc()} style={{ display: 'flex', "align-items": 'center', gap: "var(--space-1)", padding: "var(--space-2) var(--space-4)", "font-size": '12px' }}>
                   <Save size={13} />
                   <span>{ctx.isSavingDoc() ? 'Saving...' : 'Save'}</span>
                 </button>

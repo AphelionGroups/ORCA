@@ -4,6 +4,7 @@ export type CalendarMode = 'Month' | 'Week' | 'Day' | 'Timeline';
 export interface CalendarItem {
   id: string; title: string; spaceId?: string; start: Date; end: Date;
   allDay: boolean; kind: 'Event' | 'Task'; status?: string;
+  sourceId: string; category: 'event' | 'session' | 'planned' | 'deadline';
 }
 export const dayStart = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 export const addDays = (date: Date, days: number) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
@@ -30,15 +31,17 @@ export function taskDate(task: Task): Date | undefined {
   return dateKey(date) === match[0] ? date : undefined;
 }
 export function calendarItems(events: CalendarEvent[], tasks: Task[]): CalendarItem[] {
-  const linked = new Set(events.map(event => event.linked_task_id).filter(Boolean));
   const items: CalendarItem[] = events.flatMap(event => {
     const start = new Date(event.start_at), end = new Date(event.end_at);
-    return Number.isFinite(start.getTime()) && end > start ? [{ id: `event:${event.id}`, title: event.title, spaceId: event.space_id, start, end, allDay: event.is_all_day, kind: 'Event' as const }] : [];
+    return Number.isFinite(start.getTime()) && end > start ? [{ id: `event:${event.id}`, sourceId: event.id, category: event.linked_task_id ? 'session' as const : 'event' as const, title: event.title, spaceId: event.space_id, start, end, allDay: event.is_all_day, kind: 'Event' as const }] : [];
   });
   for (const task of tasks) {
-    const start = taskDate(task);
-    if (!start || task.status === 'cancelled' || linked.has(task.id)) continue;
-    items.push({ id: `task:${task.id}`, title: task.title, spaceId: task.space_id, start, end: addDays(start, 1), allDay: true, kind: 'Task', status: task.status });
+    if (task.status === 'cancelled') continue;
+    for (const category of ['planned', 'deadline'] as const) {
+      const value = category === 'planned' ? task.planned_date : task.due_date;
+      const start = value ? taskDate({ ...task, planned_date: value, due_date: undefined }) : undefined;
+      if (start) items.push({ id: `task:${task.id}:${category}`, sourceId: task.id, category, title: task.title, spaceId: task.space_id, start, end: addDays(start, 1), allDay: true, kind: 'Task', status: task.status });
+    }
   }
   return items.sort((a, b) => a.start.getTime() - b.start.getTime() || a.title.localeCompare(b.title));
 }

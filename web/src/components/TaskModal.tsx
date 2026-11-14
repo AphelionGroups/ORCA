@@ -126,7 +126,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
         <div ref={el => focusScope(el, props.onClose)} class="modal-card" style={{ "max-width": '540px' }}>
           {/* Header */}
           <div class="modal-header">
-            <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
               <CheckSquare size={18} color="var(--primary)" />
               <h3 class="modal-title">
                 {props.taskToEdit ? 'Edit Task' : 'New Task'}
@@ -151,18 +151,18 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
           {/* Delete confirmation */}
           <Show when={confirmDelete()}>
             <div style={{
-              padding: '16px',
+              padding: "var(--space-4)",
               "border-radius": '8px',
               "background-color": 'var(--error-surface)',
               border: '1px solid var(--error-surface)',
               display: 'flex',
               "flex-direction": 'column',
-              gap: '12px'
+              gap: "var(--space-3)"
             }}>
               <p style={{ margin: 0, "font-size": '13px', color: 'var(--text-main)', "line-height": 1.5 }}>
                 Are you sure you want to delete task <strong>"{title()}"</strong>? This action cannot be undone.
               </p>
-              <div style={{ display: 'flex', "justify-content": 'flex-end', gap: '8px' }}>
+              <div style={{ display: 'flex', "justify-content": 'flex-end', gap: "var(--space-2)" }}>
                 <button
                   type="button"
                   class="btn-secondary"
@@ -185,7 +185,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
           </Show>
 
           <Show when={!confirmDelete()}>
-            <form onSubmit={handleSave} style={{ display: 'flex', "flex-direction": 'column', gap: '16px' }}>
+            <form onSubmit={handleSave} style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-4)" }}>
               {/* Title input */}
               <div>
                 <label class="modal-form-label">Task Title</label>
@@ -196,19 +196,19 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
                   onInput={e => setTitle(e.currentTarget.value)}
                   placeholder="What needs to be done?"
                   class="modal-form-input"
-                  style={{ "font-size": '14px', padding: '10px 12px' }}
+                  style={{ "font-size": '14px', padding: "var(--space-3) var(--space-3)" }}
                 />
               </div>
 
               {/* Status and Priority Row */}
-              <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: '14px' }}>
+              <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: "var(--space-4)" }}>
                 <div>
                   <label class="modal-form-label">Status</label>
                   <select
                     value={status()}
                     onChange={e => setStatus(e.currentTarget.value as Task['status'])}
                     class="modal-form-input"
-                    style={{ padding: '8px 10px', "font-size": '13px' }}
+                    style={{ padding: "var(--space-2) var(--space-3)", "font-size": '13px' }}
                   >
                     <For each={STATUS_OPTIONS}>
                       {(opt) => (
@@ -224,7 +224,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
                     value={priority()}
                     onChange={e => setPriority(e.currentTarget.value as Task['priority'])}
                     class="modal-form-input"
-                    style={{ padding: '8px 10px', "font-size": '13px' }}
+                    style={{ padding: "var(--space-2) var(--space-3)", "font-size": '13px' }}
                   >
                     <For each={PRIORITY_OPTIONS}>
                       {(opt) => (
@@ -243,7 +243,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
                   value={dueDate()} 
                   onInput={e => setDueDate(e.currentTarget.value)}
                   class="modal-form-input"
-                  style={{ padding: '8px 10px', "font-size": '13px' }}
+                  style={{ padding: "var(--space-2) var(--space-3)", "font-size": '13px' }}
                 />
               </div>
 
@@ -261,7 +261,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
               </div>
 
               {/* Footer Actions */}
-              <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-top": '8px', "padding-top": '14px', "border-top": '1px solid var(--border-default)' }}>
+              <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-top": "var(--space-2)", "padding-top": "var(--space-4)", "border-top": '1px solid var(--border-default)' }}>
                 <div>
                   <Show when={props.taskToEdit}>
                     <button
@@ -276,7 +276,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
                   </Show>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: "var(--space-2)" }}>
                   <button 
                     type="button" 
                     onClick={props.onClose} 

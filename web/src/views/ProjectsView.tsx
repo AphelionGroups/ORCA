@@ -4,9 +4,9 @@ import {
   FileText,
   FolderKanban,
   LayoutGrid,
-  Plus,
-  RotateCcw
+  Plus
 } from 'lucide-solid';
+import { PageOptions } from '../components/PageOptions';
 import type { Component } from 'solid-js';
 import { For, Show } from 'solid-js';
 import { handleTabKey } from '../components/tabs';
@@ -71,17 +71,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
       {/* Right Header Actions */}
       <div class="header-actions">
-        <button onClick={ctx.loadProjects} title="Refresh" style={{
-          background: 'none',
-          border: 'none',
-          color: 'var(--text-dim)',
-          cursor: 'pointer',
-          display: 'flex',
-          "align-items": 'center',
-          padding: '6px'
-        }}>
-          <RotateCcw size={14} />
-        </button>
+<PageOptions onRefresh={ctx.refreshData} busy={ctx.loadingProjects() || ctx.loadingSubData()} />
         <button onClick={props.onOpenQuickCapture} class="btn-pill-white">
           <Plus size={14} />
           <span>New Item</span>
@@ -95,6 +85,7 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
         <button class="btn-secondary" onClick={() => ctx.setOperationError('')}>Dismiss</button>
       </div>
     </Show>
+    <Show when={ctx.loadError()}><div role="alert" class="operation-error">{ctx.loadError()}<button class="btn-secondary" onClick={() => void ctx.refreshData()}>Coba lagi</button></div></Show>
     {/* Main Container */}
     <Show when={!ctx.selectedProjectId()} fallback={<div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
 
@@ -120,34 +111,34 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
       {/* =========================================================
        PROJECT DIRECTORY VIEW (When no project is opened)
        ========================================================= */}
-      <main class="project-overview context-panel" style={{ flex: 1, "overflow-y": 'auto', padding: '32px', "background-color": 'var(--surface)' }}>
-        <div style={{ "max-width": '1100px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '24px' }}>
+      <main class="project-overview context-panel" style={{ flex: 1, "overflow-y": 'auto', padding: "var(--space-8)", "background-color": 'var(--surface)' }}>
+        <div style={{ "max-width": '1100px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: "var(--space-6)" }}>
           <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
             <div>
               <h1 style={{ "font-size": '22px', "font-weight": 600, color: 'var(--text-main)', margin: 0 }}>
                 {props.activeSpaceId ? `Projects — ${ctx.getSpaceName(props.activeSpaceId)}` : 'All Projects'}
               </h1>
-              <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+              <p style={{ "font-size": '12px', color: 'var(--text-muted)', margin: "var(--space-1) 0 0 0" }}>
                 Satukan dokumen, ide, dan pekerjaan dalam satu project.
               </p>
             </div>
-            <button type="button" class="btn-primary" onClick={() => ctx.setIsNewProjectModalOpen(true)} style={{ display: 'flex', "align-items": 'center', gap: '6px', padding: '8px 16px', "font-size": '13px' }}>
+            <button type="button" class="btn-primary" onClick={() => ctx.setIsNewProjectModalOpen(true)} style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)", padding: "var(--space-2) var(--space-4)", "font-size": '13px' }}>
               <Plus size={15} />
               <span>New Project</span>
             </button>
           </div>
 
-          <div class="project-grid" style={{ display: 'grid', "grid-template-columns": 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-            <Show when={!ctx.loadingProjects()} fallback={<div style={{ "grid-column": '1 / -1', color: 'var(--text-dim)', padding: '36px 0', "text-align": 'center', "font-size": '13px' }}>
+          <div class="project-grid" style={{ display: 'grid', "grid-template-columns": 'repeat(auto-fill, minmax(320px, 1fr))', gap: "var(--space-5)" }}>
+            <Show when={!ctx.loadingProjects()} fallback={<div style={{ "grid-column": '1 / -1', color: 'var(--text-dim)', padding: "var(--space-9) 0", "text-align": 'center', "font-size": '13px' }}>
               Memuat projects...
             </div>}>
-              <Show when={ctx.projects().length > 0} fallback={<div style={{ "grid-column": '1 / -1', padding: '48px 24px', "text-align": 'center', border: '1px dashed var(--border-default)', "border-radius": '8px', color: 'var(--text-muted)' }}>
-                <p style={{ "font-size": '14px', margin: '0 0 8px 0', "font-weight": 500, color: 'var(--text-main)' }}>Belum ada project di space ini</p>
+              <Show when={ctx.projects().length > 0} fallback={<div style={{ "grid-column": '1 / -1', padding: "var(--space-12) var(--space-6)", "text-align": 'center', border: '1px dashed var(--border-default)', "border-radius": '8px', color: 'var(--text-muted)' }}>
+                <p style={{ "font-size": '14px', margin: "0 0 var(--space-2) 0", "font-weight": 500, color: 'var(--text-main)' }}>Belum ada project di space ini</p>
                 <p style={{ "font-size": '12px', color: 'var(--text-dim)', margin: 0 }}>Klik tombol New Project untuk membuat project pertama di space ini.</p>
               </div>}>
                 <For each={ctx.projects()}>
                   {(proj) => (<div class="project-card" role="button" tabindex="0" onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProject(proj); } }} onClick={() => openProject(proj)} style={{
-                    padding: '20px',
+                    padding: "var(--space-5)",
                     "border-radius": '8px',
                     "background-color": 'var(--surface-container-low)',
                     border: '1px solid var(--border-default)',
@@ -157,9 +148,9 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                     cursor: 'pointer',
                     transition: 'all 0.15s ease'
                   }}>
-                    <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-2)" }}>
                       <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
-                        <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--secondary)', background: 'var(--surface-muted)', padding: '2px 6px', "border-radius": '3px' }}>
+                        <span style={{ "font-size": '10px', "font-family": 'var(--font-mono)', "text-transform": 'uppercase', color: 'var(--secondary)', background: 'var(--surface-muted)', padding: "var(--space-1) var(--space-2)", "border-radius": '3px' }}>
                           {ctx.getSpaceName(proj.space_id)}
                         </span>
                         <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)', "text-transform": 'capitalize' }}>
@@ -176,8 +167,8 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
                       </p>
                     </div>
 
-                    <div class="project-card-footer" style={{ "margin-top": '16px', "padding-top": '12px', "border-top": '1px solid var(--border-default)', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '11px', color: 'var(--text-dim)' }}>
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                    <div class="project-card-footer" style={{ "margin-top": "var(--space-4)", "padding-top": "var(--space-3)", "border-top": '1px solid var(--border-default)', display: 'flex', "align-items": 'center', "justify-content": 'space-between', "font-size": '11px', color: 'var(--text-dim)' }}>
+                      <div style={{ display: 'flex', gap: "var(--space-2)" }}>
                         <span>Target: {proj.target_date ? new Date(proj.target_date).toLocaleDateString() : 'Ongoing'}</span>
                       </div>
                       <span class="project-open">Open Hub <span class="direction-badge" aria-hidden="true"><ArrowRight size={14} /></span></span>

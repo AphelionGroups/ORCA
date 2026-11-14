@@ -1,4 +1,5 @@
 import { newOperationID } from './identity';
+import { announceDataChange } from './dataRefresh';
 import type { TaskStatus } from './taskContract';
 type UpdateFields<T, Nullable extends keyof T> = Omit<Partial<T>, Nullable> & { [Key in Nullable]?: T[Key] | null } & { expected_updated_at?: string };
 
@@ -217,7 +218,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiError(errorMsg, res.status);
   }
 
-  return res.json();
+  const data = await res.json();
+  if (options.method && options.method.toUpperCase() !== 'GET' && !path.startsWith('/auth/')) announceDataChange();
+  return data;
 }
 
 // ----------------- API CLIENT -----------------

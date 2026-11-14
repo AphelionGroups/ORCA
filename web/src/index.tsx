@@ -4,6 +4,7 @@ import './styles/theme.css'
 import './index.css'
 import './styles/workspace.css'
 import './styles/interactions.css'
+import './styles/spacing.css'
 import App from './App.tsx'
 
 const root = document.getElementById('root')

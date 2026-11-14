@@ -144,7 +144,7 @@ module.exports = async function checkBehavior(page, state, helpers) {
 
   // Existing auth boundaries must survive a visual redesign.
   state.unauthorized = true;
-  await page.getByTitle('Refresh', { exact: true }).click(); await page.locator('#auth-email').waitFor();
+  await page.getByRole('button', { name: 'Page options', exact: true }).click(); await page.getByRole('button', { name: 'Refresh data', exact: true }).click(); await page.locator('#auth-email').waitFor();
   assert.equal(await page.evaluate(() => localStorage.getItem('orca_auth_token')), null);
   state.unauthorized = false; state.authError = true;
   await page.locator('#auth-email').fill('qa@example.invalid'); await page.locator('#auth-password').fill('wrong-password');

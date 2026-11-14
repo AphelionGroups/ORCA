@@ -121,7 +121,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
         <div ref={el => focusScope(el, props.onClose)} class="modal-card">
           {/* Header */}
           <div class="modal-header">
-            <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
               <FolderKanban size={18} style={{ color: 'var(--brand-primary)' }} />
               <h3 class="modal-title">
                 {props.projectToEdit ? 'Edit Project' : 'New Project'}
@@ -146,17 +146,17 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
           {/* Delete Confirmation Alert */}
           <Show when={confirmDelete()}>
             <div class="modal-delete-confirm-box">
-              <div style={{ "font-weight": 600, "margin-bottom": '4px' }}>
+              <div style={{ "font-weight": 600, "margin-bottom": "var(--space-1)" }}>
                 Hapus Project "{props.projectToEdit?.name}"?
               </div>
-              <div style={{ "font-size": '12px', color: 'var(--text-muted)', "margin-bottom": '12px' }}>
+              <div style={{ "font-size": '12px', color: 'var(--text-muted)', "margin-bottom": "var(--space-3)" }}>
                 Seluruh canvas boards, documents, dan tasks yang terkait dengan project ini akan ikut terhapus permanen. Tindakan ini tidak dapat dibatalkan.
               </div>
-              <div style={{ display: 'flex', gap: '8px', "justify-content": 'flex-end' }}>
+              <div style={{ display: 'flex', gap: "var(--space-2)", "justify-content": 'flex-end' }}>
                 <button 
                   type="button"
                   class="btn-secondary"
-                  style={{ padding: '4px 10px', "font-size": '12px' }}
+                  style={{ padding: "var(--space-1) var(--space-3)", "font-size": '12px' }}
                   onClick={() => setConfirmDelete(false)}
                   disabled={loading()}
                 >
@@ -165,7 +165,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
                 <button 
                   type="button"
                   class="btn-danger"
-                  style={{ padding: '4px 10px', "font-size": '12px' }}
+                  style={{ padding: "var(--space-1) var(--space-3)", "font-size": '12px' }}
                   onClick={handleDelete}
                   disabled={loading()}
                 >
@@ -176,7 +176,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
           </Show>
 
           <Show when={!confirmDelete()}>
-            <form onSubmit={handleSave} style={{ display: 'flex', "flex-direction": 'column', gap: '14px' }}>
+            <form onSubmit={handleSave} style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-4)" }}>
               {/* Name Field */}
               <div>
                 <label class="modal-form-label">Project Name</label>
@@ -253,7 +253,7 @@ export const ProjectModal: Component<ProjectModalProps> = (props) => {
                   </Show>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: "var(--space-2)" }}>
                   <button 
                     type="button"
                     class="btn-secondary"

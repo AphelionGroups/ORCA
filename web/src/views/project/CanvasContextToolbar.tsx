@@ -234,7 +234,7 @@ export function CanvasContextToolbar(props: { ctx: ToolbarContext }) {
                 class="ctx-menu-item"
                 onClick={() => handleCopyBlock(block)}
               >
-                <span style={{ display: 'flex', 'align-items': 'center', gap: '8px' }}>
+                <span style={{ display: 'flex', 'align-items': 'center', gap: "var(--space-2)" }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
@@ -248,7 +248,7 @@ export function CanvasContextToolbar(props: { ctx: ToolbarContext }) {
                 class="ctx-menu-item"
                 onClick={() => handleCutBlock(block)}
               >
-                <span style={{ display: 'flex', 'align-items': 'center', gap: '8px' }}>
+                <span style={{ display: 'flex', 'align-items': 'center', gap: "var(--space-2)" }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="6" cy="6" r="3" />
                     <circle cx="6" cy="18" r="3" />
@@ -268,7 +268,7 @@ export function CanvasContextToolbar(props: { ctx: ToolbarContext }) {
                   setShowContextMoreMenu(false);
                 }}
               >
-                <span style={{ display: 'flex', 'align-items': 'center', gap: '8px' }}>
+                <span style={{ display: 'flex', 'align-items': 'center', gap: "var(--space-2)" }}>
                   <Show when={isLocked} fallback={
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -284,7 +284,7 @@ export function CanvasContextToolbar(props: { ctx: ToolbarContext }) {
                 </span>
               </button>
 
-              <div style={{ height: '1px', background: 'var(--surface-muted)', margin: '2px 0' }} />
+              <div style={{ height: '1px', background: 'var(--surface-muted)', margin: "var(--space-1) 0" }} />
 
               <button
                 class="ctx-menu-item danger"
@@ -293,7 +293,7 @@ export function CanvasContextToolbar(props: { ctx: ToolbarContext }) {
                   handleDeleteBlocks([block.id]);
                 }}
               >
-                <span style={{ display: 'flex', 'align-items': 'center', gap: '8px' }}>
+                <span style={{ display: 'flex', 'align-items': 'center', gap: "var(--space-2)" }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="3 6 5 6 21 6" />
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />

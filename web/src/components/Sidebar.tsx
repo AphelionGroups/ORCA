@@ -1,6 +1,7 @@
 import type { Component } from 'solid-js';
 import { createSignal, onMount, onCleanup, For, Show } from 'solid-js';
 import { 
+  House,
   Inbox, 
   Calendar, 
   FolderKanban,
@@ -23,6 +24,7 @@ import {
   LogOut,
   Settings
 } from 'lucide-solid';
+import { useDataRefresh, dataRevision } from '../services/dataRefresh';
 import { api, type Space, type Project } from '../services/api';
 import { themeMode, setThemeMode } from '../services/theme';
 import type { UserProfile } from '../services/user';
@@ -69,12 +71,16 @@ export const Sidebar: Component<SidebarProps> = (props) => {
   const [projectToEdit, setProjectToEdit] = createSignal<Project | null>(null);
   const [projectModalDefaultSpaceId, setProjectModalDefaultSpaceId] = createSignal('');
 
+  let loadGeneration = 0, disposed = false;
+  onCleanup(() => { disposed = true; loadGeneration++; });
   const loadData = async () => {
+    const generation = ++loadGeneration, revision = dataRevision();
     try {
       const [fetchedSpaces, fetchedProjects] = await Promise.all([
         api.getSpaces(),
         api.getProjects()
       ]);
+      if (disposed || generation !== loadGeneration || revision !== dataRevision()) return;
       if (fetchedSpaces) setSpaces(fetchedSpaces);
       if (fetchedProjects) setProjects(fetchedProjects);
     } catch (err) {
@@ -82,18 +88,9 @@ export const Sidebar: Component<SidebarProps> = (props) => {
     }
   };
 
-  onMount(() => {
-    loadData();
-    const handleRefresh = () => {
-      loadData();
-    };
-    window.addEventListener('orca:projects_updated', handleRefresh);
-    window.addEventListener('orca:spaces_updated', handleRefresh);
-    onCleanup(() => {
-      window.removeEventListener('orca:projects_updated', handleRefresh);
-      window.removeEventListener('orca:spaces_updated', handleRefresh);
-    });
-  });
+  onMount(() => { void loadData(); });
+
+  useDataRefresh(loadData);
 
   const toggleSpaceCollapse = (spaceId: string, e: MouseEvent) => {
     e.stopPropagation();
@@ -135,7 +132,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
     <aside id="workspace-navigation" aria-label="Workspace navigation" inert={!props.isOpen} class={`orca-sidebar ${props.isOpen ? '' : 'collapsed'}`}>
       {/* 1. Fixed Header */}
       <div class="sidebar-brand-row">
-        <button type="button" class="brand-logo" onClick={() => props.onNavigate('projects', null, null)}>
+        <button type="button" class="brand-logo" onClick={() => props.onNavigate('home', null, null)}>
           <span class="brand-text">ORCA</span>
         </button>
         <button 
@@ -153,9 +150,10 @@ export const Sidebar: Component<SidebarProps> = (props) => {
       {/* 2. Scrollable Middle Section (Views & Spaces) */}
       <div class="sidebar-scroll-area">
         {/* 1. Navigation Views Section (Moved to TOP: Only Inbox & Calendar) */}
-        <div style={{ display: 'flex', "flex-direction": 'column', gap: '4px' }}>
+        <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-1)" }}>
           <div class="sidebar-section-header">Views</div>
-          <nav style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
+          <nav style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-1)" }}>
+            <button type="button" aria-current={props.currentRoute === 'home' ? 'page' : undefined} class={`sidebar-nav-item ${props.currentRoute === 'home' ? 'active' : ''}`} onClick={() => props.onNavigate('home', null, null)}><House size={15} /><span>Home</span></button>
             {/* 1. Inbox */}
             <button type="button" aria-current={props.currentRoute === 'inbox' ? 'page' : undefined}
               class={`sidebar-nav-item ${props.currentRoute === 'inbox' ? 'active' : ''}`}
@@ -177,10 +175,10 @@ export const Sidebar: Component<SidebarProps> = (props) => {
         </div>
 
         {/* 2. Spaces Section with Collapsible Projects Tree */}
-        <div style={{ display: 'flex', "flex-direction": 'column', gap: '4px' }}>
+        <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-1)" }}>
           <div class="sidebar-section-header" style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between' }}>
             <span>Spaces</span>
-            <div style={{ display: 'flex', "align-items": 'center', gap: '4px' }}>
+            <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-1)" }}>
               <button 
                 class="btn-ghost-icon" 
                 style={{ width: '20px', height: '20px' }} 
@@ -192,7 +190,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', "flex-direction": 'column', gap: '2px' }}>
+          <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-1)" }}>
             {/* All Spaces Entry */}
             <button type="button"
               class={`sidebar-space-row ${props.currentRoute === 'projects' && props.activeSpaceId === null && !props.activeProjectId ? 'active' : ''}`}
@@ -417,7 +415,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
           onClick={() => props.onOpenQuickCapture()}
           type="button"
         >
-          <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
             <Bolt size={15} color="var(--secondary)" />
             <span style={{ "font-weight": 500 }}>Quick Capture</span>
           </div>

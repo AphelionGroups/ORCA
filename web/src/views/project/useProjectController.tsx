@@ -1,7 +1,8 @@
 import { actionOperation } from './canvasHistory';
 import { newOperationID } from '../../services/identity';
 import { createRequestGate } from '../../services/requestGate';
-import { For, Show, createEffect, createMemo, createSignal, on, onCleanup, onMount } from 'solid-js';
+import { useDataRefresh, dataRevision } from '../../services/dataRefresh';
+import { For, Show, createEffect, createMemo, createSignal, on, onCleanup, onMount, untrack } from 'solid-js';
 import type { NoteBlock, NoteBoard, Document as OrcaDoc, Project, Space, Task } from '../../services/api';
 import { api } from '../../services/api';
 import { getCurrentUser } from '../../services/user';
@@ -10,6 +11,7 @@ import type { ProjectsViewProps } from './types';
 export function useProjectController(props: ProjectsViewProps) {
 
   const [operationError, setOperationError] = createSignal('');
+  const [loadError, setLoadError] = createSignal('');
   const [historyBusy, setHistoryBusy] = createSignal(false);
 
   // Projects & Spaces from Backend
@@ -285,6 +287,7 @@ export function useProjectController(props: ProjectsViewProps) {
   const projectRequests = createRequestGate();
 
   const loadProjectsForSpace = async (spaceId?: string | null, targetProjectId?: string | null) => {
+    setLoadError('');
     const reqId = projectRequests.begin();
     setLoadingProjects(true);
     setProjects([]); // Clear immediately so stale projects from other spaces are never displayed
@@ -315,7 +318,7 @@ export function useProjectController(props: ProjectsViewProps) {
     } catch (err) {
       if (projectRequests.isCurrent(reqId)) {
         console.error('Failed to load projects:', err);
-        setOperationError(err instanceof Error ? err.message : 'Operation failed');
+        setLoadError(err instanceof Error ? err.message : 'Unable to load projects.');
       }
     } finally {
       if (projectRequests.isCurrent(reqId)) {
@@ -464,7 +467,7 @@ export function useProjectController(props: ProjectsViewProps) {
   createEffect(() => {
     const spaceId = props.activeSpaceId;
     const projId = props.activeProjectId;
-    loadProjectsForSpace(spaceId, projId);
+    untrack(() => loadProjectsForSpace(spaceId, projId));
   });
 
   // Track sub-data request ID to eliminate async race conditions
@@ -574,7 +577,7 @@ export function useProjectController(props: ProjectsViewProps) {
     } catch (err) {
       if (detailRequests.isCurrent(reqId)) {
         console.error('Failed to load project sub-data:', err);
-        setOperationError(err instanceof Error ? err.message : 'Operation failed');
+        setLoadError(err instanceof Error ? err.message : 'Unable to load project details.');
       }
     } finally {
       if (detailRequests.isCurrent(reqId)) {
@@ -2548,7 +2551,47 @@ export function useProjectController(props: ProjectsViewProps) {
     () => cancelCanvasGesture(),
     { defer: true },
   ));
+  const documentIsDirty = () => {
+    const document = docs().find(item => item.id === selectedDocId());
+    return !!document && (editingDocTitle() !== document.title || editingDocContent() !== document.content);
+  };
+  const canRefreshData = () => !loadingProjects() && !loadingSubData() && !isSavingDoc() && !documentIsDirty() && !isBoardCanvasOpen() && !historyBusy();
+  const backgroundRequests = createRequestGate();
+  onCleanup(() => backgroundRequests.invalidate());
+  const refreshData = async () => {
+    if (documentIsDirty() || isSavingDoc() || isBoardCanvasOpen() || historyBusy()) {
+      setOperationError('Save your document or close the canvas before refreshing.'); return;
+    }
+    const request = backgroundRequests.begin();
+    const revision = dataRevision();
+    const projectId = selectedProjectId(), spaceId = props.activeSpaceId;
+    const selection = detailRequests.capture();
+    setLoadError('');
+    try {
+      const [nextProjects, nextSpaces, nextDocs, nextBoards, nextTasks] = await Promise.all([
+        api.getProjects(spaceId || undefined), api.getSpaces(),
+        projectId ? api.getDocuments({ project_id: projectId }) : Promise.resolve([]),
+        projectId ? api.getBoards({ project_id: projectId }) : Promise.resolve([]),
+        projectId ? api.getTasks({ project_id: projectId }) : Promise.resolve([]),
+      ]);
+      if (revision !== dataRevision() || !backgroundRequests.isCurrent(request) || !detailRequests.isCurrent(selection) || selectedProjectId() !== projectId || props.activeSpaceId !== spaceId || documentIsDirty() || isSavingDoc() || isBoardCanvasOpen()) return;
+      setProjects(nextProjects); setSpaces(nextSpaces);
+      if (projectId && !nextProjects.some(item => item.id === projectId)) { setSelectedProjectId(null); return; }
+      if (projectId) {
+        const nextDocument = nextDocs.find(item => item.id === selectedDocId()) || nextDocs[0];
+        setDocs(nextDocs); setBoards(nextBoards); setTasks(nextTasks);
+        if (nextDocument) { setEditingDocTitle(nextDocument.title); setEditingDocContent(nextDocument.content); }
+        if (!nextDocs.some(item => item.id === selectedDocId())) setSelectedDocId(nextDocs[0]?.id || null);
+        if (!nextBoards.some(item => item.id === selectedBoardId())) setSelectedBoardId(nextBoards[0]?.id || null);
+      }
+    } catch (error) {
+      if (backgroundRequests.isCurrent(request) && detailRequests.isCurrent(selection)) setLoadError(error instanceof Error ? error.message : 'Unable to refresh project data.');
+    }
+  };
+  useDataRefresh(refreshData, canRefreshData);
+
   return {
+    loadError, refreshData,
     operationError, setOperationError, historyBusy,
 setSelectedProjectId,
     selectedProjectId,

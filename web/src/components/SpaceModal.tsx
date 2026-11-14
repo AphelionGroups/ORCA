@@ -130,7 +130,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
         <div ref={el => focusScope(el, props.onClose)} class="modal-card">
           {/* Header */}
           <div class="modal-header">
-            <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
               <div 
                 style={{
                   width: '10px',
@@ -162,17 +162,17 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
           {/* Delete Confirmation Alert */}
           <Show when={confirmDelete()}>
             <div class="modal-delete-confirm-box">
-              <div style={{ "font-weight": 600, "margin-bottom": '4px' }}>
+              <div style={{ "font-weight": 600, "margin-bottom": "var(--space-1)" }}>
                 Hapus Space "{props.spaceToEdit?.name}"?
               </div>
-              <div style={{ "font-size": '12px', color: 'var(--text-muted)', "margin-bottom": '12px' }}>
+              <div style={{ "font-size": '12px', color: 'var(--text-muted)', "margin-bottom": "var(--space-3)" }}>
                 Seluruh project, canvas boards, dokumen, dan tasks di dalam space ini akan ikut terhapus. Tindakan ini tidak dapat dibatalkan.
               </div>
-              <div style={{ display: 'flex', gap: '8px', "justify-content": 'flex-end' }}>
+              <div style={{ display: 'flex', gap: "var(--space-2)", "justify-content": 'flex-end' }}>
                 <button 
                   type="button"
                   class="btn-secondary"
-                  style={{ padding: '4px 10px', "font-size": '12px' }}
+                  style={{ padding: "var(--space-1) var(--space-3)", "font-size": '12px' }}
                   onClick={() => setConfirmDelete(false)}
                   disabled={loading()}
                 >
@@ -181,7 +181,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
                 <button 
                   type="button"
                   class="btn-danger"
-                  style={{ padding: '4px 10px', "font-size": '12px' }}
+                  style={{ padding: "var(--space-1) var(--space-3)", "font-size": '12px' }}
                   onClick={handleDelete}
                   disabled={loading()}
                 >
@@ -192,7 +192,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
           </Show>
 
           <Show when={!confirmDelete()}>
-            <form onSubmit={handleSave} style={{ display: 'flex', "flex-direction": 'column', gap: '16px' }}>
+            <form onSubmit={handleSave} style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-4)" }}>
               {/* Name Field */}
               <div>
                 <label class="modal-form-label">Space Name</label>
@@ -209,7 +209,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
               {/* Color Presets */}
               <div>
                 <label class="modal-form-label">Theme Color</label>
-                <div style={{ display: 'flex', gap: '8px', "flex-wrap": 'wrap', "margin-top": '4px' }}>
+                <div style={{ display: 'flex', gap: "var(--space-2)", "flex-wrap": 'wrap', "margin-top": "var(--space-1)" }}>
                   <For each={COLOR_PRESETS}>
                     {(cp) => (
                       <button
@@ -236,7 +236,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
               {/* Icon Presets */}
               <div>
                 <label class="modal-form-label">Icon</label>
-                <div style={{ display: 'flex', gap: '6px', "flex-wrap": 'wrap', "margin-top": '4px' }}>
+                <div style={{ display: 'flex', gap: "var(--space-2)", "flex-wrap": 'wrap', "margin-top": "var(--space-1)" }}>
                   <For each={ICON_PRESETS}>
                     {(ip) => {
                       const IconComp = ip.icon;
@@ -283,7 +283,7 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
                   </Show>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: "var(--space-2)" }}>
                   <button 
                     type="button"
                     class="btn-secondary"

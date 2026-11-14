@@ -1,0 +1,63 @@
+/* Shared layout rhythm: related content 4–12, fields/rows 16, sections 24–32. */
+:where(h1, h2, h3, h4, h5, h6, p) { margin-block-start: 0; margin-block-end: var(--space-3); }
+.orca-header, .orca-top-header { padding: var(--space-3) var(--layout-page-inset); gap: var(--space-3); }
+.header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--layout-control-gap); }
+.dashboard-content { padding: var(--layout-page-inset); }
+.dashboard-grid { gap: var(--layout-section-gap); }
+.dashboard-intro { margin-bottom: var(--space-8); }
+.dashboard-widget-header { padding: var(--layout-panel-inset); }
+.dashboard-item-copy { gap: var(--space-2); }
+.calendar-ribbon { padding: var(--layout-page-inset); }
+.calendar-layout { padding: 0 var(--layout-page-inset) var(--layout-page-inset) !important; }
+.calendar-detail, .calendar-task-picker { padding: var(--space-6); }
+.calendar-detail h2 { margin: var(--space-3) 0 var(--space-6); }
+.calendar-detail dl { gap: var(--space-3); }
+.calendar-detail footer { margin-top: var(--space-6); gap: var(--space-2); }
+.document-sidebar { padding: var(--layout-panel-inset) !important; }
+.document-editor { padding: var(--space-6) var(--space-8) !important; }
+.document-toolbar { gap: var(--space-3); }
+.document-actions { gap: var(--space-2) !important; }
+.task-workspace { padding: var(--layout-page-inset) !important; }
+.project-overview, .board-gallery, .inbox-workspace { padding: var(--layout-page-inset) !important; }
+.orca-sidebar { padding: var(--space-4); }
+.sidebar-scroll-area { gap: var(--space-6); }
+.sidebar-section-header { margin: 0 0 var(--space-2); }
+.sidebar-nav-item, .sidebar-space-row { gap: var(--space-2); }
+.modal-backdrop { padding: var(--space-4); }
+.modal-card { padding: var(--space-6) !important; }
+.modal-header { gap: var(--space-3); margin-bottom: var(--space-6); padding-bottom: var(--space-4); }
+.modal-card form { gap: var(--layout-field-gap) !important; }
+.modal-form-label { display: block; margin-bottom: var(--layout-label-gap); }
+.modal-card form label:not(:has(input, select, textarea)) { display: block; margin-bottom: var(--layout-label-gap) !important; }
+.modal-card form label:has(> input:not([type='checkbox']):not([type='radio'])), .modal-card form label:has(> select), .modal-card form label:has(> textarea) { display: grid; gap: var(--layout-label-gap); }
+.modal-card form :is(input:not([type='checkbox']):not([type='radio']):not([type='file']), select) { min-height: 40px; }
+.modal-card form > [style*='grid-template-columns'] > div { display: flex; flex-direction: column; min-width: 0; }
+.modal-card form > [style*='grid-template-columns'] > div > :is(input, select) { margin-top: auto; }
+.modal-card form button { flex-shrink: 0; white-space: nowrap; }
+.modal-card form > div:last-child[style*='justify-content'] { column-gap: var(--space-4); row-gap: var(--space-3); flex-wrap: wrap; }
+.modal-card form > div:last-child[style*='justify-content'] > div:last-child { margin-left: auto; }
+.modal-card form label:has(input[type='checkbox']), .modal-card form label:has(input[type='radio']) { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 40px; }
+.capture-type-tabs > button { padding: var(--space-2) !important; gap: var(--space-2) !important; min-height: 40px; white-space: normal; }
+.capture-type-tabs > button > svg { display: none; }
+.capture-type-tabs > button > span { white-space: nowrap; }
+.modal-form-input, .modal-form-select, .modal-form-textarea { padding: var(--space-2) var(--space-3); }
+.profile-modal-header { padding: var(--space-5) var(--space-6); }
+.profile-modal-card { padding: 0; }
+.profile-modal-body { padding: var(--space-6); }
+.profile-avatar-row { gap: var(--space-4); padding-bottom: var(--space-4); margin-bottom: var(--space-4); }
+.profile-nav-tabs { margin-bottom: var(--space-6); }
+.profile-modal-footer { padding: var(--space-4) var(--space-6); gap: var(--space-2); }
+.canvas-toolbar { gap: var(--space-2); padding: var(--space-2); }
+.canvas-context-toolbar { gap: var(--space-1); padding: var(--space-1); }
+@media (max-width: 767px) {
+  :root, [data-theme], html.light, html.dark { --layout-page-inset: var(--space-4); --layout-panel-inset: var(--space-4); }
+  .dashboard-content { padding: var(--space-6) var(--layout-page-inset); }
+  .document-editor { padding: var(--space-5) var(--space-4) !important; }
+  .modal-card { padding: var(--space-5) !important; }
+  .profile-modal-header, .profile-modal-body, .profile-modal-footer { padding: var(--space-4); }
+  .calendar-detail, .calendar-task-picker { padding: var(--space-5) var(--space-4); }
+}
+@media (max-width: 480px) {
+  .capture-type-tabs > button { padding: var(--space-2) var(--space-1) !important; min-height: 48px; justify-content: center; }
+  .capture-type-tabs > button > span { white-space: normal; }
+}

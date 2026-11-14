@@ -171,13 +171,13 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
           </div>
 
           {/* Type Selector (Note vs Task vs Document) */}
-          <div style={{ "margin-bottom": '16px' }}>
-            <div class="segmented-control" style={{ width: '100%', display: 'flex' }}>
+          <div style={{ "margin-bottom": "var(--space-4)" }}>
+            <div class="segmented-control capture-type-tabs" style={{ width: '100%', display: 'flex' }}>
               <button 
                 type="button"
                 onClick={() => { setType('Note'); setError(''); }}
                 class={`seg-btn ${type() === 'Note' ? 'active' : ''}`}
-                style={{ flex: 1, display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '6px', padding: '7px 12px' }}
+                style={{ flex: 1, display: 'flex', "align-items": 'center', "justify-content": 'center', gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)" }}
               >
                 <StickyNote size={13} />
                 <span>Catatan (Inbox)</span>
@@ -186,7 +186,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                 type="button"
                 onClick={() => { setType('Task'); setError(''); }}
                 class={`seg-btn ${type() === 'Task' ? 'active' : ''}`}
-                style={{ flex: 1, display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '6px', padding: '7px 12px' }}
+                style={{ flex: 1, display: 'flex', "align-items": 'center', "justify-content": 'center', gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)" }}
               >
                 <CheckSquare size={13} />
                 <span>Task (Project)</span>
@@ -195,7 +195,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                 type="button"
                 onClick={() => { setType('Document'); setError(''); }}
                 class={`seg-btn ${type() === 'Document' ? 'active' : ''}`}
-                style={{ flex: 1, display: 'flex', "align-items": 'center', "justify-content": 'center', gap: '6px', padding: '7px 12px' }}
+                style={{ flex: 1, display: 'flex', "align-items": 'center', "justify-content": 'center', gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)" }}
               >
                 <FileText size={13} />
                 <span>Dokumen (Project)</span>
@@ -204,12 +204,12 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
           </div>
 
           <Show when={error()}>
-            <div class="modal-error-badge" role="alert" style={{ "margin-bottom": '14px' }}>
+            <div class="modal-error-badge" role="alert" style={{ "margin-bottom": "var(--space-4)" }}>
               {error()}
             </div>
           </Show>
 
-          <form onSubmit={handleSave} style={{ display: 'flex', "flex-direction": 'column', gap: '14px' }}>
+          <form onSubmit={handleSave} style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-4)" }}>
             {/* 1. Quick Note Mode (Direct to Inbox) */}
             <Show when={type() === 'Note'}>
               <div>
@@ -220,7 +220,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                   onInput={e => setContent(e.currentTarget.value)}
                   placeholder="Tulis ide, catatan, atau pemikiran yang baru terpikirkan... (Ctrl+Enter untuk simpan)"
                   class="modal-form-input"
-                  style={{ resize: 'vertical', "font-size": '13px', "line-height": 1.5, padding: '10px 12px' }}
+                  style={{ resize: 'vertical', "font-size": '13px', "line-height": 1.5, padding: "var(--space-3) var(--space-3)" }}
                 />
               </div>
             </Show>
@@ -228,7 +228,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
             {/* 2. Task / Document Structured Mode (Must target Project) */}
             <Show when={type() !== 'Note'}>
               {/* Space & Project Selectors */}
-              <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: "var(--space-3)" }}>
                 <div>
                   <label class="modal-form-label">Space</label>
                   <select
@@ -238,7 +238,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                       setSelectedProjectId('');
                     }}
                     class="modal-form-input"
-                    style={{ padding: '8px 10px', "font-size": '12.5px' }}
+                    style={{ padding: "var(--space-2) var(--space-3)", "font-size": '12.5px' }}
                   >
                     <For each={spaces()}>
                       {(sp) => (
@@ -254,7 +254,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                     value={selectedProjectId()}
                     onChange={e => setSelectedProjectId(e.currentTarget.value)}
                     class="modal-form-input"
-                    style={{ padding: '8px 10px', "font-size": '12.5px' }}
+                    style={{ padding: "var(--space-2) var(--space-3)", "font-size": '12.5px' }}
                     required
                   >
                     <option value="">Pilih Project...</option>
@@ -278,21 +278,21 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                   onInput={e => setTitle(e.currentTarget.value)}
                   placeholder={type() === 'Task' ? "Contoh: Selesaikan desain halaman login" : "Contoh: Rencana Strategi Q4"}
                   class="modal-form-input"
-                  style={{ "font-size": '13px', padding: '9px 12px' }}
+                  style={{ "font-size": '13px', padding: "var(--space-2) var(--space-3)" }}
                   required
                 />
               </div>
 
               {/* If Task: Priority and Due Date */}
               <Show when={type() === 'Task'}>
-                <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: "var(--space-3)" }}>
                   <div>
                     <label class="modal-form-label">Prioritas</label>
                     <select
                       value={priority()}
                       onChange={e => setPriority(e.currentTarget.value as any)}
                       class="modal-form-input"
-                      style={{ padding: '8px 10px', "font-size": '12.5px' }}
+                      style={{ padding: "var(--space-2) var(--space-3)", "font-size": '12.5px' }}
                     >
                       <option value="low">Rendah (Low)</option>
                       <option value="medium">Sedang (Medium)</option>
@@ -308,7 +308,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                       value={dueDate()} 
                       onInput={e => setDueDate(e.currentTarget.value)}
                       class="modal-form-input"
-                      style={{ padding: '8px 10px', "font-size": '12.5px' }}
+                      style={{ padding: "var(--space-2) var(--space-3)", "font-size": '12.5px' }}
                     />
                   </div>
                 </div>
@@ -331,12 +331,12 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
             </Show>
 
             {/* Footer Row */}
-            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-top": '4px', "padding-top": '14px', "border-top": '1px solid var(--border-default)' }}>
+            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-top": "var(--space-1)", "padding-top": "var(--space-4)", "border-top": '1px solid var(--border-default)' }}>
               <span style={{ "font-size": '12px', color: 'var(--text-dim)' }}>
-                Tekan <kbd style={{ padding: '2px 5px', "border-radius": '3px', background: 'var(--surface-container-high)', border: '1px solid var(--border-default)' }}>Ctrl+Enter</kbd> untuk simpan
+                Tekan <kbd style={{ padding: "var(--space-1) var(--space-1)", "border-radius": '3px', background: 'var(--surface-container-high)', border: '1px solid var(--border-default)' }}>Ctrl+Enter</kbd> untuk simpan
               </span>
 
-              <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
                 <button 
                   type="button" 
                   onClick={props.onClose} 
@@ -349,7 +349,7 @@ export const QuickCaptureModal: Component<QuickCaptureModalProps> = (props) => {
                   type="submit" 
                   class="btn-primary"
                   disabled={loading()}
-                  style={{ display: 'flex', "align-items": 'center', gap: '6px' }}
+                  style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}
                 >
                   <Show when={loading()}>
                     <Loader2 size={13} class="spin" />

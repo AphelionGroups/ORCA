@@ -17,11 +17,12 @@ test('tasks use planned dates before due dates and never shift UTC date-only val
   assert.equal(taskDate(task({ due_date: '2026-02-31' })), undefined);
   assert.equal(calendarItems([], [task({ due_date: '2026-10-11' }), task({ status: 'cancelled', planned_date: '2026-10-11' })]).length, 1);
 });
-test('linked tasks are not duplicated, midnight ends are exclusive and multi-day events span days', () => {
+test('linked sessions preserve deadlines; midnight ends are exclusive and multi-day events span days', () => {
   const ev = event('meeting', '2026-10-10T23:00:00', '2026-10-12T00:00:00', { linked_task_id: 'task' });
   const items = calendarItems([ev], [task({ due_date: '2026-10-11' })]);
-  assert.equal(items.length, 1);
-  assert.equal(itemsOnDay(items, new Date(2026, 9, 11)).length, 1);
+  assert.equal(items.length, 2);
+  assert.equal(items.find(item => item.category === 'deadline')?.sourceId, 'task');
+  assert.equal(itemsOnDay(items, new Date(2026, 9, 11)).length, 2);
   assert.equal(itemsOnDay(items, new Date(2026, 9, 12)).length, 0);
 });
 test('timed events follow actual time and overlaps receive separate lanes', () => {

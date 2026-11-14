@@ -241,16 +241,16 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
               </div>
 
               {/* Avatar Action Buttons */}
-              <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
                 <label 
                   class="btn-secondary" 
                   style={{ 
-                    padding: '6px 12px', 
+                    padding: "var(--space-2) var(--space-3)",
                     "font-size": '11.5px', 
                     "font-weight": 500,
                     display: 'inline-flex', 
                     "align-items": 'center', 
-                    gap: '6px', 
+                    gap: "var(--space-2)",
                     cursor: isUploading() ? 'not-allowed' : 'pointer'
                   }}
                 >
@@ -269,7 +269,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                   <button 
                     type="button" 
                     class="btn-secondary" 
-                    style={{ padding: '6px 10px', "font-size": '11.5px', color: 'var(--status-error)' }}
+                    style={{ padding: "var(--space-2) var(--space-3)", "font-size": '11.5px', color: 'var(--status-error)' }}
                     onClick={() => setAvatarUrl('')}
                     title="Hapus foto profil"
                   >
@@ -310,13 +310,13 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                 background: 'rgba(239, 68, 68, 0.12)', 
                 border: '1px solid rgba(239, 68, 68, 0.3)', 
                 color: 'var(--status-error)',
-                padding: '10px 14px', 
+                padding: "var(--space-3) var(--space-4)",
                 "border-radius": '8px', 
                 "font-size": '12px', 
                 display: 'flex', 
                 "align-items": 'center', 
-                gap: '8px', 
-                "margin-bottom": '16px' 
+                gap: "var(--space-2)",
+                "margin-bottom": "var(--space-4)"
               }}>
                 <AlertCircle size={16} style={{ "flex-shrink": 0 }} />
                 <span>{errorMsg()}</span>
@@ -328,13 +328,13 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                 background: 'rgba(34, 197, 94, 0.12)', 
                 border: '1px solid rgba(34, 197, 94, 0.3)', 
                 color: 'var(--status-success)',
-                padding: '10px 14px', 
+                padding: "var(--space-3) var(--space-4)",
                 "border-radius": '8px', 
                 "font-size": '12px', 
                 display: 'flex', 
                 "align-items": 'center', 
-                gap: '8px', 
-                "margin-bottom": '16px' 
+                gap: "var(--space-2)",
+                "margin-bottom": "var(--space-4)"
               }}>
                 <Check size={16} style={{ "flex-shrink": 0 }} />
                 <span>{successMsg()}</span>
@@ -345,9 +345,9 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
             <form onSubmit={handleSave}>
               {/* TAB 1: PROFIL (Nama & Email) */}
               <Show when={activeTab() === 'general'}>
-                <div style={{ display: 'flex', "flex-direction": 'column', gap: '14px', "margin-bottom": '20px' }}>
+                <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-4)", "margin-bottom": "var(--space-5)" }}>
                   <div>
-                    <label for="profile-fullname-input" style={{ display: 'block', "font-size": '12px', "font-weight": 500, color: 'var(--text-muted)', "margin-bottom": '6px' }}>
+                    <label for="profile-fullname-input" style={{ display: 'block', "font-size": '12px', "font-weight": 500, color: 'var(--text-muted)', "margin-bottom": "var(--space-2)" }}>
                       Nama Lengkap
                     </label>
                     <div style={{ position: 'relative' }}>
@@ -358,7 +358,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                         autocomplete="name"
                         style={{ 
                           width: '100%', 
-                          "padding-left": '38px', 
+                          "padding-left": "var(--space-10)",
                           height: '40px',
                           "border-radius": '8px',
                           background: 'var(--surface-container-low)',
@@ -377,7 +377,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                   </div>
 
                   <div>
-                    <label for="profile-email-input" style={{ display: 'block', "font-size": '12px', "font-weight": 500, color: 'var(--text-muted)', "margin-bottom": '6px' }}>
+                    <label for="profile-email-input" style={{ display: 'block', "font-size": '12px', "font-weight": 500, color: 'var(--text-muted)', "margin-bottom": "var(--space-2)" }}>
                       Alamat Email
                     </label>
                     <div style={{ position: 'relative' }}>
@@ -388,7 +388,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                         autocomplete="email"
                         style={{ 
                           width: '100%', 
-                          "padding-left": '38px', 
+                          "padding-left": "var(--space-10)",
                           height: '40px',
                           "border-radius": '8px',
                           background: 'var(--surface-container-low)',
@@ -410,9 +410,9 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
 
               {/* TAB 2: KEAMANAN (Ganti Kata Sandi) */}
               <Show when={activeTab() === 'security'}>
-                <div style={{ display: 'flex', "flex-direction": 'column', gap: '14px', "margin-bottom": '20px' }}>
+                <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-4)", "margin-bottom": "var(--space-5)" }}>
                   <div>
-                    <label for="profile-curr-pass" style={{ display: 'block', "font-size": '12px', "font-weight": 500, color: 'var(--text-muted)', "margin-bottom": '6px' }}>
+                    <label for="profile-curr-pass" style={{ display: 'block', "font-size": '12px', "font-weight": 500, color: 'var(--text-muted)', "margin-bottom": "var(--space-2)" }}>
                       Kata Sandi Saat Ini
                     </label>
                     <div style={{ position: 'relative' }}>
@@ -423,8 +423,8 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                         autocomplete="current-password"
                         style={{ 
                           width: '100%', 
-                          "padding-left": '38px', 
-                          "padding-right": '40px',
+                          "padding-left": "var(--space-10)",
+                          "padding-right": "var(--space-10)",
                           height: '40px',
                           "border-radius": '8px',
                           background: 'var(--surface-container-low)',
@@ -450,7 +450,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                           border: 'none',
                           color: 'var(--text-dim)',
                           cursor: 'pointer',
-                          padding: '8px',
+                          padding: "var(--space-2)",
                           display: 'flex',
                           "align-items": 'center',
                           "justify-content": 'center'
@@ -464,9 +464,9 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: "var(--space-3)" }}>
                     <div>
-                      <div style={{ display: 'flex', "justify-content": 'space-between', "align-items": 'center', "margin-bottom": '6px' }}>
+                      <div style={{ display: 'flex', "justify-content": 'space-between', "align-items": 'center', "margin-bottom": "var(--space-2)" }}>
                         <label for="profile-new-pass" style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-muted)' }}>
                           Kata Sandi Baru
                         </label>
@@ -484,8 +484,8 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                           autocomplete="new-password"
                           style={{ 
                             width: '100%', 
-                            "padding-left": '38px', 
-                            "padding-right": '36px',
+                            "padding-left": "var(--space-10)",
+                            "padding-right": "var(--space-9)",
                             height: '40px',
                             "border-radius": '8px',
                             background: 'var(--surface-container-low)',
@@ -511,7 +511,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                             border: 'none',
                             color: 'var(--text-dim)',
                             cursor: 'pointer',
-                            padding: '8px'
+                            padding: "var(--space-2)"
                           }}
                           onClick={() => setShowNewPass(prev => !prev)}
                         >
@@ -523,7 +523,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                     </div>
 
                     <div>
-                      <div style={{ display: 'flex', "justify-content": 'space-between', "align-items": 'center', "margin-bottom": '6px' }}>
+                      <div style={{ display: 'flex', "justify-content": 'space-between', "align-items": 'center', "margin-bottom": "var(--space-2)" }}>
                         <label for="profile-conf-pass" style={{ "font-size": '12px', "font-weight": 500, color: 'var(--text-muted)' }}>
                           Konfirmasi Sandi
                         </label>
@@ -541,8 +541,8 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                           autocomplete="new-password"
                           style={{ 
                             width: '100%', 
-                            "padding-left": '38px', 
-                            "padding-right": '36px',
+                            "padding-left": "var(--space-10)",
+                            "padding-right": "var(--space-9)",
                             height: '40px',
                             "border-radius": '8px',
                             background: 'var(--surface-container-low)',
@@ -568,7 +568,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                             border: 'none',
                             color: 'var(--text-dim)',
                             cursor: 'pointer',
-                            padding: '8px'
+                            padding: "var(--space-2)"
                           }}
                           onClick={() => setShowConfPass(prev => !prev)}
                         >
@@ -587,8 +587,8 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                 display: 'flex', 
                 "align-items": 'center', 
                 "justify-content": 'flex-end', 
-                gap: '10px',
-                "padding-top": '16px',
+                gap: "var(--space-3)",
+                "padding-top": "var(--space-4)",
                 "border-top": '1px solid var(--border-subtle)'
               }}>
                 <button 
@@ -596,7 +596,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                   class="btn-secondary" 
                   onClick={props.onClose}
                   disabled={isSaving()}
-                  style={{ height: '38px', padding: '0 16px', "font-size": '12.5px', "border-radius": '8px' }}
+                  style={{ height: '38px', padding: "0 var(--space-4)", "font-size": '12.5px', "border-radius": '8px' }}
                 >
                   Batal
                 </button>
@@ -605,7 +605,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                   class="btn-primary" 
                   style={{ 
                     height: '38px', 
-                    padding: '0 18px', 
+                    padding: "0 var(--space-5)",
                     "font-size": '12.5px', 
                     "border-radius": '8px',
                     background: 'var(--action-primary)',

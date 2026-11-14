@@ -1,3 +1,5 @@
+import { PageOptions } from '../components/PageOptions';
+import { useDataRefresh } from '../services/dataRefresh';
 import { createRequestGate } from '../services/requestGate';
 import { focusScope } from '../components/focusScope';
 import type { Component } from 'solid-js';
@@ -12,7 +14,6 @@ import {
   Edit3, 
   Check, 
   X, 
-  RefreshCw,
   Loader2
 } from 'lucide-solid';
 import { api } from '../services/api';
@@ -27,6 +28,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
   const requests = createRequestGate();
   onCleanup(() => requests.invalidate());
   const [operationError, setOperationError] = createSignal('');
+  const [loadError, setLoadError] = createSignal('');
   const [quickInput, setQuickInput] = createSignal('');
   const [notes, setNotes] = createSignal<InboxNote[]>([]);
   const [spaces, setSpaces] = createSignal<Space[]>([]);
@@ -68,9 +70,10 @@ export const InboxView: Component<InboxViewProps> = (props) => {
     setTimeout(() => setSuccessToast(null), 3500);
   };
 
-  const loadData = async () => {
+  const loadData = async (background = false) => {
     const request = requests.begin();
-    setLoading(true);
+    if (!background) setLoading(true);
+    setLoadError('');
     try {
       const [fetchedNotes, fetchedSpaces, fetchedProjects] = await Promise.all([
         api.getInboxNotes(),
@@ -85,22 +88,15 @@ export const InboxView: Component<InboxViewProps> = (props) => {
         setConvertSpaceId(fetchedSpaces[0].id);
       }
     } catch (err) {
-      if (requests.isCurrent(request)) setOperationError(err instanceof Error ? err.message : 'Could not load inbox');
+      if (requests.isCurrent(request)) setLoadError(err instanceof Error ? err.message : 'Could not load inbox');
     } finally {
       if (requests.isCurrent(request)) setLoading(false);
     }
   };
 
-  onMount(() => {
-    loadData();
-    const handleInboxUpdate = () => {
-      loadData();
-    };
-    window.addEventListener('orca:inbox_updated', handleInboxUpdate);
-    onCleanup(() => {
-      window.removeEventListener('orca:inbox_updated', handleInboxUpdate);
-    });
-  });
+  onMount(() => { void loadData(); });
+
+  useDataRefresh(() => loadData(true), () => !loading() && !editingNoteId() && !savingNote() && !convertModalOpen());
 
   const availableProjectsForConvert = () => {
     const spId = convertSpaceId();
@@ -240,6 +236,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', "flex-direction": 'column', "background-color": 'var(--surface)', overflow: 'hidden' }}>
       <Show when={operationError()}><div role="alert" class="operation-error">{operationError()}<button class="btn-secondary" onClick={() => setOperationError('')}>Dismiss</button></div></Show>
+      <Show when={loadError()}><div role="alert" class="operation-error">{loadError()}<button class="btn-secondary" onClick={() => void loadData()}>Coba lagi</button></div></Show>
       {/* Header */}
       <header class="orca-header">
         <div class="header-breadcrumbs">
@@ -248,22 +245,14 @@ export const InboxView: Component<InboxViewProps> = (props) => {
             <span>Inbox</span>
           </div>
           <Show when={notes().length > 0}>
-            <span style={{ "font-size": '11.5px', color: 'var(--text-dim)', "margin-left": '6px' }}>
+            <span style={{ "font-size": '11.5px', color: 'var(--text-dim)', "margin-left": "var(--space-2)" }}>
               ({notes().length} catatan)
             </span>
           </Show>
         </div>
 
         <div class="header-actions">
-          <button 
-            type="button"
-            onClick={loadData}
-            title="Muat ulang catatan"
-            class="btn-ghost-icon"
-            style={{ width: '28px', height: '28px' }}
-          >
-            <RefreshCw size={14} class={loading() ? 'spin' : ''} />
-          </button>
+<PageOptions onRefresh={() => loadData()} busy={loading()} />
         </div>
       </header>
 
@@ -276,12 +265,12 @@ export const InboxView: Component<InboxViewProps> = (props) => {
           background: 'var(--surface-container-high)',
           border: '1px solid var(--surface-muted)',
           color: 'var(--text-main)',
-          padding: '10px 16px',
+          padding: "var(--space-3) var(--space-4)",
           "border-radius": '8px',
           "font-size": '12.5px',
           display: 'flex',
           "align-items": 'center',
-          gap: '8px',
+          gap: "var(--space-2)",
           "box-shadow": 'none',
           "z-index": 1000
         }}>
@@ -291,8 +280,8 @@ export const InboxView: Component<InboxViewProps> = (props) => {
       </Show>
 
       {/* Main Content Area */}
-      <div class="inbox-workspace context-panel" style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
-        <div style={{ "max-width": '720px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: '20px' }}>
+      <div class="inbox-workspace context-panel" style={{ flex: 1, overflow: 'auto', padding: "var(--space-6) var(--space-8)" }}>
+        <div style={{ "max-width": '720px', margin: '0 auto', display: 'flex', "flex-direction": 'column', gap: "var(--space-5)" }}>
           
           {/* Quick Note Input Box */}
           <form class="inbox-capture-form"
@@ -301,10 +290,10 @@ export const InboxView: Component<InboxViewProps> = (props) => {
               background: 'var(--surface-card)',
               border: '1px solid var(--border-default)',
               "border-radius": '4px',
-              padding: '12px 14px',
+              padding: "var(--space-3) var(--space-4)",
               display: 'flex',
               "flex-direction": 'column',
-              gap: '10px',
+              gap: "var(--space-3)",
               "box-shadow": 'none'
             }}
           >
@@ -332,7 +321,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                 "box-sizing": 'border-box'
               }}
             />
-            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "border-top": '1px solid var(--border-subtle)', "padding-top": '8px' }}>
+            <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "border-top": '1px solid var(--border-subtle)', "padding-top": "var(--space-2)" }}>
               <span style={{ "font-size": '12px', color: 'var(--text-dim)' }}>
                 Ide dan catatan cepat akan disimpan di Inbox sebelum dijadikan Todo/Dokumen
               </span>
@@ -340,7 +329,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                 type="submit"
                 class="btn-primary"
                 disabled={!quickInput().trim() || savingNote()}
-                style={{ padding: '6px 14px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '6px' }}
+                style={{ padding: "var(--space-2) var(--space-4)", "font-size": '12px', display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}
               >
                 <Plus size={13} />
                 <span>{savingNote() ? 'Menyimpan...' : 'Simpan ke Inbox'}</span>
@@ -351,12 +340,12 @@ export const InboxView: Component<InboxViewProps> = (props) => {
           {/* Notes List */}
           <Show when={!loading() && notes().length === 0}>
             <div style={{
-              padding: '48px 24px',
+              padding: "var(--space-12) var(--space-6)",
               "text-align": 'center',
               display: 'flex',
               "flex-direction": 'column',
               "align-items": 'center',
-              gap: '12px',
+              gap: "var(--space-3)",
               background: 'var(--surface-container-lowest)',
               border: '1px dashed var(--border-default)',
               "border-radius": '4px'
@@ -373,7 +362,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                 <Inbox size={20} color="var(--text-dim)" />
               </div>
               <div>
-                <h4 style={{ margin: '0 0 4px 0', "font-size": '14px', "font-weight": 600, color: 'var(--text-main)' }}>
+                <h4 style={{ margin: "0 0 var(--space-1) 0", "font-size": '14px', "font-weight": 600, color: 'var(--text-main)' }}>
                   Inbox Bersih
                 </h4>
                 <p style={{ margin: 0, "font-size": '12.5px', color: 'var(--text-dim)', "max-width": '360px', "line-height": 1.5 }}>
@@ -382,7 +371,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                 <button
                   type="button"
                   class="btn-secondary"
-                  style={{ "margin-top": '14px', "font-size": '12px', padding: '6px 14px' }}
+                  style={{ "margin-top": "var(--space-4)", "font-size": '12px', padding: "var(--space-2) var(--space-4)" }}
                   onClick={() => props.onOpenQuickCapture()}
                 >
                   Buka Quick Capture (Ctrl+K)
@@ -392,17 +381,17 @@ export const InboxView: Component<InboxViewProps> = (props) => {
           </Show>
 
           <Show when={notes().length > 0}>
-            <div style={{ display: 'flex', "flex-direction": 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-3)" }}>
               <For each={notes()}>
                 {(note) => (
                   <div style={{
                     background: 'var(--surface-card)',
                     border: '1px solid var(--border-default)',
                     "border-radius": '4px',
-                    padding: '14px 16px',
+                    padding: "var(--space-4) var(--space-4)",
                     display: 'flex',
                     "flex-direction": 'column',
-                    gap: '10px',
+                    gap: "var(--space-3)",
                     transition: 'border-color 0.15s ease'
                   }}>
                     {/* Note Content / Editing */}
@@ -420,19 +409,19 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                         </div>
                       }
                     >
-                      <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-2)" }}>
                         <textarea
                           rows={3}
                           value={editContent()}
                           onInput={e => setEditContent(e.currentTarget.value)}
                           class="form-input"
-                          style={{ width: '100%', "font-size": '13px', padding: '8px 10px', "box-sizing": 'border-box' }}
+                          style={{ width: '100%', "font-size": '13px', padding: "var(--space-2) var(--space-3)", "box-sizing": 'border-box' }}
                         />
-                        <div style={{ display: 'flex', gap: '6px', "justify-content": 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: "var(--space-2)", "justify-content": 'flex-end' }}>
                           <button
                             type="button"
                             class="btn-secondary"
-                            style={{ padding: '4px 10px', "font-size": '11.5px' }}
+                            style={{ padding: "var(--space-1) var(--space-3)", "font-size": '11.5px' }}
                             onClick={() => setEditingNoteId(null)}
                           >
                             Batal
@@ -440,7 +429,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                           <button
                             type="button"
                             class="btn-primary"
-                            style={{ padding: '4px 12px', "font-size": '11.5px' }}
+                            style={{ padding: "var(--space-1) var(--space-3)", "font-size": '11.5px' }}
                             onClick={() => handleSaveEdit(note.id)}
                           >
                             Simpan
@@ -455,20 +444,20 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                       "align-items": 'center',
                       "justify-content": 'space-between',
                       "border-top": '1px solid var(--border-subtle)',
-                      "padding-top": '8px',
-                      "margin-top": '4px'
+                      "padding-top": "var(--space-2)",
+                      "margin-top": "var(--space-1)"
                     }}>
-                      <div style={{ display: 'flex', "align-items": 'center', gap: '5px', "font-size": '12px', color: 'var(--text-dim)' }}>
+                      <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-1)", "font-size": '12px', color: 'var(--text-dim)' }}>
                         <Clock size={12} />
                         <span>{formatRelativeTime(note.created_at)}</span>
                       </div>
 
-                      <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
                         {/* Convert to Task */}
                         <button
                           type="button"
                           class="btn-secondary"
-                          style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }}
+                          style={{ padding: "var(--space-1) var(--space-2)", "font-size": '12px', display: 'flex', "align-items": 'center', gap: "var(--space-1)" }}
                           title="Ubah catatan ini menjadi Task di dalam Project"
                           onClick={() => handleOpenConvert(note, 'task')}
                         >
@@ -480,7 +469,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                         <button
                           type="button"
                           class="btn-secondary"
-                          style={{ padding: '4px 8px', "font-size": '12px', display: 'flex', "align-items": 'center', gap: '4px' }}
+                          style={{ padding: "var(--space-1) var(--space-2)", "font-size": '12px', display: 'flex', "align-items": 'center', gap: "var(--space-1)" }}
                           title="Ubah catatan ini menjadi Dokumen di dalam Project"
                           onClick={() => handleOpenConvert(note, 'doc')}
                         >
@@ -544,18 +533,18 @@ export const InboxView: Component<InboxViewProps> = (props) => {
             </div>
 
             <Show when={convertError()}>
-              <div class="modal-error-badge" style={{ "margin-bottom": '12px' }}>
+              <div class="modal-error-badge" style={{ "margin-bottom": "var(--space-3)" }}>
                 {convertError()}
               </div>
             </Show>
 
-            <form onSubmit={handleExecuteConvert} style={{ display: 'flex', "flex-direction": 'column', gap: '14px' }}>
-              <div style={{ "font-size": '12px', color: 'var(--text-dim)', background: 'var(--surface-container-lowest)', padding: '10px 12px', "border-radius": '8px', border: '1px solid var(--border-subtle)' }}>
+            <form onSubmit={handleExecuteConvert} style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-4)" }}>
+              <div style={{ "font-size": '12px', color: 'var(--text-dim)', background: 'var(--surface-container-lowest)', padding: "var(--space-3) var(--space-3)", "border-radius": '8px', border: '1px solid var(--border-subtle)' }}>
                 Catatan ini akan dipindahkan dari Inbox menjadi {convertTargetType() === 'task' ? 'sebuah Task' : 'sebuah Dokumen'} di project pilihan Anda.
               </div>
 
               {/* Space & Project Pickers */}
-              <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', "grid-template-columns": '1fr 1fr', gap: "var(--space-3)" }}>
                 <div>
                   <label class="modal-form-label">Space</label>
                   <select
@@ -566,7 +555,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                       setConvertProjectId(avail.length > 0 ? avail[0].id : '');
                     }}
                     class="modal-form-input"
-                    style={{ padding: '8px 10px', "font-size": '12.5px' }}
+                    style={{ padding: "var(--space-2) var(--space-3)", "font-size": '12.5px' }}
                   >
                     <For each={spaces()}>
                       {(sp) => (
@@ -582,7 +571,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                     value={convertProjectId()}
                     onChange={e => setConvertProjectId(e.currentTarget.value)}
                     class="modal-form-input"
-                    style={{ padding: '8px 10px', "font-size": '12.5px' }}
+                    style={{ padding: "var(--space-2) var(--space-3)", "font-size": '12.5px' }}
                     required
                   >
                     <option value="">Pilih Project...</option>
@@ -605,7 +594,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                   value={convertTitle()} 
                   onInput={e => setConvertTitle(e.currentTarget.value)}
                   class="modal-form-input"
-                  style={{ padding: '8px 10px', "font-size": '13px' }}
+                  style={{ padding: "var(--space-2) var(--space-3)", "font-size": '13px' }}
                   required
                 />
               </div>
@@ -618,7 +607,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                     value={convertPriority()}
                     onChange={e => setConvertPriority(e.currentTarget.value as any)}
                     class="modal-form-input"
-                    style={{ padding: '8px 10px', "font-size": '12.5px' }}
+                    style={{ padding: "var(--space-2) var(--space-3)", "font-size": '12.5px' }}
                   >
                     <option value="low">Rendah (Low)</option>
                     <option value="medium">Sedang (Medium)</option>
@@ -628,7 +617,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                 </div>
               </Show>
 
-              <div style={{ display: 'flex', "justify-content": 'flex-end', gap: '8px', "margin-top": '6px', "border-top": '1px solid var(--border-default)', "padding-top": '12px' }}>
+              <div style={{ display: 'flex', "justify-content": 'flex-end', gap: "var(--space-2)", "margin-top": "var(--space-2)", "border-top": '1px solid var(--border-default)', "padding-top": "var(--space-3)" }}>
                 <button
                   type="button"
                   class="btn-secondary"
@@ -641,7 +630,7 @@ export const InboxView: Component<InboxViewProps> = (props) => {
                   type="submit"
                   class="btn-primary"
                   disabled={convertLoading() || !convertProjectId()}
-                  style={{ display: 'flex', "align-items": 'center', gap: '6px' }}
+                  style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}
                 >
                   <Show when={convertLoading()}>
                     <Loader2 size={13} class="spin" />
