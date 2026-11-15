@@ -1,3 +1,4 @@
+import { TaskContext } from '../../components/TaskContext';
 import {
   CheckSquare,
   Edit3,
@@ -112,7 +113,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                     </div>
                     <h4 style={{ "font-size": '13px', "font-weight": 500, color: 'var(--text-main)', margin: 0, "line-height": 1.4 }}>
                       {t.title}
-                    </h4>
+                    </h4><TaskContext task={t} />
                     <Show when={t.due_date}>
                       <div style={{ display: 'flex', "align-items": 'center', "font-size": '12px', color: 'var(--text-dim)', "font-family": 'var(--font-mono)' }}>
                         <span>Due {new Date(t.due_date!).toLocaleDateString()}</span>
@@ -199,7 +200,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
                           "white-space": 'nowrap'
                         }}>
                           {t.title}
-                        </span>
+                        </span><TaskContext task={t} />
                         <span style={{ "font-size": '12px', "font-family": 'var(--font-mono)', color: 'var(--text-dim)' }}>
                           #{t.id.slice(-4)} {t.due_date ? `• Due ${new Date(t.due_date).toLocaleDateString()}` : ''}
                         </span>
@@ -237,7 +238,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
 
                       <button type="button" onClick={async (e) => {
                         e.stopPropagation();
-                        if (confirm('Are you sure you want to delete this task?')) {
+                        if (confirm(t.descendant_count ? `Hapus task ini beserta ${t.descendant_count} subtask?` : 'Hapus task ini?')) {
                           try {
                             await api.deleteTask(t.id);
                             ctx.handleTaskDeleted(t.id);

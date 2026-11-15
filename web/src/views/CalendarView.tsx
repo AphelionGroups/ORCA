@@ -1,3 +1,4 @@
+import { TaskContext } from '../components/TaskContext';
 import { getCurrentUser } from '../services/user';
 import { sessionSlot, sessionConflicts, tasksToSchedule } from '../services/calendarPlanning';
 import '../styles/calendarPlanning.css';
@@ -248,7 +249,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
   });
   const taskChoices = () => <>
     <label class="calendar-backlog-filter">Show<select aria-label="Tasks to schedule filter" value={backlogFilter()} onChange={event => setBacklogFilter(event.currentTarget.value)}><option value="today">Today</option><option value="overdue">Overdue</option><option value="all">All open tasks</option></select></label>
-    <div class="calendar-backlog-items"><For each={backlogTasks()} fallback={<p>No tasks in this filter.</p>}>{task => <button type="button" class="calendar-item calendar-entry" draggable={!compact() && !sessionBusy()} onDragStart={event => event.dataTransfer?.setData('application/x-orca-calendar', JSON.stringify({ kind: 'task', id: task.id }))} onDragEnd={() => setDropPreview(null)} onClick={() => { setTaskPickerOpen(false); setSelectedItem({ kind: 'Task', id: task.id }); }}><ListTodo size={14} /><strong>{task.title}</strong><span class="calendar-entry-meta">{task.due_date ? `Due ${task.due_date.slice(0, 10)}` : task.planned_date ? `Planned ${task.planned_date.slice(0, 10)}` : 'No date'}</span></button>}</For></div>
+    <div class="calendar-backlog-items"><For each={backlogTasks()} fallback={<p>No tasks in this filter.</p>}>{task => <button type="button" class="calendar-item calendar-entry" draggable={!compact() && !sessionBusy()} onDragStart={event => event.dataTransfer?.setData('application/x-orca-calendar', JSON.stringify({ kind: 'task', id: task.id }))} onDragEnd={() => setDropPreview(null)} onClick={() => { setTaskPickerOpen(false); setSelectedItem({ kind: 'Task', id: task.id }); }}><ListTodo size={14} /><strong>{task.title}<TaskContext task={task} /></strong><span class="calendar-entry-meta">{task.due_date ? `Due ${task.due_date.slice(0, 10)}` : task.planned_date ? `Planned ${task.planned_date.slice(0, 10)}` : 'No date'}</span></button>}</For></div>
   </>;
   const itemCard = (item: CalendarItem) => <button type="button" class="calendar-item calendar-entry" data-category={item.category} draggable={item.kind === 'Event' && !item.allDay && !sessionBusy()} onDragStart={event => { event.dataTransfer?.setData('application/x-orca-calendar', JSON.stringify({ kind: 'event', id: item.sourceId })); }} onDragEnd={() => setDropPreview(null)} classList={{ 'calendar-item-done': item.status === 'done' }}
     aria-label={item.title} onClick={() => { if (!suppressClick) setSelectedItem({ kind: item.kind, id: item.sourceId }); }}>
@@ -333,7 +334,7 @@ export const CalendarView: Component<CalendarViewProps> = (_props) => {
         <div class="calendar-detail-backdrop" onClick={event => { if (event.target === event.currentTarget) setSelectedItem(null); }}>
           <section class="calendar-detail" ref={element => focusScope(element, () => setSelectedItem(null))}>
             <header><span>{selectedItem()?.kind}</span><button type="button" class="btn-ghost-icon" aria-label="Close item details" onClick={() => setSelectedItem(null)}><X size={18} /></button></header>
-            <h2>{detailEvent()?.title || detailTask()?.title}</h2>
+            <h2>{detailEvent()?.title || detailTask()?.title}</h2><Show when={detailTask()}>{task => <TaskContext task={task()} />}</Show>
             <dl>
               <dt>Space</dt><dd>{getSpaceInfo(detailEvent()?.space_id || detailTask()?.space_id)}</dd>
               <Show when={detailEvent()}>{event => <>

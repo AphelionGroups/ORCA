@@ -41,6 +41,11 @@ export interface Task {
   space_id: string;
   project_id?: string;
   parent_task_id?: string;
+  parent_title?: string;
+  auto_complete_subtasks?: boolean;
+  subtask_count?: number;
+  subtask_done?: number;
+  descendant_count?: number;
   title: string;
   description?: string;
   status: TaskStatus;
@@ -337,12 +342,15 @@ export const api = {
     });
   },
 
+  getTask: async (id: string): Promise<Task> => (await request<{ data: Task }>(`/tasks/${id}`)).data,
+
   // Tasks
-  getTasks: async (filters: { space_id?: string; project_id?: string; inbox?: boolean; planned_date?: string; status?: string } = {}): Promise<Task[]> => {
+  getTasks: async (filters: { parent_task_id?: string; space_id?: string; project_id?: string; inbox?: boolean; planned_date?: string; status?: string } = {}): Promise<Task[]> => {
     const params = new URLSearchParams();
     if (filters.space_id) params.set('space_id', filters.space_id);
     if (filters.project_id) params.set('project_id', filters.project_id);
     if (filters.inbox) params.set('inbox', 'true');
+    if (filters.parent_task_id) params.set('parent_task_id', filters.parent_task_id);
     if (filters.planned_date) params.set('planned_date', filters.planned_date);
     if (filters.status) params.set('status', filters.status);
 

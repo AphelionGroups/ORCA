@@ -55,6 +55,14 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if value := r.URL.Query().Get("parent_task_id"); value != "" {
+		id, err := uuid.Parse(value)
+		if err != nil {
+			httputil.RespondError(w, http.StatusBadRequest, "Invalid parent task ID")
+			return
+		}
+		filter.ParentTaskID = &id
+	}
 	filter.Status = r.URL.Query().Get("status")
 
 	tasks, err := h.repo.List(r.Context(), wsID, filter)
@@ -104,16 +112,17 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	task := Task{
-		WorkspaceID:      wsID,
-		SpaceID:          req.SpaceID,
-		ProjectID:        req.ProjectID,
-		ParentTaskID:     req.ParentTaskID,
-		Title:            req.Title,
-		Description:      req.Description,
-		Status:           req.Status,
-		Priority:         req.Priority,
-		DueDate:          req.DueDate,
-		EstimatedMinutes: req.EstimatedMinutes,
+		AutoCompleteSubtasks: req.AutoCompleteSubtasks,
+		WorkspaceID:          wsID,
+		SpaceID:              req.SpaceID,
+		ProjectID:            req.ProjectID,
+		ParentTaskID:         req.ParentTaskID,
+		Title:                req.Title,
+		Description:          req.Description,
+		Status:               req.Status,
+		Priority:             req.Priority,
+		DueDate:              req.DueDate,
+		EstimatedMinutes:     req.EstimatedMinutes,
 	}
 
 	if req.PlannedDate != nil && *req.PlannedDate != "" {
@@ -162,6 +171,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.AutoCompleteSubtasks != nil {
+		existing.AutoCompleteSubtasks = *req.AutoCompleteSubtasks
+	}
 	if req.SpaceID != nil {
 		existing.SpaceID = *req.SpaceID
 	}

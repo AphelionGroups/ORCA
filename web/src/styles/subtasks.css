@@ -1,0 +1,22 @@
+.task-context { display: block; font-size: 12px; line-height: 1.5; color: var(--text-muted); overflow-wrap: anywhere; font-weight: 400; }
+.task-subtasks { border-top: 1px solid var(--border-default); padding-top: var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.task-subtasks-heading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.task-subtasks-heading h4 { margin: 0; font-size: 14px; }
+.task-subtasks-heading span, .task-subtasks-empty { font-size: 12px; color: var(--text-muted); margin: 0; }
+.task-subtask-list { list-style: none; padding: 0; margin: 0; }
+.task-subtask-row { display: flex; align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--border-default); min-height: 48px; }
+.task-subtask-toggle { flex-shrink: 0; width: 40px; height: 40px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; display: grid; place-items: center; border-radius: 8px; }
+.task-subtask-open { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text-main); text-align: left; cursor: pointer; padding: var(--space-3) var(--space-2); overflow-wrap: anywhere; }
+.task-subtask-open small { display: block; color: var(--text-muted); margin-top: var(--space-1); }
+.task-subtask-row[data-done="true"] .task-subtask-open > span { text-decoration: line-through; color: var(--text-muted); }
+.task-subtask-row[data-done="true"] .task-subtask-toggle { color: var(--primary); }
+.task-subtask-toggle:hover, .task-subtask-open:hover { background: var(--surface-container-high); }
+.task-subtask-toggle:focus-visible, .task-subtask-open:focus-visible, .task-parent-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.task-subtask-add { display: flex; gap: var(--space-2); align-items: center; }
+.task-subtask-add input { flex: 1; min-width: 0; }
+.task-subtask-add button { flex-shrink: 0; }
+.task-subtask-rule { display: flex; align-items: flex-start; gap: var(--space-2); font-size: 12px; line-height: 1.5; color: var(--text-muted); cursor: pointer; }
+.task-subtask-rule input { margin: var(--space-1) 0 0; accent-color: var(--primary); }
+.task-parent-context { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.task-parent-link { border: none; padding: 0; color: var(--primary); background: transparent; cursor: pointer; text-align: left; overflow-wrap: anywhere; font-size: 13px; }
+.task-detach { font-size: 12px; color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px; }

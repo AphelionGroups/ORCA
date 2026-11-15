@@ -1,3 +1,4 @@
+import { TaskContext } from '../components/TaskContext';
 import { createSignal, createMemo, createEffect, onMount, onCleanup, For, Show } from 'solid-js';
 import { House, Plus, SlidersHorizontal, X, GripVertical, MoveDownRight, ListTodo, CalendarDays, FolderKanban, ChevronRight } from 'lucide-solid';
 import { api, type Task, type CalendarEvent, type Project, type Space } from '../services/api';
@@ -127,7 +128,7 @@ export function HomeView(props: Props) {
   const taskRows = (list: Task[], empty: string) => <Show when={list.length} fallback={<p class="dashboard-empty">{empty}</p>}>
     <ul class="dashboard-list"><For each={list}>{task => <li><button class="dashboard-task" aria-label={`Open task: ${task.title}`} aria-haspopup="dialog" onClick={() => setSelectedTask(task)}>
       <span class="dashboard-item-icon" aria-hidden="true"><ListTodo size={18} /></span>
-      <span class="dashboard-item-copy"><span class="dashboard-task-title">{task.title}</span><span class="dashboard-task-context"><span>{context(task)}</span><span class="dashboard-task-status">{TASK_STATUS_OPTIONS.find(option => option.value === task.status)?.label || task.status}</span></span></span>
+      <span class="dashboard-item-copy"><span class="dashboard-task-title">{task.title}</span><TaskContext task={task} /><span class="dashboard-task-context"><span>{context(task)}</span><span class="dashboard-task-status">{TASK_STATUS_OPTIONS.find(option => option.value === task.status)?.label || task.status}</span></span></span>
       <ChevronRight class="dashboard-item-chevron" size={17} aria-hidden="true" />
     </button></li>}</For></ul>
   </Show>;

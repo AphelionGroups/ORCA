@@ -72,7 +72,7 @@ func TestLegacyValidationDoesNotRewriteInvalidActiveData(t *testing.T) {
 		t.Fatalf("legacy value rewritten: %s %v", status, err)
 	}
 	var created bool
-	if err := pool.QueryRow(ctx, `SELECT to_regclass('board_operations') IS NOT NULL`).Scan(&created); err != nil || created {
+	if err := pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema=current_schema() AND table_name='board_operations')`).Scan(&created); err != nil || created {
 		t.Fatal("failed migration committed later schema changes")
 	}
 }
