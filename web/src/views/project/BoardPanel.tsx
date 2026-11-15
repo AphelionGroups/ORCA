@@ -1,7 +1,9 @@
+import { openExport } from '../../services/transfer';
 import { handleMenuKey } from '../../components/tabs';
 import { Portal } from 'solid-js/web';
 import { CanvasContextToolbar } from './CanvasContextToolbar';
 import {
+  Download,
   ArrowLeft,
   Edit3,
   Hand,
@@ -206,8 +208,9 @@ export const BoardPanel: Component<{ ctx: ProjectController }> = (props) => {
                     }} />
                   </Show>
 
-                  {/* Quick actions: Rename & Delete */}
+                  {/* Board actions */}
                   <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-1)" }} onClick={(e) => e.stopPropagation()}>
+                    <button type="button" class="btn-ghost-icon" aria-label={`Export board ${b.title}`} onClick={() => openExport({ kind: 'board', id: b.id, name: b.title })}><Download size={14} /></button>
                     <button type="button" onClick={(e) => {
                       e.stopPropagation();
                       setRenameVal(b.title);

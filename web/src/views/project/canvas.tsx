@@ -218,15 +218,15 @@ export const UnifiedMarkdownBlock: Component<UnifiedMarkdownBlockProps> = (props
 
   if (props.block.type === 'image') {
     return (
-      <div class="canvas-block-content" style={{ padding: "var(--space-2)" }}>
+      <div class="canvas-block-content" style={{ padding: "var(--space-2)", ...(props.block.height ? { height: '100%', "box-sizing": 'border-box', display: 'flex', "flex-direction": 'column', overflow: 'hidden' } : {}) }}>
         <img
           src={props.block.content?.url}
           alt={props.block.content?.caption || 'Canvas Image'}
-          style={{ width: '100%', height: 'auto', display: 'block', "border-radius": '6px', "object-fit": 'contain', "max-height": '400px' }}
+          style={{ width: '100%', height: props.block.height ? '100%' : 'auto', display: 'block', "border-radius": '6px', "object-fit": 'contain', "max-height": props.block.height ? '100%' : '400px', ...(props.block.height ? { flex: '1 1 0', "min-height": '0' } : {}) }}
           draggable={false}
         />
         <Show when={props.block.content?.caption}>
-          <div style={{ "font-size": '12px', color: props.textColor || 'var(--text-dim)', padding: "var(--space-2) var(--space-1) var(--space-1) var(--space-1)", "text-align": 'center' }}>
+          <div style={{ "font-size": '12px', color: props.textColor || 'var(--text-dim)', padding: "var(--space-2) var(--space-1) var(--space-1) var(--space-1)", "text-align": 'center', ...(props.block.height ? { "flex-shrink": '0', "max-height": '40%', "overflow-y": 'auto' } : {}) }}>
             {props.block.content?.caption}
           </div>
         </Show>

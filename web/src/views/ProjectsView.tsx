@@ -1,3 +1,4 @@
+import { openExport, openImport } from '../services/transfer';
 import {
   ArrowRight,
   CheckSquare,
@@ -71,7 +72,13 @@ export const ProjectsView: Component<ProjectsViewProps> = (props) => {
 
       {/* Right Header Actions */}
       <div class="header-actions">
-<PageOptions onRefresh={ctx.refreshData} busy={ctx.loadingProjects() || ctx.loadingSubData()} />
+<PageOptions onExport={() => {
+ const board = ctx.isBoardCanvasOpen() ? ctx.currentBoard() : null;
+ if (board) openExport({ kind: 'board', id: board.id, name: board.title });
+ else if (ctx.currentProject()) openExport({ kind: 'project', id: ctx.currentProject()!.id, name: ctx.currentProject()!.name });
+ else if (props.activeSpaceId) openExport({ kind: 'space', id: props.activeSpaceId });
+ else openExport({ kind: 'workspace' });
+}} onImport={() => openImport(ctx.currentProject()?.space_id || props.activeSpaceId || undefined)} onRefresh={ctx.refreshData} busy={ctx.loadingProjects() || ctx.loadingSubData()} />
         <button onClick={props.onOpenQuickCapture} class="btn-pill-white">
           <Plus size={14} />
           <span>New Item</span>

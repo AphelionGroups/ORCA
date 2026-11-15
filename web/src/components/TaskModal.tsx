@@ -1,3 +1,4 @@
+import { openExport } from '../services/transfer';
 import { TASK_STATUS_OPTIONS as STATUS_OPTIONS } from '../services/taskContract';
 import { focusScope } from './focusScope';
 import type { Component } from 'solid-js';
@@ -376,7 +377,8 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
               </Show>
               {/* Footer Actions */}
               <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-top": "var(--space-2)", "padding-top": "var(--space-4)", "border-top": '1px solid var(--border-default)' }}>
-                <div>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', "flex-wrap": 'wrap' }}>
+                  <Show when={activeTask()}><button type="button" class="btn-secondary" disabled={loading() || childBusy()} onClick={() => openExport({ kind: 'task', id: activeTask()!.id, name: activeTask()!.title })}>Export</button></Show>
                   <Show when={activeTask()}>
                     <button
                       type="button"

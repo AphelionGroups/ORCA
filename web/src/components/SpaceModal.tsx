@@ -1,3 +1,4 @@
+import { openExport } from '../services/transfer';
 import { focusScope } from './focusScope';
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, Show, For } from 'solid-js';
@@ -269,7 +270,8 @@ export const SpaceModal: Component<SpaceModalProps> = (props) => {
 
               {/* Footer Actions */}
               <div class="modal-footer-row">
-                <div>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', "flex-wrap": 'wrap' }}>
+                  <Show when={props.spaceToEdit}><button type="button" class="btn-secondary" disabled={loading()} onClick={() => openExport({ kind: 'space', id: props.spaceToEdit!.id, name: props.spaceToEdit!.name })}>Export</button></Show>
                   <Show when={props.spaceToEdit}>
                     <button 
                       type="button"

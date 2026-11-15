@@ -1,3 +1,4 @@
+import { openExport, openImport } from '../services/transfer';
 import { handleTabKey } from './tabs';
 import { focusScope } from './focusScope';
 import type { Component } from 'solid-js';
@@ -582,6 +583,7 @@ export const ProfileModal: Component<ProfileModalProps> = (props) => {
                 </div>
               </Show>
 
+              <Show when={activeTab() === 'general'}><section aria-label="Data workspace"><h4>Data workspace</h4><p class="transfer-note">Unduh backup workspace atau tambahkan konten dari paket ORCA.</p><div class="transfer-workspace-actions"><button type="button" class="btn-secondary" onClick={() => openExport({ kind: 'workspace' })}>Export workspace</button><button type="button" class="btn-secondary" onClick={() => openImport()}>Import paket</button></div></section></Show>
               {/* Modal Footer Buttons */}
               <div style={{ 
                 display: 'flex', 

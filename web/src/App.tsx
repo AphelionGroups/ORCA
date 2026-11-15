@@ -1,3 +1,4 @@
+import { TransferModal } from './components/TransferModal';
 import type { Component } from 'solid-js';
 import { createSignal, createEffect, onMount, onCleanup, Switch, Match, Show } from 'solid-js';
 import { PanelLeftOpen } from 'lucide-solid';
@@ -207,6 +208,7 @@ export const App: Component = () => {
             setCurrentUserState(updated);
           }}
         />
+        <TransferModal onNavigate={handleNavigate} />
       </div>
     </Show>
   );

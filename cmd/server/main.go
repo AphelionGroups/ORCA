@@ -29,6 +29,7 @@ import (
 	"github.com/AphelionGroups/ORCA/internal/project"
 	"github.com/AphelionGroups/ORCA/internal/space"
 	"github.com/AphelionGroups/ORCA/internal/task"
+	"github.com/AphelionGroups/ORCA/internal/transfer"
 	"github.com/AphelionGroups/ORCA/internal/upload"
 )
 
@@ -78,7 +79,7 @@ func main() {
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
-	r.Use(chimiddleware.Timeout(60 * time.Second))
+	r.Use(chimiddleware.Timeout(120 * time.Second))
 
 	// CORS Configuration
 	r.Use(cors.Handler(cors.Options{
@@ -166,6 +167,11 @@ func main() {
 				// Uploads endpoint
 				tenant.Mount("/upload", uploadHandler.Routes())
 
+				// Portable workspace packages use the same authenticated tenant boundary.
+				if archiveStore, ok := storageSvc.(storage.ArchiveStore); ok {
+					tenant.Mount("/transfer", transfer.NewHandler(transfer.NewService(dbPool.Pool, archiveStore)).Routes())
+				}
+
 				// Domain routes
 				tenant.Mount("/spaces", spaceHandler.Routes())
 				tenant.Mount("/projects", projectHandler.Routes())
@@ -188,8 +194,8 @@ func main() {
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  120 * time.Second,
+		WriteTimeout: 120 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 

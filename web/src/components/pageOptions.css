@@ -1,5 +1,5 @@
 .page-options { position: relative; display: inline-flex; }
 .page-options > button { min-width: 36px; min-height: 36px; }
-.page-options-popover { position: fixed; z-index: 80; padding: var(--space-1); width: 164px; border: 1px solid var(--border-subtle); border-radius: var(--radius-card); background: var(--surface-panel); box-shadow: var(--shadow-popover); }
+.page-options-popover { position: fixed; z-index: 80; padding: var(--space-1); width: 192px; border: 1px solid var(--border-subtle); border-radius: var(--radius-card); background: var(--surface-panel); box-shadow: var(--shadow-popover); }
 .page-options-action { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-3); width: 100%; text-align: left; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-primary); cursor: pointer; }
 .page-options-action:hover { background: var(--surface-muted); }

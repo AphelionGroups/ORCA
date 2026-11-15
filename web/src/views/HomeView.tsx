@@ -1,3 +1,4 @@
+import { openExport, openImport } from '../services/transfer';
 import { TaskContext } from '../components/TaskContext';
 import { createSignal, createMemo, createEffect, onMount, onCleanup, For, Show } from 'solid-js';
 import { House, Plus, SlidersHorizontal, X, GripVertical, MoveDownRight, ListTodo, CalendarDays, FolderKanban, ChevronRight } from 'lucide-solid';
@@ -134,7 +135,7 @@ export function HomeView(props: Props) {
   </Show>;
   return <div class="dashboard-page">
     <header class="orca-header"><div class="header-breadcrumbs"><House size={16} /><span>Home</span></div>
-      <div class="header-actions"><PageOptions onRefresh={() => load()} busy={loading() || editing()} /><button class="btn-secondary" onClick={() => { cancelGesture(); setEditing(value => !value); }} aria-pressed={editing()}><SlidersHorizontal size={14} />{editing() ? 'Done customizing' : 'Customize'}</button>
+      <div class="header-actions"><PageOptions onExport={() => openExport({ kind: 'workspace' })} onImport={() => openImport()} onRefresh={() => load()} busy={loading() || editing()} /><button class="btn-secondary" onClick={() => { cancelGesture(); setEditing(value => !value); }} aria-pressed={editing()}><SlidersHorizontal size={14} />{editing() ? 'Done customizing' : 'Customize'}</button>
       <button class="btn-primary" onClick={props.onOpenQuickCapture}><Plus size={14} />Quick capture</button></div>
     </header>
     <div class="dashboard-content">
