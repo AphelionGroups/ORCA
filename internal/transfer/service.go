@@ -219,7 +219,7 @@ func (s *Service) Export(ctx context.Context, ws uuid.UUID, scope Scope) (*Packa
 					return nil, invalid("related content has a different space; export the workspace instead")
 				}
 			}
-			for _, key := range []string{"content", "description", "metadata"} {
+			for _, key := range []string{"content", "description", "metadata", "delegation_note"} {
 				if row[key] != nil {
 					external := false
 					row[key] = walk(row[key], func(value string) string {
@@ -253,7 +253,7 @@ func (s *Service) Export(ctx context.Context, ws uuid.UUID, scope Scope) (*Packa
 	urls := map[string]bool{}
 	for _, rows := range p.Entities {
 		for _, row := range rows {
-			for _, key := range []string{"content", "description", "metadata"} {
+			for _, key := range []string{"content", "description", "metadata", "delegation_note"} {
 				walk(row[key], func(value string) string {
 					for _, raw := range assetURL.FindAllString(value, -1) {
 						urls[raw] = true
@@ -451,7 +451,7 @@ func (s *Service) Import(ctx context.Context, ws, requestID uuid.UUID, data []by
 			if (p.Scope.Kind == "task" && oldID == p.Scope.ID) || (p.Scope.Kind == "board" && oldID == p.Scope.ID) {
 				row["title"] = copyName(str(row, "title"), 255)
 			}
-			for _, key := range []string{"content", "description", "metadata"} {
+			for _, key := range []string{"content", "description", "metadata", "delegation_note"} {
 				if row[key] != nil {
 					row[key] = walk(row[key], func(text string) string {
 						text = assetURL.ReplaceAllStringFunc(text, func(raw string) string {

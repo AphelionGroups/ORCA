@@ -2,6 +2,8 @@ package task
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -63,6 +65,14 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		}
 		filter.ParentTaskID = &id
 	}
+	if value := r.URL.Query().Get("delegated"); value != "" {
+		parsed, err := strconv.ParseBool(value)
+		if err != nil {
+			httputil.RespondError(w, http.StatusBadRequest, "Invalid delegated filter")
+			return
+		}
+		filter.Delegated = &parsed
+	}
 	filter.Status = r.URL.Query().Get("status")
 
 	tasks, err := h.repo.List(r.Context(), wsID, filter)
@@ -112,6 +122,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	task := Task{
+		DelegatedTo: req.DelegatedTo, DelegationNote: req.DelegationNote,
 		AutoCompleteSubtasks: req.AutoCompleteSubtasks,
 		WorkspaceID:          wsID,
 		SpaceID:              req.SpaceID,
@@ -134,6 +145,18 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		task.PlannedDate = &t
 	}
 
+	if req.FollowUpDate != nil && *req.FollowUpDate != "" {
+		date, err := time.Parse("2006-01-02", *req.FollowUpDate)
+		if err != nil {
+			httputil.RespondError(w, http.StatusBadRequest, "Invalid follow_up_date")
+			return
+		}
+		task.FollowUpDate = &date
+	}
+	if err := NormalizeDelegation(&task); err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if err := h.repo.Create(r.Context(), &task); err != nil {
 		httputil.RespondDBError(w, err)
 		return
@@ -171,6 +194,31 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.DelegatedTo.Set {
+		existing.DelegatedTo = req.DelegatedTo.Value
+	}
+	if req.DelegationNote.Set {
+		existing.DelegationNote = req.DelegationNote.Value
+	}
+	if req.FollowUpDate.Set {
+		existing.FollowUpDate = nil
+		if req.FollowUpDate.Value != nil && *req.FollowUpDate.Value != "" {
+			date, err := time.Parse("2006-01-02", *req.FollowUpDate.Value)
+			if err != nil {
+				httputil.RespondError(w, http.StatusBadRequest, "Invalid follow_up_date")
+				return
+			}
+			existing.FollowUpDate = &date
+		}
+	}
+	if req.DelegatedTo.Set && (existing.DelegatedTo == nil || strings.TrimSpace(*existing.DelegatedTo) == "") {
+		existing.FollowUpDate = nil
+		existing.DelegationNote = nil
+	}
+	if err := NormalizeDelegation(existing); err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if req.AutoCompleteSubtasks != nil {
 		existing.AutoCompleteSubtasks = *req.AutoCompleteSubtasks
 	}

@@ -36,6 +36,9 @@ export interface Project {
 }
 
 export interface Task {
+  delegated_to?: string;
+  follow_up_date?: string;
+  delegation_note?: string;
   id: string;
   workspace_id: string;
   space_id: string;
@@ -345,12 +348,13 @@ export const api = {
   getTask: async (id: string): Promise<Task> => (await request<{ data: Task }>(`/tasks/${id}`)).data,
 
   // Tasks
-  getTasks: async (filters: { parent_task_id?: string; space_id?: string; project_id?: string; inbox?: boolean; planned_date?: string; status?: string } = {}): Promise<Task[]> => {
+  getTasks: async (filters: { delegated?: boolean; parent_task_id?: string; space_id?: string; project_id?: string; inbox?: boolean; planned_date?: string; status?: string } = {}): Promise<Task[]> => {
     const params = new URLSearchParams();
     if (filters.space_id) params.set('space_id', filters.space_id);
     if (filters.project_id) params.set('project_id', filters.project_id);
     if (filters.inbox) params.set('inbox', 'true');
     if (filters.parent_task_id) params.set('parent_task_id', filters.parent_task_id);
+    if (filters.delegated !== undefined) params.set('delegated', String(filters.delegated));
     if (filters.planned_date) params.set('planned_date', filters.planned_date);
     if (filters.status) params.set('status', filters.status);
 
@@ -358,7 +362,7 @@ export const api = {
     const res = await request<{ data: Task[] }>(`/tasks${qs}`);
     return res.data;
   },
-  createTask: async (data: UpdateFields<Task, 'project_id' | 'parent_task_id' | 'description' | 'due_date' | 'planned_date' | 'estimated_minutes'>): Promise<Task> => {
+  createTask: async (data: UpdateFields<Task, 'project_id' | 'parent_task_id' | 'description' | 'due_date' | 'planned_date' | 'estimated_minutes' | 'delegated_to' | 'follow_up_date' | 'delegation_note'>): Promise<Task> => {
     const res = await request<{ data: Task }>('/tasks', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -368,7 +372,7 @@ export const api = {
   updateTaskStatus: async (id: string, status: TaskStatus, expected_updated_at?: string): Promise<Task> => {
     return api.updateTask(id, { status, expected_updated_at });
   },
-  updateTask: async (id: string, data: UpdateFields<Task, 'project_id' | 'parent_task_id' | 'description' | 'due_date' | 'planned_date' | 'estimated_minutes'>): Promise<Task> => {
+  updateTask: async (id: string, data: UpdateFields<Task, 'project_id' | 'parent_task_id' | 'description' | 'due_date' | 'planned_date' | 'estimated_minutes' | 'delegated_to' | 'follow_up_date' | 'delegation_note'>): Promise<Task> => {
     const res = await request<{ data: Task }>(`/tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

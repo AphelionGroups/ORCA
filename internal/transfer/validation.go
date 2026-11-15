@@ -116,6 +116,40 @@ func validateFields(table string, row Record) error {
 			}
 		}
 	}
+	if table == "tasks" {
+		t := taskcontract.Task{}
+		if value := str(row, "delegated_to"); value != "" {
+			t.DelegatedTo = &value
+		}
+		if value := str(row, "delegation_note"); value != "" {
+			t.DelegationNote = &value
+		}
+		if value := str(row, "follow_up_date"); value != "" {
+			date, err := time.Parse("2006-01-02", value)
+			if err != nil {
+				return invalid("invalid follow-up date")
+			}
+			t.FollowUpDate = &date
+		}
+		if err := taskcontract.NormalizeDelegation(&t); err != nil {
+			return invalid(err.Error())
+		}
+		if t.DelegatedTo != nil {
+			row["delegated_to"] = *t.DelegatedTo
+		}
+		if _, present := row["delegation_note"]; present {
+			row["delegation_note"] = nil
+			if t.DelegationNote != nil {
+				row["delegation_note"] = *t.DelegationNote
+			}
+		}
+		if row["follow_up_date"] == "" {
+			row["follow_up_date"] = nil
+		}
+		if row["delegated_to"] != nil && t.DelegatedTo == nil {
+			return invalid("empty delegation recipient")
+		}
+	}
 	if value := str(row, "planned_date"); value != "" {
 		if _, err := time.Parse("2006-01-02", value); err != nil {
 			return invalid("invalid planned date")

@@ -20,3 +20,13 @@
 .task-parent-context { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 .task-parent-link { border: none; padding: 0; color: var(--primary); background: transparent; cursor: pointer; text-align: left; overflow-wrap: anywhere; font-size: 13px; }
 .task-detach { font-size: 12px; color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px; }
+
+.task-delegation { display: flex; flex-direction: column; gap: var(--space-4); border-top: 1px solid var(--border-default); padding-top: var(--space-4); }
+.task-delegation > .btn-secondary { align-self: flex-start; }
+.task-delegation-heading { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.task-delegation-heading h4 { margin: 0; font-size: 14px; }
+.task-delegation-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-4); }
+.task-delegation-fields > div { min-width: 0; }
+.task-delegation-filter { width: auto; max-width: 100%; }
+.delegation-overdue { color: var(--status-error); }
+@media (max-width: 480px) { .task-delegation-fields { grid-template-columns: minmax(0,1fr); } }

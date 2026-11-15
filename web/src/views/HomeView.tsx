@@ -1,3 +1,4 @@
+import { followUpLabel, followUpDay, isFollowUpToday } from '../services/delegation';
 import { openExport, openImport } from '../services/transfer';
 import { TaskContext } from '../components/TaskContext';
 import { createSignal, createMemo, createEffect, onMount, onCleanup, For, Show } from 'solid-js';
@@ -126,10 +127,10 @@ export function HomeView(props: Props) {
     if (index < 0 || target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target]!, next[index]!]; saveLayout(next);
   };
-  const taskRows = (list: Task[], empty: string) => <Show when={list.length} fallback={<p class="dashboard-empty">{empty}</p>}>
+  const taskRows = (list: Task[], empty: string, mode?: 'daily' | 'delegated') => <Show when={list.length} fallback={<p class="dashboard-empty">{empty}</p>}>
     <ul class="dashboard-list"><For each={list}>{task => <li><button class="dashboard-task" aria-label={`Open task: ${task.title}`} aria-haspopup="dialog" onClick={() => setSelectedTask(task)}>
       <span class="dashboard-item-icon" aria-hidden="true"><ListTodo size={18} /></span>
-      <span class="dashboard-item-copy"><span class="dashboard-task-title">{task.title}</span><TaskContext task={task} /><span class="dashboard-task-context"><span>{context(task)}</span><span class="dashboard-task-status">{TASK_STATUS_OPTIONS.find(option => option.value === task.status)?.label || task.status}</span></span></span>
+      <span class="dashboard-item-copy"><span class="dashboard-task-title">{mode === 'daily' && isFollowUpToday(task, today()) ? 'Follow-up: ' : ''}{task.title}</span><TaskContext task={task} /><Show when={mode === 'delegated'}><span class={`task-context ${followUpDay(task) && followUpDay(task) < today() ? 'delegation-overdue' : ''}`}>{followUpLabel(task, today())}</span></Show><Show when={mode === 'daily' && isFollowUpToday(task, today())}><span class="task-context">{[task.due_date?.slice(0,10) === today() ? 'Deadline hari ini' : '', task.planned_date?.slice(0,10) === today() ? 'Direncanakan hari ini' : '', events().some(event => event.linked_task_id === task.id && overlapsDay(event, today(), zone())) ? 'Sesi Calendar hari ini' : ''].filter(Boolean).join(' · ')}</span></Show><span class="dashboard-task-context"><span>{context(task)}</span><span class="dashboard-task-status">{TASK_STATUS_OPTIONS.find(option => option.value === task.status)?.label || task.status}</span></span></span>
       <ChevronRight class="dashboard-item-chevron" size={17} aria-hidden="true" />
     </button></li>}</For></ul>
   </Show>;
@@ -155,7 +156,7 @@ export function HomeView(props: Props) {
         <Show when={layout().length} fallback={<div class="dashboard-empty"><h2>Make room for your day.</h2><p>Add a widget to build your Home.</p><button class="btn-secondary" onClick={() => setEditing(true)}>Add widgets</button></div>}>
           <div class="dashboard-grid"><For each={layout()}>{widget => {
             const definition = widgetCatalog.find(item => item.id === widget.id)!;
-            const count = () => widget.id === 'daily' ? lists().daily.length : widget.id === 'unscheduled' ? lists().unscheduled.length : widget.id === 'agenda' ? agenda().length : projects().length;
+            const count = () => widget.id === 'daily' ? lists().daily.length : widget.id === 'unscheduled' ? lists().unscheduled.length : widget.id === 'delegated' ? lists().delegated.length : widget.id === 'agenda' ? agenda().length : projects().length;
             const active = () => gesture()?.id === widget.id ? gesture() : null;
             return <section class={`dashboard-widget ${editing() ? 'dashboard-widget-editing' : ''} ${active()?.mode === 'move' ? 'dashboard-widget-dragging' : ''} ${dropTarget() === widget.id ? 'dashboard-widget-target' : ''}`} data-widget={widget.id} data-columns={active()?.mode === 'resize' ? active()!.columns : widget.columns} style={{ '--widget-columns': active()?.mode === 'resize' ? active()!.columns : widget.columns, height: `${active()?.mode === 'resize' ? active()!.height : widget.height}px`, transform: active()?.mode === 'move' ? `translate(${active()!.dx}px, ${active()!.dy}px)` : undefined }} aria-label={definition.title} tabindex={editing() ? 0 : undefined} aria-describedby={editing() ? 'dashboard-edit-help' : undefined} onPointerDown={event => beginGesture(event, widget, 'move')} onPointerMove={updateGesture} onPointerUp={finishGesture} onPointerCancel={cancelGesture} onLostPointerCapture={event => { if (event.target === pointer?.element) cancelGesture(); }} onKeyDown={event => {
               if (!editing() || event.target !== event.currentTarget) return;
@@ -176,7 +177,8 @@ export function HomeView(props: Props) {
                 </div></Show>
               </header>
               <div class="dashboard-widget-body" inert={editing()}>
-              <Show when={widget.id === 'daily'}>{taskRows(lists().daily, 'No open tasks planned, due, or scheduled for today.')}</Show>
+              <Show when={widget.id === 'daily'}>{taskRows(lists().daily, 'No open tasks planned, due, scheduled, or due for follow-up today.', 'daily')}</Show>
+              <Show when={widget.id === 'delegated'}>{taskRows(lists().delegated, 'Belum ada task aktif yang didelegasikan.', 'delegated')}</Show>
               <Show when={widget.id === 'unscheduled'}>{taskRows(lists().unscheduled, 'All open tasks have a date or calendar session.')}</Show>
               <Show when={widget.id === 'agenda'}><Show when={agenda().length} fallback={<p class="dashboard-empty">No calendar sessions today.</p>}><ul class="dashboard-list"><For each={agenda()}>{event => <li><button class="dashboard-task" aria-label={`Open calendar: ${event.title}`} onClick={() => props.onNavigate('calendar')}><span class="dashboard-item-icon" aria-hidden="true"><CalendarDays size={18} /></span><span class="dashboard-item-copy"><span class="dashboard-task-title">{event.title}</span><span class="dashboard-task-context">{event.is_all_day ? 'All day' : new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', timeZone: zone() }).format(new Date(event.start_at))}</span></span><ChevronRight class="dashboard-item-chevron" size={17} aria-hidden="true" /></button></li>}</For></ul></Show></Show>
               <Show when={widget.id === 'projects'}><Show when={projects().length} fallback={<p class="dashboard-empty">Your projects will appear here.</p>}><ul class="dashboard-list"><For each={projects()}>{project => <li><button class="dashboard-task" aria-label={`Open project: ${project.name}`} onClick={() => props.onNavigate('projects', project.space_id, project.id)}><span class="dashboard-item-icon" aria-hidden="true"><FolderKanban size={18} /></span><span class="dashboard-item-copy"><span class="dashboard-task-title">{project.name}</span><span class="dashboard-task-context">{spaces().find(space => space.id === project.space_id)?.name || 'Workspace'}</span></span><ChevronRight class="dashboard-item-chevron" size={17} aria-hidden="true" /></button></li>}</For></ul></Show></Show>

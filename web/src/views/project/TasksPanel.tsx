@@ -9,14 +9,14 @@ import {
   Trash2
 } from 'lucide-solid';
 import type { Component } from 'solid-js';
-import { For, Show } from 'solid-js';
+import { For, Show, createSignal } from 'solid-js';
 import { api } from '../../services/api';
 import type { ProjectController } from './useProjectController';
 export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
-  const ctx = props.ctx; return (<Show when={ctx.activeTab() === 'tasks'}>
+  const ctx = props.ctx; const [delegatedOnly, setDelegatedOnly] = createSignal(false); const visibleTasks = () => ctx.tasks().filter(task => !delegatedOnly() || !!task.delegated_to); return (<Show when={ctx.activeTab() === 'tasks'}>
     <div class="task-workspace context-panel" role="tabpanel" id="project-tasks-panel" aria-labelledby="project-tasks-tab" style={{ height: '100%', "overflow-y": 'auto', padding: "var(--space-6) var(--space-8)", "background-color": 'var(--surface)' }}>
       {/* Task View Mode Switcher & Actions Header */}
-      <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": "var(--space-5)" }}>
+      <div style={{ display: 'flex', "align-items": 'center', "justify-content": 'space-between', "margin-bottom": "var(--space-5)", "flex-wrap": 'wrap', gap: 'var(--space-3)' }}>
         <div class="segmented-control">
           <button type="button" onClick={() => ctx.setTaskViewMode('kanban')} class={`seg-btn ${ctx.taskViewMode() === 'kanban' ? 'active' : ''}`}>
             <Kanban size={13} />
@@ -28,7 +28,8 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
           </button>
         </div>
 
-        <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
+        <div style={{ display: 'flex', "align-items": 'center', gap: "var(--space-2)", "flex-wrap": 'wrap' }}>
+          <select class="modal-form-input task-delegation-filter" aria-label="Filter task" value={delegatedOnly() ? 'delegated' : 'all'} onChange={event => setDelegatedOnly(event.currentTarget.value === 'delegated')}><option value="all">Semua task</option><option value="delegated">Didelegasikan</option></select>
           <button type="button" class="btn-primary" onClick={() => ctx.handleOpenNewTaskModal('todo')} style={{ padding: "var(--space-2) var(--space-4)", "font-size": '13px', display: 'flex', "align-items": 'center', gap: "var(--space-2)" }}>
             <Plus size={14} />
             <span>New Task</span>
@@ -45,7 +46,7 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
             { key: 'in_review' as const, title: 'In Review', color: 'var(--tertiary)' },
             { key: 'done' as const, title: 'Done', color: 'var(--secondary)' }
           ].map(col => {
-            const colTasks = () => ctx.tasks().filter(t => t.status === col.key);
+            const colTasks = () => visibleTasks().filter(t => t.status === col.key);
             const isDragOver = () => ctx.dragOverCol() === col.key;
             return (<div onDragOver={(e) => ctx.handleColDragOver(e, col.key)} onDragLeave={() => ctx.handleColDragLeave(col.key)} onDrop={(e) => ctx.handleColDrop(e, col.key)} style={{
               padding: "var(--space-4)",
@@ -148,10 +149,10 @@ export const TasksPanel: Component<{ ctx: ProjectController }> = (props) => {
 
           {/* Task List Items */}
           <div style={{ display: 'flex', "flex-direction": 'column', gap: "var(--space-2)" }}>
-            <Show when={ctx.tasks().length > 0} fallback={<div style={{ padding: "var(--space-9)", "text-align": 'center', color: 'var(--text-dim)', "font-size": '13px', "border-radius": '8px', border: '1px dashed var(--border-default)' }}>
-              No tasks in this project yet. Click Add New Task to create one.
+            <Show when={visibleTasks().length > 0} fallback={<div style={{ padding: "var(--space-9)", "text-align": 'center', color: 'var(--text-dim)', "font-size": '13px', "border-radius": '8px', border: '1px dashed var(--border-default)' }}>
+              {delegatedOnly() ? 'Belum ada task yang didelegasikan di project ini.' : 'No tasks in this project yet. Click Add New Task to create one.'}
             </div>}>
-              <For each={ctx.tasks()}>
+              <For each={visibleTasks()}>
                 {(t) => {
                   const isDone = () => t.status === 'done';
                   return (<div style={{

@@ -1,9 +1,11 @@
+import { delegatedTasks, isFollowUpToday } from './delegation.ts';
 import type { Task, CalendarEvent } from './api';
 import { overlapsDay } from './calendarDates.ts';
 
 export const widgetCatalog = [
-  { id: 'daily', title: 'Daily tasks', description: 'Planned, due, or scheduled today.' },
+  { id: 'daily', title: 'Daily tasks', description: 'Planned, due, scheduled, or follow-up today.' },
   { id: 'unscheduled', title: 'Unscheduled tasks', description: 'Open tasks without a date or calendar session.' },
+  { id: 'delegated', title: 'Didelegasikan ke orang lain', description: 'Task yang didelegasikan, diurutkan berdasarkan follow-up.' },
   { id: 'agenda', title: 'Today’s schedule', description: 'Calendar sessions for today.' },
   { id: 'projects', title: 'Projects', description: 'Quick access to your projects.' },
 ] as const;
@@ -34,7 +36,8 @@ export function dashboardTasks(tasks: Task[], events: CalendarEvent[], today: st
   const linked = new Set(events.map(event => event.linked_task_id).filter(Boolean));
   const todayLinked = new Set(events.filter(event => overlapsDay(event, today, zone)).map(event => event.linked_task_id).filter(Boolean));
   return {
-    daily: open.filter(task => task.planned_date?.slice(0, 10) === today || task.due_date?.slice(0, 10) === today || todayLinked.has(task.id)),
+    daily: open.filter(task => task.planned_date?.slice(0, 10) === today || task.due_date?.slice(0, 10) === today || todayLinked.has(task.id) || isFollowUpToday(task, today)),
+    delegated: delegatedTasks(open),
     unscheduled: open.filter(task => !task.planned_date && !task.due_date && !linked.has(task.id)),
   };
 }

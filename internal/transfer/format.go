@@ -61,7 +61,7 @@ var columns = map[string][]string{
 	"projects":     {"id", "space_id", "name", "description", "status", "target_date", "kanban_columns"},
 	"documents":    {"id", "space_id", "project_id", "title", "doc_type", "content", "is_pinned"},
 	"note_boards":  {"id", "space_id", "project_id", "title", "viewport_state"},
-	"tasks":        {"id", "space_id", "project_id", "parent_task_id", "title", "description", "status", "priority", "due_date", "planned_date", "estimated_minutes", "auto_complete_subtasks", "completed_by_subtasks"},
+	"tasks":        {"id", "space_id", "project_id", "parent_task_id", "title", "description", "status", "priority", "due_date", "planned_date", "estimated_minutes", "auto_complete_subtasks", "completed_by_subtasks", "delegated_to", "follow_up_date", "delegation_note"},
 	"note_blocks":  {"id", "board_id", "type", "pos_x", "pos_y", "width", "height", "content"},
 	"events":       {"id", "space_id", "linked_task_id", "title", "description", "start_at", "end_at", "is_all_day"},
 	"inbox_notes":  {"id", "content", "color", "is_archived"},

@@ -34,6 +34,13 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
   const [childTitle, setChildTitle] = createSignal('');
   const [childBusy, setChildBusy] = createSignal(false);
   const [autoComplete, setAutoComplete] = createSignal(false);
+  const [delegating, setDelegating] = createSignal(false);
+  const [delegatedTo, setDelegatedTo] = createSignal('');
+  const [followUpDate, setFollowUpDate] = createSignal('');
+  const [delegationNote, setDelegationNote] = createSignal('');
+  let recipientInput: HTMLInputElement | undefined;
+  const hydrateDelegation = (task: Task | null) => { setDelegating(!!task?.delegated_to); setDelegatedTo(task?.delegated_to || ''); setFollowUpDate(task?.follow_up_date?.slice(0, 10) || ''); setDelegationNote(task?.delegation_note || ''); };
+  const clearDelegation = () => { setDelegating(false); setDelegatedTo(''); setFollowUpDate(''); setDelegationNote(''); };
   const [plannedDate, setPlannedDate] = createSignal('');
   let childInput: HTMLInputElement | undefined;
   let generation = 0;
@@ -54,7 +61,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
     if (props.isOpen) {
       setError('');
       setConfirmDelete(false);
-      untrack(() => { setActiveTask(sourceTask);
+      untrack(() => { setActiveTask(sourceTask); hydrateDelegation(sourceTask);
       setChildTitle(''); setChildren([]); setChildrenError('');
       if (props.taskToEdit) {
         setTitle(props.taskToEdit.title);
@@ -78,7 +85,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
 
   const loadChildren = async () => {
     const task = activeTask(); const ticket = ++generation;
-    if (!task) return;
+    if (!task) { setChildrenLoading(false); return; }
     setChildrenLoading(true); setChildrenError('');
     try {
       const items = await api.getTasks({ parent_task_id: task.id });
@@ -86,7 +93,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
     } catch (err) { if (ticket === generation) setChildrenError(err instanceof Error ? err.message : 'Subtask gagal dimuat.'); }
     finally { if (ticket === generation) setChildrenLoading(false); }
   };
-  const dirty = () => { const t = activeTask(); return !!t && (title() !== t.title || description() !== (t.description || '') || status() !== t.status || priority() !== t.priority || dueDate() !== (t.due_date?.slice(0,10) || '') || plannedDate() !== (t.planned_date?.slice(0,10) || '') || autoComplete() !== !!t.auto_complete_subtasks); };
+  const dirty = () => { const t = activeTask(); return !!t && (title() !== t.title || description() !== (t.description || '') || status() !== t.status || priority() !== t.priority || dueDate() !== (t.due_date?.slice(0,10) || '') || plannedDate() !== (t.planned_date?.slice(0,10) || '') || autoComplete() !== !!t.auto_complete_subtasks || delegating() !== !!t.delegated_to || delegatedTo() !== (t.delegated_to || '') || followUpDate() !== (t.follow_up_date?.slice(0,10) || '') || delegationNote() !== (t.delegation_note || '')); };
   const openTask = async (id: string) => {
     if (childBusy() || loading()) return;
     if ((dirty() || childTitle().trim()) && !window.confirm('Perubahan belum disimpan. Buang perubahan dan buka task lain?')) return;
@@ -95,7 +102,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
     try {
       const task = await api.getTask(id);
       if (ticket !== generation) return;
-      setActiveTask(task); setTitle(task.title); setDescription(task.description || ''); setStatus(task.status); setPriority(task.priority);
+      setActiveTask(task); hydrateDelegation(task); setTitle(task.title); setDescription(task.description || ''); setStatus(task.status); setPriority(task.priority);
       setDueDate(task.due_date?.slice(0,10) || ''); setPlannedDate(task.planned_date?.slice(0,10) || ''); setAutoComplete(!!task.auto_complete_subtasks); setConfirmDelete(false); setChildTitle(''); setChildren([]);
       await loadChildren();
     } catch (err) { if (ticket === generation) setError(err instanceof Error ? err.message : 'Task gagal dibuka.'); }
@@ -107,7 +114,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
     const updated = await api.getTask(task.id);
     if (ticket !== generation) return;
     // Do not bless a newer version if unrelated edits could overwrite another tab.
-    const fields = ['title', 'description', 'priority', 'due_date', 'planned_date', 'auto_complete_subtasks'] as const;
+    const fields = ['title', 'description', 'priority', 'due_date', 'planned_date', 'auto_complete_subtasks', 'delegated_to', 'follow_up_date', 'delegation_note'] as const;
     if (fields.some(key => updated[key] !== task[key])) throw new Error('Task berubah di tempat lain. Tutup dan buka kembali sebelum menyimpan detail. Perubahan subtask sudah tersimpan.');
     if (status() === task.status) setStatus(updated.status);
     setActiveTask(updated);
@@ -137,7 +144,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
     setChildBusy(true); setError('');
     try {
       const updated = await api.updateTask(task.id, { parent_task_id: null, expected_updated_at: task.updated_at });
-      setActiveTask(updated); setTitle(updated.title); setDescription(updated.description || ''); setStatus(updated.status); setPriority(updated.priority); setDueDate(updated.due_date?.slice(0,10) || ''); setPlannedDate(updated.planned_date?.slice(0,10) || ''); setAutoComplete(!!updated.auto_complete_subtasks);
+      setActiveTask(updated); hydrateDelegation(updated); setTitle(updated.title); setDescription(updated.description || ''); setStatus(updated.status); setPriority(updated.priority); setDueDate(updated.due_date?.slice(0,10) || ''); setPlannedDate(updated.planned_date?.slice(0,10) || ''); setAutoComplete(!!updated.auto_complete_subtasks);
       await loadChildren();
     } catch (err) { setError(err instanceof Error ? err.message : 'Subtask gagal dilepas.'); }
     finally { setChildBusy(false); }
@@ -152,6 +159,7 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
       return;
     }
 
+    if (delegating() && !delegatedTo().trim()) { setError('Isi nama penanggung jawab.'); recipientInput?.focus(); return; }
     setLoading(true);
     setError('');
 
@@ -159,6 +167,9 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
       if (activeTask()) {
         const updated = await api.updateTask(activeTask()!.id, {
           expected_updated_at: activeTask()!.updated_at,
+          delegated_to: delegating() ? delegatedTo().trim() : null,
+          follow_up_date: delegating() && followUpDate() ? followUpDate() : null,
+          delegation_note: delegating() && delegationNote().trim() ? delegationNote().trim() : null,
           title: trimmedTitle,
           description: description().trim() || null,
           planned_date: plannedDate() || null,
@@ -358,6 +369,14 @@ export const TaskModal: Component<TaskModalProps> = (props) => {
                 />
               </div>
 
+              <section class="task-delegation" aria-label="Delegasi task">
+                <Show when={!delegating()} fallback={<>
+                  <div class="task-delegation-heading"><h4>Delegasi</h4><button type="button" class="task-parent-link" disabled={loading() || childBusy()} onClick={clearDelegation}>Cabut delegasi</button></div>
+                  <div class="task-delegation-fields"><div><label class="modal-form-label" for="task-delegated-to">Penanggung jawab</label><input id="task-delegated-to" ref={recipientInput} class="modal-form-input" maxlength={255} value={delegatedTo()} placeholder="Nama rekan, vendor, atau klien" onInput={event => setDelegatedTo(event.currentTarget.value)} disabled={loading() || childBusy()} /></div>
+                  <div><label class="modal-form-label" for="task-follow-up-date">Tanggal follow-up (opsional)</label><input id="task-follow-up-date" class="modal-form-input" type="date" value={followUpDate()} onInput={event => setFollowUpDate(event.currentTarget.value)} disabled={loading() || childBusy()} /></div></div>
+                  <div><label class="modal-form-label" for="task-delegation-note">Catatan delegasi (opsional)</label><textarea id="task-delegation-note" class="modal-form-input" rows={2} maxlength={4000} value={delegationNote()} placeholder="Apa yang sedang ditunggu?" onInput={event => setDelegationNote(event.currentTarget.value)} disabled={loading() || childBusy()} /></div>
+                </>}><button type="button" class="btn-secondary" disabled={loading() || childBusy()} onClick={() => { setDelegating(true); queueMicrotask(() => recipientInput?.focus()); }}>Delegasikan</button></Show>
+              </section>
               <Show when={activeTask() && (!activeTask()?.parent_task_id || children().length > 0)}>
                 <section class="task-subtasks" aria-label="Subtask">
                   <div class="task-subtasks-heading"><h4>Subtask</h4><span aria-live="polite">{children().filter(t => t.status === 'done').length} dari {children().filter(t => t.status !== 'cancelled').length} selesai</span></div>

@@ -63,7 +63,7 @@ async function connect(page, state) {
     } else if (Array.isArray(state[table])) {
       let rows = state[table];
       if (method === 'GET') { data = id ? rows.find(row => row.id === id) : rows.filter(row => !['space_id', 'project_id', 'parent_task_id'].some(key => url.searchParams.has(key) && row[key] !== url.searchParams.get(key))); }
-      else if (method === 'POST') { data = { ...(table === 'tasks' ? { status: 'todo', priority: 'medium' } : {}), ...payload, id: crypto.randomUUID(), workspace_id: ws, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }; rows.push(data); }
+      else if (method === 'POST') { data = { ...(table === 'tasks' ? { status: 'todo', priority: 'medium' } : {}), ...payload, id: crypto.randomUUID(), workspace_id: ws, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }; if (table === 'tasks' && payload.parent_task_id) data.parent_title = rows.find(row => row.id === payload.parent_task_id)?.title; rows.push(data); }
       else { data = rows.find(row => row.id === id); if (method === 'PUT' || method === 'PATCH') Object.assign(data, payload, { updated_at: new Date(Date.now() + (state.versionCounter = (state.versionCounter || 0) + 1)).toISOString() }); if (method === 'DELETE') state[table] = rows.filter(row => row.id !== id); }
     } else data = [];
     if (method !== 'GET') state.writes.push({ endpoint, method, payload });

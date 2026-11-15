@@ -8,6 +8,9 @@ import (
 )
 
 type Task struct {
+	DelegatedTo          *string    `json:"delegated_to,omitempty"`
+	FollowUpDate         *time.Time `json:"follow_up_date,omitempty"`
+	DelegationNote       *string    `json:"delegation_note,omitempty"`
 	AutoCompleteSubtasks bool       `json:"auto_complete_subtasks"`
 	ParentTitle          *string    `json:"parent_title,omitempty"`
 	SubtaskCount         int        `json:"subtask_count"`
@@ -31,6 +34,9 @@ type Task struct {
 }
 
 type CreateTaskRequest struct {
+	DelegatedTo          *string    `json:"delegated_to,omitempty"`
+	FollowUpDate         *string    `json:"follow_up_date,omitempty"`
+	DelegationNote       *string    `json:"delegation_note,omitempty"`
 	AutoCompleteSubtasks bool       `json:"auto_complete_subtasks"`
 	SpaceID              uuid.UUID  `json:"space_id"`
 	ProjectID            *uuid.UUID `json:"project_id,omitempty"`
@@ -45,6 +51,9 @@ type CreateTaskRequest struct {
 }
 
 type UpdateTaskRequest struct {
+	DelegatedTo          httputil.Optional[string]    `json:"delegated_to,omitempty"`
+	FollowUpDate         httputil.Optional[string]    `json:"follow_up_date,omitempty"`
+	DelegationNote       httputil.Optional[string]    `json:"delegation_note,omitempty"`
 	AutoCompleteSubtasks *bool                        `json:"auto_complete_subtasks,omitempty"`
 	ExpectedUpdatedAt    *time.Time                   `json:"expected_updated_at,omitempty"`
 	SpaceID              *uuid.UUID                   `json:"space_id,omitempty"`

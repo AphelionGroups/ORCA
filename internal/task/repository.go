@@ -14,6 +14,7 @@ import (
 )
 
 type ListFilter struct {
+	Delegated    *bool
 	ParentTaskID *uuid.UUID
 	SpaceID      *uuid.UUID
 	ProjectID    *uuid.UUID
@@ -33,7 +34,7 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 func (r *Repository) List(ctx context.Context, workspaceID uuid.UUID, filter ListFilter) ([]Task, error) {
 	query := `
 		SELECT id, workspace_id, space_id, project_id, parent_task_id, title, description,
-		       status, priority, due_date, planned_date, estimated_minutes, created_at, updated_at, auto_complete_subtasks,
+		       status, priority, due_date, planned_date, estimated_minutes, created_at, updated_at, auto_complete_subtasks, delegated_to, follow_up_date, delegation_note,
  (SELECT title FROM tasks parent WHERE parent.workspace_id=tasks.workspace_id AND parent.id=tasks.parent_task_id AND parent.deleted_at IS NULL),
  (SELECT count(*) FROM tasks child WHERE child.workspace_id=tasks.workspace_id AND child.parent_task_id=tasks.id AND child.deleted_at IS NULL AND child.status<>'cancelled'),
  (SELECT count(*) FROM tasks child WHERE child.workspace_id=tasks.workspace_id AND child.parent_task_id=tasks.id AND child.deleted_at IS NULL AND child.status='done'),
@@ -69,6 +70,13 @@ func (r *Repository) List(ctx context.Context, workspaceID uuid.UUID, filter Lis
 		argIdx++
 	}
 
+	if filter.Delegated != nil {
+		if *filter.Delegated {
+			query += " AND delegated_to IS NOT NULL"
+		} else {
+			query += " AND delegated_to IS NULL"
+		}
+	}
 	if filter.Status != "" {
 		query += fmt.Sprintf(" AND status = $%d", argIdx)
 		args = append(args, filter.Status)
@@ -88,7 +96,7 @@ func (r *Repository) List(ctx context.Context, workspaceID uuid.UUID, filter Lis
 		var t Task
 		err := rows.Scan(
 			&t.ID, &t.WorkspaceID, &t.SpaceID, &t.ProjectID, &t.ParentTaskID, &t.Title, &t.Description,
-			&t.Status, &t.Priority, &t.DueDate, &t.PlannedDate, &t.EstimatedMinutes, &t.CreatedAt, &t.UpdatedAt, &t.AutoCompleteSubtasks, &t.ParentTitle, &t.SubtaskCount, &t.SubtaskDone, &t.DescendantCount,
+			&t.Status, &t.Priority, &t.DueDate, &t.PlannedDate, &t.EstimatedMinutes, &t.CreatedAt, &t.UpdatedAt, &t.AutoCompleteSubtasks, &t.DelegatedTo, &t.FollowUpDate, &t.DelegationNote, &t.ParentTitle, &t.SubtaskCount, &t.SubtaskDone, &t.DescendantCount,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("task.List scan: %w", err)
@@ -101,7 +109,7 @@ func (r *Repository) List(ctx context.Context, workspaceID uuid.UUID, filter Lis
 func (r *Repository) GetByID(ctx context.Context, workspaceID, id uuid.UUID) (*Task, error) {
 	query := `
 		SELECT id, workspace_id, space_id, project_id, parent_task_id, title, description,
-		       status, priority, due_date, planned_date, estimated_minutes, created_at, updated_at, auto_complete_subtasks,
+		       status, priority, due_date, planned_date, estimated_minutes, created_at, updated_at, auto_complete_subtasks, delegated_to, follow_up_date, delegation_note,
  (SELECT title FROM tasks parent WHERE parent.workspace_id=tasks.workspace_id AND parent.id=tasks.parent_task_id AND parent.deleted_at IS NULL),
  (SELECT count(*) FROM tasks child WHERE child.workspace_id=tasks.workspace_id AND child.parent_task_id=tasks.id AND child.deleted_at IS NULL AND child.status<>'cancelled'),
  (SELECT count(*) FROM tasks child WHERE child.workspace_id=tasks.workspace_id AND child.parent_task_id=tasks.id AND child.deleted_at IS NULL AND child.status='done'),
@@ -112,7 +120,7 @@ func (r *Repository) GetByID(ctx context.Context, workspaceID, id uuid.UUID) (*T
 	var t Task
 	err := r.pool.QueryRow(ctx, query, workspaceID, id).Scan(
 		&t.ID, &t.WorkspaceID, &t.SpaceID, &t.ProjectID, &t.ParentTaskID, &t.Title, &t.Description,
-		&t.Status, &t.Priority, &t.DueDate, &t.PlannedDate, &t.EstimatedMinutes, &t.CreatedAt, &t.UpdatedAt, &t.AutoCompleteSubtasks, &t.ParentTitle, &t.SubtaskCount, &t.SubtaskDone, &t.DescendantCount,
+		&t.Status, &t.Priority, &t.DueDate, &t.PlannedDate, &t.EstimatedMinutes, &t.CreatedAt, &t.UpdatedAt, &t.AutoCompleteSubtasks, &t.DelegatedTo, &t.FollowUpDate, &t.DelegationNote, &t.ParentTitle, &t.SubtaskCount, &t.SubtaskDone, &t.DescendantCount,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -124,6 +132,9 @@ func (r *Repository) GetByID(ctx context.Context, workspaceID, id uuid.UUID) (*T
 }
 
 func (r *Repository) Create(ctx context.Context, t *Task) error {
+	if err := NormalizeDelegation(t); err != nil {
+		return err
+	}
 	if t.ID == uuid.Nil {
 		newID, err := uuid.NewV7()
 		if err != nil {
@@ -144,12 +155,12 @@ func (r *Repository) Create(ctx context.Context, t *Task) error {
 
 	query := `
 		INSERT INTO tasks (id, workspace_id, space_id, project_id, parent_task_id, title, description,
-		                  status, priority, due_date, planned_date, estimated_minutes, created_at, updated_at, auto_complete_subtasks)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		                  status, priority, due_date, planned_date, estimated_minutes, created_at, updated_at, auto_complete_subtasks, delegated_to, follow_up_date, delegation_note)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 	`
 	_, err := r.mutate(ctx, t.WorkspaceID, query,
 		t.ID, t.WorkspaceID, t.SpaceID, t.ProjectID, t.ParentTaskID, t.Title, t.Description,
-		t.Status, t.Priority, t.DueDate, t.PlannedDate, t.EstimatedMinutes, t.CreatedAt, t.UpdatedAt, t.AutoCompleteSubtasks,
+		t.Status, t.Priority, t.DueDate, t.PlannedDate, t.EstimatedMinutes, t.CreatedAt, t.UpdatedAt, t.AutoCompleteSubtasks, t.DelegatedTo, t.FollowUpDate, t.DelegationNote,
 	)
 	if err != nil {
 		return fmt.Errorf("task.Create exec: %w", err)
@@ -166,17 +177,20 @@ func (r *Repository) Create(ctx context.Context, t *Task) error {
 }
 
 func (r *Repository) Update(ctx context.Context, t *Task) error {
+	if err := NormalizeDelegation(t); err != nil {
+		return err
+	}
 	previousUpdatedAt := t.UpdatedAt
 	t.UpdatedAt = time.Now().UTC().Truncate(time.Microsecond)
 	query := `
 		UPDATE tasks
 		SET space_id = $1, project_id = $2, parent_task_id = $3, title = $4, description = $5,
-		    status = $6, priority = $7, due_date = $8, planned_date = $9, estimated_minutes = $10, updated_at = $11, auto_complete_subtasks = $15
+		    status = $6, priority = $7, due_date = $8, planned_date = $9, estimated_minutes = $10, updated_at = $11, auto_complete_subtasks = $15, delegated_to = $16, follow_up_date = $17, delegation_note = $18
 		WHERE workspace_id = $12 AND id = $13 AND deleted_at IS NULL AND updated_at = $14
 	`
 	res, err := r.mutate(ctx, t.WorkspaceID, query,
 		t.SpaceID, t.ProjectID, t.ParentTaskID, t.Title, t.Description,
-		t.Status, t.Priority, t.DueDate, t.PlannedDate, t.EstimatedMinutes, t.UpdatedAt, t.WorkspaceID, t.ID, previousUpdatedAt, t.AutoCompleteSubtasks,
+		t.Status, t.Priority, t.DueDate, t.PlannedDate, t.EstimatedMinutes, t.UpdatedAt, t.WorkspaceID, t.ID, previousUpdatedAt, t.AutoCompleteSubtasks, t.DelegatedTo, t.FollowUpDate, t.DelegationNote,
 	)
 	if err != nil {
 		return fmt.Errorf("task.Update exec: %w", err)
